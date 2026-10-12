@@ -9,7 +9,7 @@ use std::{
         Arc, Mutex,
     },
 };
-use tauri::{Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
+use tauri::{Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 struct Bounds {
@@ -103,6 +103,8 @@ pub fn restore(w: &WebviewWindow) -> Result<(), String> {
     let mut r = manager.get(w);
     r.collapsed = false;
     manager.put(w, r.clone());
+    w.set_min_size(Some(LogicalSize::new(360., 480.)))
+        .map_err(|e| e.to_string())?;
     if let Some(b) = r.expanded {
         apply(w, b)?;
     }
@@ -178,7 +180,7 @@ pub fn expand(w: &WebviewWindow) -> Result<(), String> {
     r.collapsed = false;
     r.expanded = Some(b);
     manager.put(w, r.clone());
-    w.set_min_size(Some(PhysicalSize::new(1, 1)))
+    w.set_min_size(Some(LogicalSize::new(360., 480.)))
         .map_err(|e| e.to_string())?;
     w.set_decorations(true).map_err(|e| e.to_string())?;
     w.set_resizable(true).map_err(|e| e.to_string())?;

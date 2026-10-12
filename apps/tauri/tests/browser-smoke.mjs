@@ -21,7 +21,7 @@ if (!uiUrl) {
 const browser = await chromium.launch({ headless: true });
 await mkdir('artifacts/tauri-frontend', { recursive: true });
 try {
-    for (const viewport of [{ width: 360, height: 720 }, { width: 390, height: 844 }, { width: 1024, height: 768 }]) {
+    for (const viewport of [{ width: 320, height: 640 }, { width: 360, height: 720 }, { width: 390, height: 844 }, { width: 1024, height: 768 }]) {
         const page = await browser.newPage({ viewport, ...(viewport.width < 600 ? { userAgent: 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36' } : {}) });
         const errors = [];
         page.on('pageerror', e => errors.push(e.message));
@@ -39,10 +39,32 @@ try {
                 return { cacheBytes: 1024, fileCount: 1 }; return {}; }, async native(command) { if(command==='native_thumbnail')return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jv1sAAAAASUVORK5CYII=';if (command === 'native_pick_files')
                 return [{ path: '/tmp/first.txt', name: 'first.txt', size: 1 }, { path: '/tmp/second.txt', name: 'second.txt', size: 2 }]; return []; }, async subscribe(fn) { handler = fn; window.__emit = fn; return () => { }; } }; });
         await page.goto(uiUrl);
+        if (viewport.width < 600) {
+            await page.locator('body[data-view="groups"]').waitFor();
+            await page.getByRole('button', { name:'我的文件', exact:true }).click();
+        }
         await page.locator('.message').first().waitFor();
         assert.equal(await page.locator('.message').count(), 60);
+        await page.locator('#groups-button').click();
+        await page.getByRole('button', { name:'创建群组', exact:true }).click();
+        const groupName = page.getByLabel('群组名称', { exact:true });
+        await groupName.fill('');
+        await page.getByRole('button', { name:'创建', exact:true }).click();
+        await page.locator('.panel-error').waitFor();
+        assert.equal(await groupName.getAttribute('aria-invalid'), 'true');
+        assert.equal(await page.evaluate(() => window.__calls.filter(c=>c.method==='create_group').length), 0, 'blank group name never reaches backend');
+        await page.keyboard.press('Escape');
+        await page.waitForFunction(() => !document.querySelector('#panel').open);
+        assert.equal(await page.locator('#groups-button').evaluate(node=>node===document.activeElement), true, 'Escape restores original trigger focus');
         await page.evaluate(() => { window.__first = document.querySelector('.message'); });
         await page.locator('#message-input').fill('测试草稿');
+        const composer = await page.locator('#composer').evaluate(form => {
+            const rect = element => { const r = element.getBoundingClientRect(); return { x:r.x, right:r.right, top:r.top, bottom:r.bottom, height:r.height }; };
+            return { form:rect(form), controls:['choose-file','message-input','send-text'].map(id => rect(document.getElementById(id))) };
+        });
+        assert.ok(Math.max(...composer.controls.map(r=>r.top)) < Math.min(...composer.controls.map(r=>r.bottom)), 'attachment, message and send share one row');
+        assert.ok(composer.controls.every(r=>r.x>=composer.form.x && r.right<=composer.form.right), 'composer controls fit narrow width');
+        assert.ok(composer.form.height < 90, 'composer leaves room for conversation');
         assert.equal(await page.evaluate(() => window.__first === document.querySelector('.message')), true, 'typing preserves row identity');
         await page.evaluate(() => window.__emit({ type: 'state', groupId: 'g1' }));
         await page.waitForTimeout(250);
@@ -69,17 +91,33 @@ try {
         await page.locator('#groups-button').click();
         await page.getByRole('button', { name: '另一个群', exact: true }).click();
         await page.waitForTimeout(750);
-        assert.deepEqual(await page.evaluate(() => window.__calls.filter(c => c.method === 'send_file').map(c => c.params.groupId)), ['g1', 'g1'], 'file batch destination survives group switch');await page.locator('#choose-file').click();await page.locator('.file-draft').first().waitFor();await page.locator('#send-text').click();const cancel=page.getByRole('button',{name:'取消传输'}).first();await cancel.waitFor();const cancelledId=await cancel.locator('..').getAttribute('data-transfer-id');await cancel.click();await page.waitForTimeout(750);const cancelledRow=page.locator(`[data-transfer-id="${cancelledId}"]`);await cancelledRow.getByRole('button',{name:'重试'}).click();await page.waitForTimeout(350);assert.equal(await page.locator(`[data-transfer-id="${cancelledId}"]`).count(),1,'retry reuses transfer queue id');assert.deepEqual(await page.evaluate(id=>window.__calls.filter(c=>c.method==='send_file'&&c.params.transferId===id).map(c=>c.params.groupId),cancelledId),['g2','g2'],'cancelled retry retains target');await page.locator('#message-input').fill('保留草稿');await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:888,membershipRevoked:true,messages:[],devices:[]}}));assert.equal(await page.locator('#send-text').isDisabled(),true);assert.equal(await page.locator('#message-input').inputValue(),'保留草稿');assert.equal(await page.locator('#membership-notice').isVisible(),true);await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:889,membershipRevoked:false,messages:[],devices:[]}}));
-        await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});await page.waitForTimeout(20);const paused=await page.evaluate(()=>window.__calls.filter(c=>c.method==='set_active'&&c.params.active===false).length);assert.equal(paused,viewport.width<600?1:0,'only mobile visibility pauses service');await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});document.dispatchEvent(new Event('visibilitychange'));});await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:950,messages:[{id:'file-first',type:'file',fileName:'first.png',size:1,sequence:1000},{id:'file-middle',type:'file',fileName:'middle.png',size:1,sequence:1001},{id:'file-last',type:'file',fileName:'last.png',size:1,sequence:1002}],devices:[],history:{hasMore:false}}}));await page.locator('#files-tab').click();for(const id of ['file-first','file-middle','file-last']){const row=page.locator(`[data-message-id="${id}"]`);await row.getByRole('button',{name:'接收文件',exact:true}).click();await row.getByRole('button',{name:'另存为',exact:true}).waitFor();assert.equal(await row.locator('.thumbnail').count(),1);assert.equal(await row.count(),1);}assert.equal(await page.locator('.message').count(),3,'receiving replaces first/middle/last rows without duplicating');assert.equal(await page.locator('#toast').isVisible(),false,'caught UI errors must not be hidden in toast');await page.locator('#all-tab').click();await page.locator('#invite-button').click();
+        assert.deepEqual(await page.evaluate(() => window.__calls.filter(c => c.method === 'send_file').map(c => c.params.groupId)), ['g1', 'g1'], 'file batch destination survives group switch');await page.locator('#choose-file').click();await page.locator('.file-draft').first().waitFor();await page.locator('#send-text').click();await page.locator('#transfer-summary').click();const cancel=page.getByRole('button',{name:'取消传输'}).first();await cancel.waitFor();const cancelledId=await cancel.locator('..').getAttribute('data-transfer-id');await cancel.click();await page.waitForTimeout(750);const cancelledRow=page.locator(`[data-transfer-id="${cancelledId}"]`);await cancelledRow.getByRole('button',{name:'重试'}).click();await page.waitForTimeout(350);assert.equal(await page.locator(`[data-transfer-id="${cancelledId}"]`).count(),1,'retry reuses transfer queue id');assert.deepEqual(await page.evaluate(id=>window.__calls.filter(c=>c.method==='send_file'&&c.params.transferId===id).map(c=>c.params.groupId),cancelledId),['g2','g2'],'cancelled retry retains target');await page.locator('#close-panel').click();await page.locator('#message-input').fill('保留草稿');await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:888,membershipRevoked:true,messages:[],devices:[]}}));assert.equal(await page.locator('#send-text').isDisabled(),true);assert.equal(await page.locator('#message-input').inputValue(),'保留草稿');assert.equal(await page.locator('#membership-notice').isVisible(),true);await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:889,membershipRevoked:false,messages:[],devices:[]}}));
+        await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});await page.waitForTimeout(20);const paused=await page.evaluate(()=>window.__calls.filter(c=>c.method==='set_active'&&c.params.active===false).length);assert.equal(paused,viewport.width<600?1:0,'only mobile visibility pauses service');await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});document.dispatchEvent(new Event('visibilitychange'));});await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:950,messages:[{id:'file-first',type:'file',fileName:'first.png',size:1,sequence:1000},{id:'file-middle',type:'file',fileName:'middle.png',size:1,sequence:1001},{id:'file-last',type:'file',fileName:'last.png',size:1,sequence:1002}],devices:[],history:{hasMore:false}}}));await page.locator('#files-tab').click();for(const id of ['file-first','file-middle','file-last']){const row=page.locator(`[data-message-id="${id}"]`);await row.getByRole('button',{name:'接收文件',exact:true}).click();await row.getByRole('button',{name:'保存',exact:true}).waitFor();await row.getByRole('button',{name:'更多',exact:true}).click();await page.getByRole('button',{name:'另存为',exact:true}).waitFor();await page.locator('#close-panel').click();assert.equal(await row.locator('.thumbnail').count(),1);assert.equal(await row.count(),1);}assert.equal(await page.locator('.message').count(),3,'receiving replaces first/middle/last rows without duplicating');assert.equal(await page.locator('#toast').isVisible(),false,'caught UI errors must not be hidden in toast: '+await page.locator('#toast').innerText());await page.locator('#all-tab').click();await page.locator('#invite-button').click();
         await page.locator('.qr').waitFor();
         assert.match(await page.locator('.qr').getAttribute('src'), /^data:image\/png/);
         await page.locator('#close-panel').click();
+        if (viewport.width < 600) {
+            await page.locator('#message-input').fill('返回后仍在的草稿');
+            await page.locator('#chat-back').click();
+            await page.locator('body[data-view="groups"]').waitFor();
+            await page.locator('#mobile-transfers').click();
+            assert.equal(await page.locator('#mobile-transfers').getAttribute('aria-current'), 'page');
+            assert.equal(await page.locator('#queue').isVisible(), true, 'mobile transfer tab displays completed and cancelled tasks');
+            await page.screenshot({path:`artifacts/tauri-frontend/${viewport.width}-transfers.png`,fullPage:true});
+            await page.locator('#mobile-profile').click();
+            assert.equal(await page.locator('#mobile-profile').getAttribute('aria-current'), 'page');
+            await page.screenshot({path:`artifacts/tauri-frontend/${viewport.width}-profile.png`,fullPage:true});
+            await page.locator('#mobile-groups').click();
+            await page.screenshot({path:`artifacts/tauri-frontend/${viewport.width}-groups.png`,fullPage:true});
+            await page.getByRole('button',{name:'另一个群',exact:true}).click();
+            assert.equal(await page.locator('#message-input').inputValue(), '返回后仍在的草稿', 'mobile navigation preserves per-group draft');
+        }
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'no horizontal overflow');
         await page.screenshot({ path: `artifacts/tauri-frontend/${viewport.width}.png`, fullPage: true });
         assert.deepEqual(errors, []);
         await page.close();
     }
-    console.log('Responsive frontend smoke passed: 360px, 390px, 1024px; history paging, draft confirmation, target locking, cancel/retry, membership revocation, desktop background service, QR.');
+    console.log('Responsive frontend smoke passed: 320px, 360px, 390px, 1024px; single-row composer, history paging, draft confirmation, target locking, cancel/retry, membership revocation, desktop background service, QR.');
 }
 finally {
     await browser.close();

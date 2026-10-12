@@ -499,7 +499,8 @@ async fn window_action(
                 tauri::WebviewUrl::App("index.html".into()),
             )
             .title("拾传 Preview")
-            .inner_size(800., 640.)
+            .inner_size(440., 720.)
+            .min_inner_size(360., 480.)
             .build()
             .map_err(|e| e.to_string())?;
             Ok(())
