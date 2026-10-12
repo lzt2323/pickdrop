@@ -61,6 +61,8 @@ jobs:
       - run: rustup toolchain install 1.99.0 --profile minimal
       - run: pnpm install --frozen-lockfile
       - run: pnpm tauri:build
+      - name: Verify native file scopes on the packaged platform
+        run: cargo test --release --locked -p pickdrop-tauri --lib --features tauri/custom-protocol
       - name: Verify macOS application signing
         if: runner.os == 'macOS'
         run: codesign --verify --deep --strict target/release/bundle/macos/*.app

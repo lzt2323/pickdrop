@@ -61,3 +61,9 @@ Xcode and real-device validation.
 desktop debug-only runtime smoke. It uses a separate data directory, checks real
 native pinning, edge collapse/expand, hide/show and multiple windows, emits a core
 event and exits with a JSON report. The hook is excluded from release builds.
+
+Windows preview releases use NSIS installers via `tauri.windows.conf.json`.
+WiX MSI rejects the textual `alpha.1` prerelease identifier; NSIS retains the
+shared semantic version without inventing a separate application version.
+The native Windows executable compiled successfully in CI before that MSI-only
+packaging failure.

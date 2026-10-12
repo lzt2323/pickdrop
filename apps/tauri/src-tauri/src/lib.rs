@@ -32,18 +32,17 @@ impl Host {
         Ok(path)
     }
     fn permitted(&self, path: &str) -> Result<PathBuf, String> {
-        let path = Path::new(path).canonicalize().map_err(|e| e.to_string())?;
-        if self
-            .files
-            .lock()
-            .map_err(|e| e.to_string())?
-            .contains(&path)
-            || path.starts_with(&self.data)
-        {
-            Ok(path)
-        } else {
-            Err("请先通过文件选择器选择该文件".into())
-        }
+        let files = self.files.lock().map_err(|e| e.to_string())?;
+        permitted_path(&self.data, &files, path)
+    }
+}
+
+fn permitted_path(data: &Path, approved: &HashSet<PathBuf>, path: &str) -> Result<PathBuf, String> {
+    let path = Path::new(path).canonicalize().map_err(|e| e.to_string())?;
+    if approved.contains(&path) || path.starts_with(data) {
+        Ok(path)
+    } else {
+        Err("请先通过文件选择器选择该文件".into())
     }
 }
 
@@ -543,6 +542,9 @@ pub fn run() {
                 .map(|p| PathBuf::from(p).with_extension("data"))
                 .unwrap_or(data);
             std::fs::create_dir_all(&data)?;
+            // Compare paths in the same namespace: Windows canonical paths use
+            // the extended-length prefix, and mobile data dirs can be aliases.
+            let data = data.canonicalize()?;
             let kind = if cfg!(mobile) { "mobile" } else { "desktop" };
             let core = tauri::async_runtime::block_on(Core::open(data.clone(), kind))?;
             let mut events = core.subscribe();
@@ -647,5 +649,37 @@ mod tests {
         assert_eq!(safe_export_name("CON.jpg"), "_CON.jpg");
         assert_eq!(safe_export_name("a:b?.png"), "a_b_.png");
         assert_eq!(safe_export_name(".."), "文件");
+    }
+    #[test]
+    fn downloaded_cache_is_approved_without_picker_and_outside_is_denied() {
+        let temporary = tempfile::tempdir().unwrap();
+        let app_data = temporary.path().join("preview-data");
+        let cache = app_data.join("cache");
+        std::fs::create_dir_all(&cache).unwrap();
+        let downloaded = cache.join("sha256-object");
+        std::fs::write(&downloaded, b"received bytes").unwrap();
+        let outside = temporary.path().join("private.txt");
+        std::fs::write(&outside, b"outside bytes").unwrap();
+        let data = app_data.canonicalize().unwrap();
+        let approved = std::collections::HashSet::new();
+        assert_eq!(
+            super::permitted_path(&data, &approved, &downloaded.to_string_lossy()).unwrap(),
+            downloaded.canonicalize().unwrap()
+        );
+        assert!(super::permitted_path(&data, &approved, &outside.to_string_lossy()).is_err());
+        #[cfg(unix)]
+        {
+            let alias = cache.join("outside-alias");
+            std::os::unix::fs::symlink(&outside, &alias).unwrap();
+            assert!(super::permitted_path(&data, &approved, &alias.to_string_lossy()).is_err());
+            let app_alias = temporary.path().join("android-data-alias");
+            std::os::unix::fs::symlink(&app_data, &app_alias).unwrap();
+            assert!(super::permitted_path(
+                &app_alias.canonicalize().unwrap(),
+                &approved,
+                &downloaded.to_string_lossy()
+            )
+            .is_ok());
+        }
     }
 }
