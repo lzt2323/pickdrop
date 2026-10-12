@@ -166,7 +166,7 @@ impl Core {
         };
         let listener = tokio::net::TcpListener::bind("0.0.0.0:0").await?;
         let port = listener.local_addr()?.port();
-        let ip = local_ip_address::local_ip().unwrap_or("127.0.0.1".parse().unwrap());
+        let ip = preferred_lan_ip().unwrap_or("127.0.0.1".parse().unwrap());
         let endpoint =
             json!({"baseUrl":format!("http://{ip}:{port}"),"port":port,"deviceId":device["id"]});
         let mut groups = BTreeMap::new();
@@ -279,7 +279,7 @@ impl Core {
         self.0.endpoint.read().unwrap().clone()
     }
     async fn refresh_network(&self) {
-        let Ok(ip) = local_ip_address::local_ip() else {
+        let Some(ip) = preferred_lan_ip() else {
             return;
         };
         let current = self.endpoint();
@@ -357,8 +357,19 @@ impl Core {
                         {
                             continue;
                         }
-                        for addr in info.get_addresses() {
-                            let base = format!("http://{}:{}", addr, info.get_port());
+                        let mut addresses: Vec<_> = info
+                            .get_addresses()
+                            .iter()
+                            .map(|addr| addr.to_ip_addr())
+                            .collect();
+                        addresses.sort_by_key(|addr| !addr.is_ipv4());
+                        for addr in addresses {
+                            if let std::net::IpAddr::V6(ip) = addr {
+                                if ip.is_unicast_link_local() {
+                                    continue;
+                                }
+                            }
+                            let base = format_peer_url(addr, info.get_port());
                             if origin(&base).is_err() {
                                 continue;
                             }
@@ -371,6 +382,7 @@ impl Core {
                             let mut data = core.0.data.lock().await;
                             if let Some(g) = data.groups.get_mut(group) {
                                 if g.peers.len() < 64 && !g.peers.contains_key(&base) {
+                                    g.retry.remove(&base);
                                     g.peers.insert(base, device.into());
                                 }
                             }
@@ -1121,6 +1133,85 @@ impl Core {
         Ok((count, size))
     }
 }
+// The dependency's Android/macOS local_ip() returns the first non-loopback
+// interface, which can be a VPN's tun0. Advertise a physical LAN address instead.
+fn preferred_lan_ip() -> Option<std::net::IpAddr> {
+    let interfaces = local_ip_address::list_afinet_netifas().ok()?;
+    choose_lan_ip(
+        &interfaces,
+        cfg!(target_os = "android") || cfg!(target_os = "ios"),
+    )
+}
+fn choose_lan_ip(
+    interfaces: &[(String, std::net::IpAddr)],
+    mobile: bool,
+) -> Option<std::net::IpAddr> {
+    interfaces
+        .iter()
+        .filter_map(|(name, ip)| {
+            let std::net::IpAddr::V4(v4) = ip else {
+                return None;
+            };
+            if v4.is_loopback() || v4.is_unspecified() || v4.is_multicast() || v4.is_link_local() {
+                return None;
+            }
+            let name = name.to_ascii_lowercase();
+            if [
+                "tun",
+                "utun",
+                "tap",
+                "ppp",
+                "vmnet",
+                "vbox",
+                "docker",
+                "veth",
+                "virbr",
+                "bridge",
+                "rmnet",
+                "pdp_ip",
+                "tailscale",
+                "wg",
+                "zt",
+            ]
+            .iter()
+            .any(|prefix| name.starts_with(prefix))
+                || name.contains("vpn")
+            {
+                return None;
+            }
+            let wifi = name.starts_with("wlan")
+                || name.starts_with("wl")
+                || name.contains("wi-fi")
+                || name.contains("wifi");
+            let ethernet =
+                name.starts_with("en") || name.starts_with("eth") || name.contains("ethernet");
+            let rank = if wifi {
+                if mobile {
+                    0
+                } else {
+                    1
+                }
+            } else if ethernet {
+                if mobile {
+                    1
+                } else {
+                    0
+                }
+            } else {
+                2
+            };
+            Some((rank, name, *ip))
+        })
+        .min_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)))
+        .map(|(_, _, ip)| ip)
+}
+fn format_peer_url(ip: std::net::IpAddr, port: u16) -> String {
+    match ip {
+        std::net::IpAddr::V4(ip) => format!("http://{ip}:{port}"),
+        std::net::IpAddr::V6(ip) => format!("http://[{ip}]:{port}"),
+    }
+}
+
 // MIME is an interoperability hint; hosts validate image bytes before decoding thumbnails.
 fn file_mime(name: &str) -> &'static str {
     match std::path::Path::new(name)
@@ -1320,5 +1411,66 @@ fn presence(g: &mut Group, sender: Option<&str>) -> bool {
         true
     } else {
         false
+    }
+}
+
+#[cfg(test)]
+mod network_tests {
+    use super::*;
+    fn iface(name: &str, ip: &str) -> (String, std::net::IpAddr) {
+        (name.into(), ip.parse().unwrap())
+    }
+    #[test]
+    fn android_wifi_wins_over_vpn_and_cellular_regardless_of_enumeration_order() {
+        let interfaces = vec![
+            iface("lo", "127.0.0.1"),
+            iface("tun0", "172.19.0.1"),
+            iface("rmnet_data2", "5.125.9.237"),
+            iface("rmnet_data3", "10.167.157.147"),
+            iface("wlan0", "172.29.16.145"),
+        ];
+        assert_eq!(
+            choose_lan_ip(&interfaces, true),
+            Some("172.29.16.145".parse().unwrap())
+        );
+        let mut reversed = interfaces;
+        reversed.reverse();
+        assert_eq!(
+            choose_lan_ip(&reversed, true),
+            Some("172.29.16.145".parse().unwrap())
+        );
+    }
+    #[test]
+    fn mac_physical_interface_wins_over_virtual_and_invalid_addresses() {
+        let interfaces = vec![
+            iface("utun2", "172.19.0.1"),
+            iface("bridge0", "172.17.0.1"),
+            iface("en1", "169.254.1.4"),
+            iface("en0", "172.29.5.94"),
+        ];
+        assert_eq!(
+            choose_lan_ip(&interfaces, false),
+            Some("172.29.5.94".parse().unwrap())
+        );
+        assert_eq!(
+            choose_lan_ip(
+                &[
+                    iface("tun0", "172.19.0.1"),
+                    iface("rmnet_data2", "5.125.9.237")
+                ],
+                true
+            ),
+            None
+        );
+    }
+    #[test]
+    fn ipv6_discovery_url_is_bracketed_and_parses() {
+        let url = format_peer_url("2001:db8::1".parse().unwrap(), 39607);
+        assert_eq!(url, "http://[2001:db8::1]:39607");
+        assert_eq!(origin(&url).unwrap(), url);
+        assert_eq!(
+            format_peer_url("172.29.16.145".parse().unwrap(), 39607),
+            "http://172.29.16.145:39607"
+        );
     }
 }
