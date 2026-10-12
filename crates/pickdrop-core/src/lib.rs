@@ -60,6 +60,8 @@ struct Group {
     presence_revision: u64,
     online: HashSet<String>,
     retry: HashMap<String, (u32, i64)>,
+    route_hints: HashMap<String, i64>,
+    route_seen: HashMap<String, i64>,
 }
 impl Core {
     /// Non-destructive desktop migration. Destination must be a new directory and the old app must be closed.
@@ -203,6 +205,8 @@ impl Core {
                         presence_revision: 0,
                         online: HashSet::new(),
                         retry: HashMap::new(),
+                        route_hints: HashMap::new(),
+                        route_seen: HashMap::new(),
                     },
                 );
             }
@@ -383,6 +387,10 @@ impl Core {
                             if let Some(g) = data.groups.get_mut(group) {
                                 if g.peers.len() < 64 && !g.peers.contains_key(&base) {
                                     g.retry.remove(&base);
+                                    g.route_hints.insert(
+                                        base.clone(),
+                                        chrono::Utc::now().timestamp_millis(),
+                                    );
                                     g.peers.insert(base, device.into());
                                 }
                             }
@@ -462,6 +470,7 @@ impl Core {
         value["peers"] = json!(g
             .peers
             .iter()
+            .filter(|(url, _)| !g.route_hints.contains_key(*url) || g.route_seen.contains_key(*url))
             .map(|(url, id)| json!({"baseUrl":url,"deviceId":id}))
             .collect::<Vec<_>>());
         atomic(&self.0.dir.join(format!("group_{id}.json")), &value).await
@@ -495,15 +504,71 @@ impl Core {
         Ok(())
     }
     pub async fn dispatch(&self, method: &str, p: Value) -> Result<Value> {
+        if method == "remember_discovery" {
+            let records = p["records"]
+                .as_array()
+                .context("Invalid discovery records")?;
+            ensure!(records.len() <= 128, "Too many discovery records");
+            // Validate the entire input before touching route state. NSD TXT is untrusted.
+            let validated: Vec<_> = records
+                .iter()
+                .map(validate_discovery_hint)
+                .collect::<Result<_>>()?;
+            let mut data = self.0.data.lock().await;
+            let mut accepted = 0usize;
+            for hint in validated {
+                let group = s(&hint, "groupId");
+                let device = s(&hint, "hostDeviceId");
+                if device == s(&data.device, "id") {
+                    continue;
+                }
+                let mut discovered = self.0.discovered.lock().await;
+                discovered.retain(|_, record| {
+                    chrono::Utc::now().timestamp_millis() - record["seenAt"].as_i64().unwrap_or(0)
+                        < 120000
+                });
+                if discovered.len() < 1024
+                    || discovered.contains_key(&format!("{group}:{}", s(&hint, "baseUrl")))
+                {
+                    discovered.insert(format!("{group}:{}", s(&hint, "baseUrl")), hint.clone());
+                }
+                drop(discovered);
+                if let Some(g) = data.groups.get_mut(group) {
+                    if !g.replica.state["members"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|m| s(m, "id") == device)
+                    {
+                        continue;
+                    }
+                    let base = s(&hint, "baseUrl");
+                    if g.peers.len() >= 64 && !g.peers.contains_key(base) {
+                        continue;
+                    }
+                    g.peers.insert(base.into(), device.into());
+                    g.route_hints
+                        .insert(base.into(), chrono::Utc::now().timestamp_millis());
+                    g.retry.remove(base);
+                    accepted += 1;
+                }
+            }
+            drop(data);
+            if !records.is_empty() {
+                self.emit(json!({"type":"discovery"}));
+            }
+            if accepted > 0 {
+                self.kick_sync();
+            }
+            return Ok(json!({"accepted":accepted}));
+        }
         if method == "discover_groups" {
-            return Ok(json!(self
-                .0
-                .discovered
-                .lock()
-                .await
-                .values()
-                .cloned()
-                .collect::<Vec<_>>()));
+            let mut records = self.0.discovered.lock().await;
+            records.retain(|_, record| {
+                chrono::Utc::now().timestamp_millis() - record["seenAt"].as_i64().unwrap_or(0)
+                    < 120000
+            });
+            return Ok(json!(records.values().cloned().collect::<Vec<_>>()));
         }
         if method == "cancel_transfer" {
             let id = s(&p, "transferId");
@@ -640,6 +705,8 @@ impl Core {
                         presence_revision: 0,
                         online: HashSet::new(),
                         retry: HashMap::new(),
+                        route_hints: HashMap::new(),
+                        route_seen: HashMap::new(),
                     },
                 );
                 data.active = Some(id.clone());
@@ -899,6 +966,8 @@ impl Core {
                 presence_revision: 0,
                 online: HashSet::new(),
                 retry: HashMap::new(),
+                route_hints: HashMap::new(),
+                route_seen: HashMap::new(),
             },
         );
         data.active = Some(id.clone());
@@ -933,7 +1002,18 @@ impl Core {
                     .cloned()
                     .collect();
                 urls.sort_by_key(|url| {
-                    std::cmp::Reverse(g.seen.get(&g.peers[url]).copied().unwrap_or(0))
+                    let verified = g.route_seen.get(url).copied().unwrap_or(0);
+                    let hinted = g.route_hints.get(url).copied().unwrap_or(0);
+                    std::cmp::Reverse((
+                        if now - verified < 15000 {
+                            2
+                        } else if now - hinted < 15000 {
+                            1
+                        } else {
+                            0
+                        },
+                        verified.max(hinted),
+                    ))
                 });
                 routes.extend(urls.into_iter().take(16).map(|url| (id.clone(), url)));
             }
@@ -994,12 +1074,15 @@ impl Core {
                 s(&response, "senderPublicKey"),
                 false,
             )?;
+            let newly_verified = !g.route_seen.contains_key(url);
+            g.route_seen
+                .insert(url.into(), chrono::Utc::now().timestamp_millis());
             let presence_changed = presence(g, Some(s(&response, "senderDeviceId")));
             let old_peers = g.peers.clone();
-            let route_changed = g
-                .peers
-                .get(url)
-                .is_none_or(|id| id != s(&response, "senderDeviceId"));
+            let route_changed = newly_verified
+                || g.peers
+                    .get(url)
+                    .is_none_or(|id| id != s(&response, "senderDeviceId"));
             g.peers
                 .insert(url.into(), s(&response, "senderDeviceId").into());
             learn(g, &payload, s(&self.endpoint(), "deviceId"));
@@ -1092,11 +1175,23 @@ impl Core {
                 .find(|m| s(m, "id") == id && s(m, "type") == "file")
                 .context("Unknown file")?
                 .clone();
-            (
-                m,
-                g.peers.keys().cloned().collect::<Vec<_>>(),
-                data.device.clone(),
-            )
+            let now = chrono::Utc::now().timestamp_millis();
+            let mut peers: Vec<_> = g.peers.keys().cloned().collect();
+            peers.sort_by_key(|url| {
+                let verified = g.route_seen.get(url).copied().unwrap_or(0);
+                let hint = g.route_hints.get(url).copied().unwrap_or(0);
+                std::cmp::Reverse((
+                    if now - verified < 15000 {
+                        2
+                    } else if now - hint < 15000 {
+                        1
+                    } else {
+                        0
+                    },
+                    verified.max(hint),
+                ))
+            });
+            (m, peers, data.device.clone())
         };
         let path = self.0.dir.join("files").join(s(&m, "sha256"));
         if path.exists() && tokio::fs::metadata(&path).await?.len() == m["size"].as_u64().unwrap() {
@@ -1133,6 +1228,27 @@ impl Core {
         Ok((count, size))
     }
 }
+fn validate_discovery_hint(hint: &Value) -> Result<Value> {
+    ensure!(
+        s(hint, "peerProtocol") == PROTOCOL,
+        "Unsupported discovery protocol"
+    );
+    ensure!(
+        uuid::Uuid::parse_str(s(hint, "groupId")).is_ok()
+            && uuid::Uuid::parse_str(s(hint, "hostDeviceId")).is_ok(),
+        "Invalid discovery identity"
+    );
+    let url = reqwest::Url::parse(s(hint, "baseUrl"))?;
+    let base = origin(s(hint, "baseUrl"))?;
+    ensure!(
+        url.path() == "/" && url.query().is_none() && url.fragment().is_none(),
+        "Discovery address must be an origin"
+    );
+    Ok(
+        json!({"groupId":hint["groupId"],"hostDeviceId":hint["hostDeviceId"],"peerProtocol":PROTOCOL,"baseUrl":base,"name":s(hint,"name").chars().take(40).collect::<String>(),"seenAt":chrono::Utc::now().timestamp_millis()}),
+    )
+}
+
 // The dependency's Android/macOS local_ip() returns the first non-loopback
 // interface, which can be a VPN's tun0. Advertise a physical LAN address instead.
 fn preferred_lan_ip() -> Option<std::net::IpAddr> {
@@ -1336,7 +1452,7 @@ fn web_error(e: anyhow::Error) -> (StatusCode, Json<Value>) {
 }
 async fn info(State(core): State<Core>) -> Json<Value> {
     let data = core.0.data.lock().await;
-    Json(json!({"protocol":PROTOCOL,"device":data.device}))
+    Json(json!({"protocol":PROTOCOL,"device":data.device,"endpoint":core.endpoint()}))
 }
 async fn discovery(State(core): State<Core>) -> Json<Value> {
     let d = core.0.data.lock().await;

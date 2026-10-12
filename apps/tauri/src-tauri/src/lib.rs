@@ -1,3 +1,5 @@
+#[cfg(target_os = "android")]
+mod android_discovery;
 #[cfg(desktop)]
 mod docking;
 #[cfg(all(desktop, debug_assertions))]
@@ -567,6 +569,8 @@ pub fn run() {
                     }
                 }
             });
+            #[cfg(target_os = "android")]
+            android_discovery::launch(app.handle().clone());
             #[cfg(desktop)]
             {
                 app.manage(docking::Docking::new(

@@ -32,6 +32,7 @@ class PickDropNativePlugin(private val activity: Activity): Plugin(activity) {
     private val io = Executors.newSingleThreadExecutor()
     private val pending = mutableListOf<JSObject>()
     private var multicast: WifiManager.MulticastLock? = null
+    private val discovery = NativeDiscovery(activity)
     private fun acquireMulticast() {
         try {
             if (multicast == null) multicast = (activity.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager).createMulticastLock("pickdrop-discovery").apply { setReferenceCounted(false) }
@@ -46,11 +47,17 @@ class PickDropNativePlugin(private val activity: Activity): Plugin(activity) {
         })
     }
     @Command
+    fun configureDiscovery(invoke: Invoke) {
+        val args=invoke.parseArgs(DiscoveryArgs::class.java)
+        activity.runOnUiThread { discovery.configure(args); invoke.resolve() }
+    }
+    override fun onDestroy(activity: AppCompatActivity) { discovery.pause(); if (multicast?.isHeld==true)multicast?.release(); io.shutdown() }
+    @Command
     fun backDefault(invoke: Invoke) {
         activity.runOnUiThread { activity.moveTaskToBack(true); invoke.resolve() }
     }
-    override fun onResume(activity: AppCompatActivity) { acquireMulticast() }
-    override fun onPause(activity: AppCompatActivity) { if (multicast?.isHeld == true) multicast?.release() }
+    override fun onResume(activity: AppCompatActivity) { acquireMulticast(); discovery.resume() }
+    override fun onPause(activity: AppCompatActivity) { discovery.pause(); if (multicast?.isHeld == true) multicast?.release() }
     override fun onNewIntent(intent: Intent) { ingest(intent) }
     private fun mime(file: File) = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase()) ?: "application/octet-stream"
     private fun ingest(intent: Intent?) {
