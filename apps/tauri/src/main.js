@@ -212,7 +212,30 @@ async function membersPanel() { if (!app.groupId)
         row.append(button('移除', async () => { await confirmPanel('移除成员', `移除 ${device.name || '此设备'}？`, async () => { await call('remove_member', { groupId: app.groupId, deviceId: device.id }); await refresh(); await membersPanel(); }); }));
     body.append(row);
 } if (!body.childNodes.length)
-    note(body, '暂无成员或加入申请。'); }
+    note(body, '暂无成员或加入申请。');
+    body.append(button('手动连接已有设备', connectPeerPanel));
+}
+function connectPeerPanel() {
+    const groupId = app.groupId;
+    if (!groupId) return groupsPanel();
+    const body = panel('连接已有设备');
+    note(body, '自动发现不可用时，输入同群设备邀请页上的设备地址。');
+    const address = field(body, '另一台设备地址', '', 'url');
+    address.autocapitalize = 'off'; address.spellcheck = false;
+    const status = el('p', 'muted'); status.setAttribute('role', 'status');
+    body.append(status, button('连接设备', async () => {
+        status.setAttribute('role', 'status'); status.textContent = '正在连接并验证设备…';
+        address.removeAttribute('aria-invalid');
+        try {
+            await call('connect_peer', { groupId, address: address.value.trim() });
+            await refresh(); status.textContent = '设备已连接，消息和文件可以继续同步。';
+        } catch (e) {
+            status.setAttribute('role', 'alert');
+            status.textContent = `连接失败：${e?.message || String(e)}。请确认对方应用在前台，并检查设备地址。`;
+            address.setAttribute('aria-invalid', 'true'); address.focus();
+        }
+    }, 'primary'));
+}
 async function confirmPanel(title, text, action) { const body = panel(title); note(body, text); body.append(button('确认', action, 'primary'), button('取消', closePanel)); }
 function settingsPanel() { const body = panel('设置'), deviceName = field(body, '本机名称', app.device.name || ''); body.append(button('保存设备名称', async () => { await call('rename_device', { name: deviceName.value.trim() }); await loadBootstrap(); updateHeader(); toast('已保存'); })); if (app.groupId) {
     const groupName = field(body, '群组名称', app.state?.name || '');

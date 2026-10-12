@@ -43,6 +43,8 @@ struct Inner {
     transfers: Mutex<HashMap<String, CancellationToken>>,
     mdns: Option<mdns_sd::ServiceDaemon>,
     discovered: Mutex<BTreeMap<String, Value>>,
+    shutdown: CancellationToken,
+    server_stopped: AtomicBool,
 }
 struct Data {
     device: Value,
@@ -166,7 +168,22 @@ impl Core {
             .await?;
             (key, device)
         };
-        let listener = tokio::net::TcpListener::bind("0.0.0.0:0").await?;
+        let saved_settings = tokio::fs::read(dir.join("settings.json"))
+            .await
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+            .unwrap_or_else(|| json!({}));
+        let saved_network = tokio::fs::read(dir.join("network.json"))
+            .await
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+            .unwrap_or_else(|| json!({}));
+        let preferred = saved_network["listenerPort"]
+            .as_u64()
+            .or(saved_settings["listenPort"].as_u64())
+            .filter(|port| *port > 0 && *port <= 65535)
+            .map(|port| port as u16);
+        let listener = bind_listener(preferred).await?;
         let port = listener.local_addr()?.port();
         let ip = preferred_lan_ip().unwrap_or("127.0.0.1".parse().unwrap());
         let endpoint =
@@ -211,14 +228,11 @@ impl Core {
                 );
             }
         }
-        let active = if let Ok(bytes) = tokio::fs::read(dir.join("settings.json")).await {
-            serde_json::from_slice::<Value>(&bytes)
-                .ok()
-                .and_then(|v| v["activeGroupId"].as_str().map(str::to_owned))
-                .filter(|id| groups.contains_key(id))
-        } else {
-            None
-        };
+        let active = saved_settings["activeGroupId"]
+            .as_str()
+            .map(str::to_owned)
+            .filter(|id| groups.contains_key(id));
+        atomic(&dir.join("network.json"), &json!({"listenerPort":port})).await?;
         let (events, _) = broadcast::channel(128);
         let core = Self(Arc::new(Inner {
             dir,
@@ -244,6 +258,8 @@ impl Core {
             transfers: Mutex::new(HashMap::new()),
             mdns: mdns_sd::ServiceDaemon::new().ok(),
             discovered: Mutex::new(BTreeMap::new()),
+            shutdown: CancellationToken::new(),
+            server_stopped: AtomicBool::new(false),
         }));
         let router = Router::new()
             .route("/api/peer/info", get(info))
@@ -254,8 +270,13 @@ impl Core {
             .route("/api/peer/files/{id}", get(file_handler))
             .layer(axum::extract::DefaultBodyLimit::max(16 * 1024 * 1024))
             .with_state(core.clone());
+        let shutdown = core.0.shutdown.clone();
+        let server_core = core.clone();
         tokio::spawn(async move {
-            let _ = axum::serve(listener, router).await;
+            let _ = axum::serve(listener, router)
+                .with_graceful_shutdown(shutdown.cancelled_owned())
+                .await;
+            server_core.0.server_stopped.store(true, Ordering::Release);
         });
         let weak = Arc::downgrade(&core.0);
         tokio::spawn(async move {
@@ -264,6 +285,9 @@ impl Core {
                 interval.tick().await;
                 let Some(inner) = weak.upgrade() else { break };
                 let core = Core(inner);
+                if core.0.shutdown.is_cancelled() {
+                    break;
+                }
                 if core.0.active.load(Ordering::Relaxed) {
                     core.refresh_network().await;
                     core.sync_all().await;
@@ -278,6 +302,20 @@ impl Core {
             }
         }
         Ok(core)
+    }
+    /// Stop listeners and periodic work without changing identity, groups or cached files.
+    pub async fn shutdown(&self) {
+        self.0.active.store(false, Ordering::Release);
+        for token in self.0.transfers.lock().await.values() {
+            token.cancel();
+        }
+        self.0.shutdown.cancel();
+        if let Some(daemon) = &self.0.mdns {
+            let _ = daemon.shutdown();
+        }
+        while !self.0.server_stopped.load(Ordering::Acquire) {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
     }
     fn endpoint(&self) -> Value {
         self.0.endpoint.read().unwrap().clone()
@@ -349,6 +387,9 @@ impl Core {
                 tokio::time::sleep(Duration::from_millis(300)).await;
                 let Some(inner) = weak.upgrade() else { break };
                 let core = Core(inner);
+                if core.0.shutdown.is_cancelled() {
+                    break;
+                }
                 while let Ok(event) = receiver.try_recv() {
                     if let mdns_sd::ServiceEvent::ServiceResolved(info) = event {
                         let props = info.get_properties();
@@ -504,6 +545,9 @@ impl Core {
         Ok(())
     }
     pub async fn dispatch(&self, method: &str, p: Value) -> Result<Value> {
+        if method == "connect_peer" {
+            return self.connect_peer(s(&p, "groupId"), s(&p, "address")).await;
+        }
         if method == "remember_discovery" {
             let records = p["records"]
                 .as_array()
@@ -1045,7 +1089,52 @@ impl Core {
             .await;
         self.0.syncing.store(false, Ordering::Release);
     }
+    async fn connect_peer(&self, id: &str, address: &str) -> Result<Value> {
+        ensure!(self.0.active.load(Ordering::Relaxed), "设备节点已暂停");
+        let url = reqwest::Url::parse(address)?;
+        let address = origin(address)?;
+        ensure!(
+            url.path() == "/" && url.query().is_none() && url.fragment().is_none(),
+            "设备地址只填写地址与端口"
+        );
+        let info = self
+            .0
+            .http
+            .get(format!("{address}/api/peer/info"))
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Value>()
+            .await?;
+        ensure!(
+            s(&info, "protocol") == PROTOCOL
+                && uuid::Uuid::parse_str(s(&info["device"], "id")).is_ok(),
+            "设备不支持此同步协议"
+        );
+        {
+            let data = self.0.data.lock().await;
+            let g = data.groups.get(id).context("群不存在")?;
+            ensure!(
+                g.replica.state["members"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|m| m["id"] == info["device"]["id"]),
+                "该设备不是此群成员，请通过邀请码加入"
+            );
+            ensure!(info["device"]["id"] != data.device["id"], "不能连接本设备");
+        }
+        self.sync_route_expected(id, &address, Some(s(&info["device"], "id")))
+            .await?;
+        let data = self.0.data.lock().await;
+        Ok(
+            json!({"ok":true,"address":address,"device":info["device"],"state":self.state(&data.groups[id],None,60)}),
+        )
+    }
     async fn sync_route(&self, id: &str, url: &str) -> Result<()> {
+        self.sync_route_expected(id, url, None).await
+    }
+    async fn sync_route_expected(&self, id: &str, url: &str, expected: Option<&str>) -> Result<()> {
         for _ in 0..16 {
             let proof = {
                 let data = self.0.data.lock().await;
@@ -1063,6 +1152,10 @@ impl Core {
             let response = self.request(url, "/api/peer/sync", proof).await?;
             let mut data = self.0.data.lock().await;
             let g = data.groups.get_mut(id).context("Unknown group")?;
+            ensure!(
+                expected.is_none_or(|id| s(&response, "senderDeviceId") == id),
+                "响应设备身份与地址不符"
+            );
             let payload = g.replica.verify_proof(&response, "sync-result", true)?;
             ensure!(
                 payload["genesis"] == g.replica.genesis,
@@ -1228,6 +1321,17 @@ impl Core {
         Ok((count, size))
     }
 }
+async fn bind_listener(preferred: Option<u16>) -> Result<tokio::net::TcpListener> {
+    if let Some(port) = preferred {
+        if let Ok(listener) =
+            tokio::net::TcpListener::bind((std::net::Ipv4Addr::UNSPECIFIED, port)).await
+        {
+            return Ok(listener);
+        }
+    }
+    Ok(tokio::net::TcpListener::bind((std::net::Ipv4Addr::UNSPECIFIED, 0)).await?)
+}
+
 fn validate_discovery_hint(hint: &Value) -> Result<Value> {
     ensure!(
         s(hint, "peerProtocol") == PROTOCOL,
@@ -1533,6 +1637,16 @@ fn presence(g: &mut Group, sender: Option<&str>) -> bool {
 #[cfg(test)]
 mod network_tests {
     use super::*;
+    #[tokio::test]
+    async fn listener_reuses_preferred_port_and_safely_falls_back_on_conflict() {
+        let first = bind_listener(None).await.unwrap();
+        let port = first.local_addr().unwrap().port();
+        drop(first);
+        let reused = bind_listener(Some(port)).await.unwrap();
+        assert_eq!(reused.local_addr().unwrap().port(), port);
+        let fallback = bind_listener(Some(port)).await.unwrap();
+        assert_ne!(fallback.local_addr().unwrap().port(), port);
+    }
     fn iface(name: &str, ip: &str) -> (String, std::net::IpAddr) {
         (name.into(), ip.parse().unwrap())
     }
