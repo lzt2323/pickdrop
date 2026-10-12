@@ -14,6 +14,9 @@ import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import android.webkit.WebView
 import androidx.core.content.FileProvider
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
@@ -43,7 +46,14 @@ class PickDropNativePlugin(private val activity: Activity): Plugin(activity) {
         acquireMulticast(); ingest(activity.intent)
         val owner = activity as? AppCompatActivity
         owner?.onBackPressedDispatcher?.addCallback(owner, object: OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() { trigger("back", JSObject()) }
+            override fun handleOnBackPressed() {
+                val decor = activity.window.decorView
+                if (ViewCompat.getRootWindowInsets(decor)?.isVisible(WindowInsetsCompat.Type.ime()) == true) {
+                    WindowCompat.getInsetsController(activity.window, decor).hide(WindowInsetsCompat.Type.ime())
+                    return
+                }
+                trigger("back", JSObject())
+            }
         })
     }
     @Command

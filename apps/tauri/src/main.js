@@ -149,8 +149,8 @@ else if (!latest && app.historical) {
     params.before = app.currentBefore;
 } if (latest)
     app.historyCursors = []; const state = await call('get_state', params); if (generation !== app.generation || groupId !== app.groupId)
-    return; if (!older && !newer && !latest && app.state?.revision === state.revision && app.state?.presenceRevision === state.presenceRevision && state.revision != null)
-    return; if (!older && !newer && !latest && app.state?.revision === state.revision) {
+    return; if (!older && !newer && !latest && app.state?.revision === state.revision && app.state?.cacheRevision === state.cacheRevision && app.state?.presenceRevision === state.presenceRevision && state.revision != null)
+    return; if (!older && !newer && !latest && app.state?.revision === state.revision && app.state?.cacheRevision === state.cacheRevision) {
     app.state = state;
     updateHeader();
     return;
@@ -271,7 +271,7 @@ function groupSettingsPanel() {
     } else body.append(el('h3', null, app.state?.name || '群组'));
     body.append(button('退出群组', () => confirmPanel('退出群组', '退出后将停止接收这个群的消息。', async () => { await call('leave_group', { groupId: app.groupId }); await loadBootstrap(); await selectGroup(app.groups[0]?.id || null); }), 'danger'), button('移除本地群组记录', () => confirmPanel('移除记录', '将移除此设备上的群组记录。', async () => { await call('forget_group', { groupId: app.groupId }); await loadBootstrap(); await selectGroup(app.groups[0]?.id || null); }), 'danger'));
 }
-async function storagePanel() { const body = panel('存储与缓存'), generation = panelGeneration; const stats = await call('storage_stats'); if (generation !== panelGeneration || !$('panel').open || $('panel-title').textContent !== '存储与缓存') return; note(body, `文件缓存 ${formatBytes(stats.cacheBytes || stats.bytes || 0)} · ${stats.fileCount || stats.files || 0} 个文件`); body.append(button('清理缓存', () => confirmPanel('清理缓存', '已接收文件的本地缓存将被清理，聊天记录保留。', async () => { await call('clear_cache'); app.files.clear(); await refresh(); await storagePanel(); }))); }
+async function storagePanel() { const body = panel('存储与缓存'), generation = panelGeneration; const stats = await call('storage_stats'); if (generation !== panelGeneration || !$('panel').open || $('panel-title').textContent !== '存储与缓存') return; note(body, `文件缓存 ${formatBytes(stats.cacheBytes || stats.bytes || 0)} · ${stats.fileCount || stats.files || 0} 个文件`); body.append(button('清理缓存', () => confirmPanel('清理缓存', '已接收文件的本地缓存将被清理，聊天记录保留。', async () => { await call('clear_cache'); app.files.clear(); app.messages = app.messages.map(({localPath, path, ...message}) => message); renderMessages(); await refresh(); await storagePanel(); }))); }
 function renderFileDrafts() { persistFiles(); const body = $('file-drafts'), files = app.fileDrafts.get(app.groupId) || []; body.hidden = !files.length; body.replaceChildren(); files.forEach((file, index) => { const row = el('div', 'file-draft'); row.append(el('span', null, file.name || file.path.split(/[\\/]/).at(-1)), button('移除', () => { files.splice(index, 1); renderFileDrafts(); })); body.append(row); });  }
 const progress = progressScheduler(renderQueue);
 function renderQueue() {
@@ -457,7 +457,7 @@ function onEvent(event) {if(event.type==='back'){if($('panel').open)closePanel()
         app.state={...app.state,membershipRevoked:state.membershipRevoked,devices:state.devices,presenceRevision:state.presenceRevision};updateHeader();
         return;
     }
-    if (app.state?.revision !== state.revision) {
+    if (app.state?.revision !== state.revision || app.state?.cacheRevision !== state.cacheRevision) {
         app.state = state;
         app.messages = mergeMessages(app.messages, state.messages || []);
         renderMessages();

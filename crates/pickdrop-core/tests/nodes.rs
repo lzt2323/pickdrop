@@ -113,6 +113,37 @@ async fn native_nodes_pair_sync_and_stream_verified_file() {
             .unwrap(),
         metadata
     );
+    // A cold restart restores cache availability without downloading again.
+    b.shutdown().await;
+    let restarted = Core::open(b_dir.path().to_owned(), "mobile").await.unwrap();
+    let cached = restarted
+        .dispatch("get_state", json!({"groupId":id}))
+        .await
+        .unwrap();
+    let file = cached["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["id"] == message["id"])
+        .unwrap();
+    assert_eq!(file["localPath"], received["path"]);
+    assert!(!cached["cacheRevision"].as_str().unwrap().is_empty());
+    restarted.dispatch("clear_cache", json!({})).await.unwrap();
+    let cleared = restarted
+        .dispatch("get_state", json!({"groupId":id}))
+        .await
+        .unwrap();
+    let file = cleared["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["id"] == message["id"])
+        .unwrap();
+    assert!(file.get("localPath").is_none());
+    assert_eq!(cleared["revision"], cached["revision"]);
+    assert_ne!(cleared["cacheRevision"], cached["cacheRevision"]);
+    restarted.shutdown().await;
+    a.shutdown().await;
 }
 
 #[tokio::test]

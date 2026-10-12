@@ -1,11 +1,18 @@
 // Reapply native Android integration after `tauri android init` regenerates files.
 // Idempotent and safe on desktop builds where gen/android is absent.
-import {existsSync, readFileSync, writeFileSync} from 'node:fs';
+import {copyFileSync, existsSync, readFileSync, writeFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 const base = new URL('./gen/android/', import.meta.url);
 const manifest = fileURLToPath(new URL('app/src/main/AndroidManifest.xml', base));
 if (existsSync(manifest)) {
   let xml = readFileSync(manifest, 'utf8');
+  // Resize rather than pan the entire chat when the software keyboard opens.
+  if (xml.includes('android:windowSoftInputMode=')) {
+    xml = xml.replace(/android:windowSoftInputMode="[^"]*"/, 'android:windowSoftInputMode="adjustResize"');
+  } else {
+    xml = xml.replace('<activity', '<activity android:windowSoftInputMode="adjustResize"');
+  }
+  copyFileSync(new URL('./android/MainActivity.kt', import.meta.url), new URL('app/src/main/java/app/pickdrop/tauri/preview/MainActivity.kt', base));
   if (!xml.includes('android.intent.action.SEND_MULTIPLE')) {
     xml = xml.replace('</activity>', `<intent-filter>
                 <action android:name="android.intent.action.SEND" />

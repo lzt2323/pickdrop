@@ -473,9 +473,26 @@ impl Core {
             .map(|(i, m)| {
                 let mut m = m.clone();
                 m["sequence"] = json!(start + i + 1);
+                // Cache paths are local projection data, never signed or synced.
+                let hash = s(&m, "sha256");
+                if s(&m, "type") == "file"
+                    && hash.len() == 64
+                    && hash.bytes().all(|c| c.is_ascii_hexdigit())
+                {
+                    let path = self.0.dir.join("files").join(hash);
+                    if std::fs::metadata(&path).is_ok_and(|meta| {
+                        meta.is_file() && Some(meta.len()) == m["size"].as_u64()
+                    }) {
+                        m["localPath"] = json!(path);
+                    }
+                }
                 m
             })
             .collect();
+        state["cacheRevision"] = json!(messages.iter()
+            .filter(|m| m["localPath"].is_string())
+            .map(|m| s(m, "id"))
+            .collect::<Vec<_>>().join(","));
         state["messages"] = json!(messages);
         state["devices"] = json!(g.replica.state["members"]
             .as_array()
