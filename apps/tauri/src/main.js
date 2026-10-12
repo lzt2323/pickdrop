@@ -118,7 +118,7 @@ function renderMessages() { const timeline = $('timeline'), nearBottom = timelin
         const node = rowFor(m);
         if (record) {
             record.node.querySelectorAll('img').forEach(img => thumbnails.unobserve(img));
-            record.node.replaceWith(node);
+            const previous=record.node;previous.replaceWith(node);if(cursor===previous)cursor=node;
         }
         record = { node, version };
         app.rows.set(m.id, record);
