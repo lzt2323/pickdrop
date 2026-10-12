@@ -1,0 +1,651 @@
+#[cfg(desktop)]
+mod docking;
+#[cfg(all(desktop, debug_assertions))]
+mod smoke;
+use base64::Engine;
+use pickdrop_core::Core;
+use serde_json::{json, Value};
+use std::{
+    collections::HashSet,
+    io::Cursor,
+    path::{Path, PathBuf},
+    sync::Mutex,
+};
+use tauri::{Emitter, Manager};
+use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_fs::FsExt;
+#[cfg(desktop)]
+use tauri_plugin_opener::OpenerExt;
+
+struct Host {
+    core: Core,
+    files: Mutex<HashSet<PathBuf>>,
+    data: PathBuf,
+}
+impl Host {
+    fn allow(&self, path: &Path) -> Result<PathBuf, String> {
+        let path = path.canonicalize().map_err(|e| e.to_string())?;
+        self.files
+            .lock()
+            .map_err(|e| e.to_string())?
+            .insert(path.clone());
+        Ok(path)
+    }
+    fn permitted(&self, path: &str) -> Result<PathBuf, String> {
+        let path = Path::new(path).canonicalize().map_err(|e| e.to_string())?;
+        if self
+            .files
+            .lock()
+            .map_err(|e| e.to_string())?
+            .contains(&path)
+            || path.starts_with(&self.data)
+        {
+            Ok(path)
+        } else {
+            Err("请先通过文件选择器选择该文件".into())
+        }
+    }
+}
+
+#[tauri::command]
+async fn core_call(
+    host: tauri::State<'_, Host>,
+    method: String,
+    params: Option<Value>,
+) -> Result<Value, String> {
+    let params = params.unwrap_or_else(|| json!({}));
+    if method == "send_file" {
+        let path = params
+            .get("path")
+            .and_then(Value::as_str)
+            .ok_or("缺少文件路径")?;
+        host.permitted(path)?;
+    }
+    host.core
+        .dispatch(&method, params)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// File dialogs are asynchronous; the actual stream copy runs off the UI thread.
+#[tauri::command]
+async fn native_pick_files(app: tauri::AppHandle) -> Result<Value, String> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog().file().pick_files(move |files| {
+        let _ = tx.send(files);
+    });
+    let selected = rx.await.map_err(|e| e.to_string())?.unwrap_or_default();
+    tauri::async_runtime::spawn_blocking(move || {
+        let host = app.state::<Host>();
+        let mut files = Vec::new();
+        for file in selected {
+            let display = file.to_string();
+            let local_path = file.clone().into_path().ok();
+            let name = local_path
+                .as_deref()
+                .and_then(Path::file_name)
+                .and_then(|n| n.to_str())
+                .unwrap_or("文件")
+                .to_string();
+            #[cfg(target_os = "android")]
+            let name = if file.as_path().is_none() {
+                app.state::<tauri_plugin_pickdrop_native::Native<tauri::Wry>>()
+                    .call("metadata", json!({"path":display}))?
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .unwrap_or("文件")
+                    .to_string()
+            } else {
+                name
+            };
+            let path = if let Some(path) = file.as_path() {
+                host.allow(path)?
+            } else {
+                // Android content:// and iOS security scoped URLs are read natively, never through JS.
+                let dir = host.data.join("picked");
+                std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+                let unique = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_err(|e| e.to_string())?
+                    .as_nanos();
+                let target = dir.join(unique.to_string());
+                std::fs::create_dir_all(&target).map_err(|e| e.to_string())?;
+                let target = target.join(name.replace(['/', '\\'], "_"));
+                let mut opts = tauri_plugin_fs::OpenOptions::new();
+                opts.read(true);
+                #[cfg(target_os = "ios")]
+                let scoped = file.clone();
+                let mut input = app.fs().open(file, opts).map_err(|e| e.to_string())?;
+                let mut output = std::fs::File::create(&target).map_err(|e| e.to_string())?;
+                let copied = std::io::copy(&mut input, &mut output);
+                drop(input);
+                #[cfg(target_os = "ios")]
+                let _ = app.fs().stop_accessing_security_scoped_resource(scoped);
+                if let Err(error) = copied {
+                    let _ = std::fs::remove_file(&target);
+                    return Err(error.to_string());
+                }
+                host.allow(&target)?
+            };
+            let size = std::fs::metadata(&path).map_err(|e| e.to_string())?.len();
+            files.push(json!({"path":path,"name":name,"size":size,"source":display}));
+        }
+        Ok(Value::Array(files))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn native_save_file(
+    app: tauri::AppHandle,
+    source_path: String,
+    suggested_name: String,
+) -> Result<Option<String>, String> {
+    let source = app.state::<Host>().permitted(&source_path)?;
+    let name = Path::new(&suggested_name)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("文件")
+        .to_string();
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .set_file_name(name)
+        .save_file(move |path| {
+            let _ = tx.send(path);
+        });
+    let Some(destination) = rx.await.map_err(|e| e.to_string())? else {
+        return Ok(None);
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        let display = destination.to_string();
+        if destination
+            .clone()
+            .into_path()
+            .ok()
+            .and_then(|p| p.canonicalize().ok())
+            .as_ref()
+            == Some(&source)
+        {
+            return Ok(Some(display));
+        }
+        #[cfg(target_os = "ios")]
+        let scoped = destination.clone();
+        let mut opts = tauri_plugin_fs::OpenOptions::new();
+        opts.write(true).create(true).truncate(true);
+        let mut output = app
+            .fs()
+            .open(destination, opts)
+            .map_err(|e| e.to_string())?;
+        let mut input = std::fs::File::open(source).map_err(|e| e.to_string())?;
+        let copied = std::io::copy(&mut input, &mut output);
+        drop(output);
+        #[cfg(target_os = "ios")]
+        let _ = app.fs().stop_accessing_security_scoped_resource(scoped);
+        copied.map_err(|e| e.to_string())?;
+        Ok(Some(display))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn safe_export_name(name: &str) -> String {
+    let name = name.rsplit(['/', '\\']).next().unwrap_or("文件");
+    let mut clean: String = name
+        .chars()
+        .map(|c| {
+            if c.is_control() || "<>:\"/\\|?*".contains(c) {
+                '_'
+            } else {
+                c
+            }
+        })
+        .take(220)
+        .collect();
+    clean = clean.trim_end_matches(['.', ' ']).to_string();
+    if clean.is_empty() {
+        clean = "文件".into();
+    }
+    let stem = clean.split('.').next().unwrap_or("").to_uppercase();
+    if ["CON", "PRN", "AUX", "NUL"].contains(&stem.as_str())
+        || (stem.len() == 4
+            && (stem.starts_with("COM") || stem.starts_with("LPT"))
+            && stem.as_bytes()[3].is_ascii_digit())
+    {
+        clean.insert(0, '_');
+    }
+    clean
+}
+
+// Native exports preserve the original display name (cache objects are named by
+// digest). Stream copy runs off the UI thread and keeps OS shares independent of
+// cache eviction while another app is reading the file.
+async fn prepare_export(
+    app: &tauri::AppHandle,
+    path: &str,
+    suggested_name: Option<String>,
+) -> Result<PathBuf, String> {
+    let host = app.state::<Host>();
+    let source = host.permitted(path)?;
+    let data = host.data.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut name = suggested_name
+            .and_then(|n| {
+                Path::new(&n)
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .map(str::to_owned)
+            })
+            .filter(|n| !n.is_empty() && n != "." && n != "..")
+            .unwrap_or_else(|| {
+                source
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned()
+            });
+        name = safe_export_name(&name);
+        if Path::new(&name).extension().is_none() {
+            use std::io::Read;
+            let mut header = [0u8; 32];
+            let count = std::fs::File::open(&source)
+                .map_err(|e| e.to_string())?
+                .read(&mut header)
+                .map_err(|e| e.to_string())?;
+            if let Ok(format) = image::guess_format(&header[..count]) {
+                if let Some(extension) = format.extensions_str().first() {
+                    name.push('.');
+                    name.push_str(extension);
+                }
+            } else if header.starts_with(b"%PDF-") {
+                name.push_str(".pdf");
+            }
+        }
+        let directory = data.join("native-export");
+        std::fs::create_dir_all(&directory).map_err(|e| e.to_string())?;
+        if let Ok(items) = std::fs::read_dir(&directory) {
+            for item in items.flatten() {
+                if item
+                    .metadata()
+                    .ok()
+                    .and_then(|m| m.modified().ok())
+                    .and_then(|t| t.elapsed().ok())
+                    .is_some_and(|d| d.as_secs() > 86400)
+                {
+                    let _ = std::fs::remove_dir_all(item.path());
+                }
+            }
+        }
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|e| e.to_string())?
+            .as_nanos();
+        let target = directory.join(unique.to_string());
+        std::fs::create_dir_all(&target).map_err(|e| e.to_string())?;
+        let target = target.join(name);
+        std::fs::copy(source, &target).map_err(|e| e.to_string())?;
+        Ok(target)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn native_open_file(
+    app: tauri::AppHandle,
+    path: String,
+    suggested_name: Option<String>,
+) -> Result<(), String> {
+    let path = prepare_export(&app, &path, suggested_name).await?;
+    #[cfg(mobile)]
+    return tauri::async_runtime::spawn_blocking(move || {
+        app.state::<tauri_plugin_pickdrop_native::Native<tauri::Wry>>()
+            .call("open", json!({"path":path}))
+            .map(|_| ())
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    #[cfg(desktop)]
+    app.opener()
+        .open_path(path.to_string_lossy(), None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn native_thumbnail(app: tauri::AppHandle, path: String) -> Result<String, String> {
+    let path = app.state::<Host>().permitted(&path)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        // Bound decoded memory as well as the encoded input; malicious image dimensions cannot exhaust RAM.
+        if std::fs::metadata(&path).map_err(|e| e.to_string())?.len() > 16 * 1024 * 1024 {
+            return Err("图片过大，请打开原文件".into());
+        }
+        let mut reader = image::ImageReader::open(path)
+            .map_err(|e| e.to_string())?
+            .with_guessed_format()
+            .map_err(|e| e.to_string())?;
+        let mut limits = image::Limits::default();
+        limits.max_image_width = Some(8192);
+        limits.max_image_height = Some(8192);
+        limits.max_alloc = Some(64 * 1024 * 1024);
+        reader.limits(limits);
+        let thumbnail = reader
+            .decode()
+            .map_err(|e| e.to_string())?
+            .thumbnail(320, 320);
+        let mut encoded = Cursor::new(Vec::new());
+        thumbnail
+            .write_to(&mut encoded, image::ImageFormat::Png)
+            .map_err(|e| e.to_string())?;
+        Ok(format!(
+            "data:image/png;base64,{}",
+            base64::engine::general_purpose::STANDARD.encode(encoded.into_inner())
+        ))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn native_share_file(
+    app: tauri::AppHandle,
+    path: String,
+    suggested_name: Option<String>,
+) -> Result<Value, String> {
+    let path = prepare_export(&app, &path, suggested_name).await?;
+    #[cfg(mobile)]
+    return tauri::async_runtime::spawn_blocking(move || {
+        app.state::<tauri_plugin_pickdrop_native::Native<tauri::Wry>>()
+            .call("share", json!({"path":path}))
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    #[cfg(desktop)]
+    {
+        let _ = path;
+        Err("桌面端请使用保存或打开文件".into())
+    }
+}
+
+#[tauri::command]
+async fn native_save_gallery(
+    app: tauri::AppHandle,
+    path: String,
+    suggested_name: Option<String>,
+) -> Result<Value, String> {
+    let path = prepare_export(&app, &path, suggested_name).await?;
+    #[cfg(mobile)]
+    return tauri::async_runtime::spawn_blocking(move || {
+        app.state::<tauri_plugin_pickdrop_native::Native<tauri::Wry>>()
+            .call("saveGallery", json!({"path":path}))
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    #[cfg(desktop)]
+    {
+        let _ = path;
+        Err("桌面端请使用保存文件".into())
+    }
+}
+
+#[tauri::command]
+async fn native_back_default(app: tauri::AppHandle) -> Result<Value, String> {
+    #[cfg(mobile)]
+    return tauri::async_runtime::spawn_blocking(move || {
+        app.state::<tauri_plugin_pickdrop_native::Native<tauri::Wry>>()
+            .call("backDefault", json!({}))
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    #[cfg(desktop)]
+    {
+        let _ = app;
+        Ok(json!({}))
+    }
+}
+
+#[tauri::command]
+async fn native_consume_incoming(app: tauri::AppHandle) -> Result<Value, String> {
+    #[cfg(mobile)]
+    return tauri::async_runtime::spawn_blocking(move || {
+        let result = app
+            .state::<tauri_plugin_pickdrop_native::Native<tauri::Wry>>()
+            .call("consumeIncoming", json!({}))?;
+        if let Some(items) = result.get("items").and_then(Value::as_array) {
+            for item in items {
+                if let Some(path) = item.get("path").and_then(Value::as_str) {
+                    app.state::<Host>().allow(Path::new(path))?;
+                }
+            }
+        }
+        Ok(result)
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    #[cfg(desktop)]
+    {
+        let _ = app;
+        Ok(json!({"items":[]}))
+    }
+}
+
+#[tauri::command]
+async fn native_drag_file(
+    window: tauri::WebviewWindow,
+    path: String,
+    suggested_name: Option<String>,
+) -> Result<(), String> {
+    let path = prepare_export(window.app_handle(), &path, suggested_name).await?;
+    #[cfg(desktop)]
+    {
+        docking::action(&window, "busy", Some(true))?;
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let app = window.app_handle().clone();
+        app.run_on_main_thread(move || {
+            #[cfg(target_os = "linux")]
+            let raw = window.gtk_window();
+            #[cfg(not(target_os = "linux"))]
+            let raw = Ok::<_, tauri::Error>(window.clone());
+            let result = raw.map_err(|e| e.to_string()).and_then(|raw| {
+                drag::start_drag(
+                    &raw,
+                    drag::DragItem::Files(vec![path]),
+                    drag::Image::Raw(include_bytes!("../icons/drag-icon.png").to_vec()),
+                    |_, _| {},
+                    drag::Options::default(),
+                )
+                .map_err(|e| e.to_string())
+            });
+            let _ = docking::action(&window, "busy", Some(false));
+            let _ = tx.send(result);
+        })
+        .map_err(|e| e.to_string())?;
+        rx.await.map_err(|e| e.to_string())?
+    }
+    #[cfg(mobile)]
+    {
+        let _ = path;
+        Err("手机端请使用分享按钮".into())
+    }
+}
+
+#[tauri::command]
+async fn window_action(
+    window: tauri::WebviewWindow,
+    action: String,
+    value: Option<bool>,
+) -> Result<(), String> {
+    #[cfg(desktop)]
+    match action.as_str() {
+        "pin" | "dock-left" | "dock-right" | "dock-top" | "undock" | "collapse" | "expand"
+        | "busy" => docking::action(&window, &action, value),
+        "hide" => window.hide().map_err(|e| e.to_string()),
+        "show" => {
+            window.show().map_err(|e| e.to_string())?;
+            window.set_focus().map_err(|e| e.to_string())
+        }
+        "new" => {
+            let label = format!(
+                "group-{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_err(|e| e.to_string())?
+                    .as_millis()
+            );
+            tauri::WebviewWindowBuilder::new(
+                window.app_handle(),
+                label,
+                tauri::WebviewUrl::App("index.html".into()),
+            )
+            .title("拾传 Preview")
+            .inner_size(800., 640.)
+            .build()
+            .map_err(|e| e.to_string())?;
+            Ok(())
+        }
+        _ => Err("未知窗口操作".into()),
+    }
+    #[cfg(mobile)]
+    {
+        let _ = (window, action, value);
+        Err("手机端不支持桌面窗口操作".into())
+    }
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_pickdrop_native::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_clipboard_manager::init());
+    #[cfg(mobile)]
+    let builder = builder.plugin(tauri_plugin_barcode_scanner::init());
+    builder
+        .invoke_handler(tauri::generate_handler![
+            core_call,
+            native_pick_files,
+            native_save_file,
+            native_open_file,
+            native_thumbnail,
+            native_share_file,
+            native_save_gallery,
+            native_consume_incoming,
+            native_back_default,
+            native_drag_file,
+            window_action
+        ])
+        .setup(|app| {
+            let data = app.path().app_data_dir()?;
+            #[cfg(all(desktop, debug_assertions))]
+            let data = std::env::var_os("PICKDROP_NATIVE_SMOKE")
+                .map(|p| PathBuf::from(p).with_extension("data"))
+                .unwrap_or(data);
+            std::fs::create_dir_all(&data)?;
+            let kind = if cfg!(mobile) { "mobile" } else { "desktop" };
+            let core = tauri::async_runtime::block_on(Core::open(data.clone(), kind))?;
+            let mut events = core.subscribe();
+            app.manage(Host {
+                core,
+                files: Mutex::new(HashSet::new()),
+                data,
+            });
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    match events.recv().await {
+                        Ok(event) => {
+                            let _ = handle.emit("pickdrop:event", event);
+                        }
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                            let _ = handle.emit("pickdrop:event", json!({"type":"resync"}));
+                        }
+                        Err(_) => break,
+                    }
+                }
+            });
+            #[cfg(desktop)]
+            {
+                app.manage(docking::Docking::new(
+                    app.state::<Host>().data.join("windows.json"),
+                ));
+                setup_tray(app)?;
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = docking::restore(&window);
+                }
+            }
+            #[cfg(all(desktop, debug_assertions))]
+            if let Some(report) = std::env::var_os("PICKDROP_NATIVE_SMOKE") {
+                smoke::launch(app.handle().clone(), PathBuf::from(report));
+            }
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            #[cfg(desktop)]
+            if let Some(w) = window.app_handle().get_webview_window(window.label()) {
+                match event {
+                    tauri::WindowEvent::CloseRequested { api, .. } => {
+                        api.prevent_close();
+                        let _ = w.hide();
+                    }
+                    tauri::WindowEvent::Moved(_) => docking::moved(&w),
+                    tauri::WindowEvent::Focused(false) => docking::blurred(w),
+                    tauri::WindowEvent::Focused(true) => {
+                        let _ = docking::expand(&w);
+                    }
+                    _ => {}
+                }
+            }
+            if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
+                let host = window.state::<Host>();
+                for path in paths {
+                    let _ = host.allow(path);
+                }
+            }
+        })
+        .run(tauri::generate_context!())
+        .expect("无法启动拾传 Preview");
+}
+
+#[cfg(desktop)]
+fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    use tauri::{
+        menu::{Menu, MenuItem},
+        tray::TrayIconBuilder,
+    };
+    let show = MenuItem::with_id(app, "show", "打开拾传", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show, &quit])?;
+    let mut tray = TrayIconBuilder::new()
+        .tooltip("拾传 Preview")
+        .menu(&menu)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "show" => {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
+            }
+            "quit" => app.exit(0),
+            _ => {}
+        });
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+    tray.build(app)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::safe_export_name;
+    #[test]
+    fn exports_cannot_escape_directory_or_create_reserved_windows_names() {
+        assert_eq!(safe_export_name("../../private/照片.png"), "照片.png");
+        assert_eq!(safe_export_name("C:\\private\\file.jpg"), "file.jpg");
+        assert_eq!(safe_export_name("CON.jpg"), "_CON.jpg");
+        assert_eq!(safe_export_name("a:b?.png"), "a_b_.png");
+        assert_eq!(safe_export_name(".."), "文件");
+    }
+}

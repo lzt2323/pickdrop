@@ -1,0 +1,9 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mergeMessages, MAX_VISIBLE, progressScheduler, parseInvite } from '../src/model.js';
+test('large history stays bounded and updates keyed messages', () => { const messages = Array.from({ length: 1000 }, (_, i) => ({ id: String(i), createdAt: i, text: 'old' })); const result = mergeMessages(messages, [{ id: '999', createdAt: 999, text: 'new' }]); assert.equal(result.length, MAX_VISIBLE); assert.equal(result.at(-1).text, 'new'); assert.equal(result[0].id, '820'); });
+test('progress bursts coalesce while completion flushes immediately', async () => { const calls = []; const p = progressScheduler(v => calls.push(v), 20); for (let i = 0; i < 100; i++)
+    p.push(i); await new Promise(r => setTimeout(r, 35)); assert.deepEqual(calls, [99]); p.push(100); p.flush(101); await new Promise(r => setTimeout(r, 35)); assert.deepEqual(calls, [99, 101]); p.dispose(); });
+test('invitation URLs parse endpoint and code', () => assert.deepEqual(parseInvite('pickdrop://join?address=http%3A%2F%2F192.168.1.2%3A1234&code=abc'), { address: 'http://192.168.1.2:1234', code: 'abc' }));
+test('existing desktop QR invitation hash stays compatible', () => assert.deepEqual(parseInvite('http://192.168.1.2:1234/#invite=123456&group=g&protocol=peer'), { address: 'http://192.168.1.2:1234', code: '123456' }));
+test('ISO dates and numeric causal sequence sort chronologically', () => { assert.deepEqual(mergeMessages([], [{ id: 'aaa', createdAt: '2026-10-12T02:00:00Z' }, { id: 'zzz', createdAt: '2026-10-12T01:00:00Z' }]).map(m => m.id), ['zzz', 'aaa']); assert.deepEqual(mergeMessages([], [{ id: 'aaa', sequence: 2, createdAt: '2026-10-12T01:00:00Z' }, { id: 'zzz', sequence: 1, createdAt: '2026-10-12T02:00:00Z' }]).map(m => m.id), ['zzz', 'aaa']); });

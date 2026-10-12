@@ -1,0 +1,7 @@
+{
+  "$schema":"../gen/schemas/desktop-schema.json",
+  "identifier":"main",
+  "description":"Local PickDrop UI; no arbitrary filesystem or remote content access",
+  "windows":["main","group-*"],
+  "permissions":["core:default","clipboard-manager:allow-write-text","clipboard-manager:allow-read-text"]
+}

@@ -9,6 +9,6 @@ module.exports = ({ config }) => {
   return {
     ...config,
     name: '拾传内测',
-    android: { ...config.android, package: 'app.pickdrop.mobile.preview', versionCode: 501 },
+    android: { ...config.android, package: 'app.pickdrop.mobile.preview', versionCode: 60001 },
   };
 };

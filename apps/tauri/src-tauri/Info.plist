@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>NSCameraUsageDescription</key><string>扫描拾传群聊邀请二维码</string>
+<key>NSPhotoLibraryAddUsageDescription</key><string>将收到的图片和视频保存到相册</string>
+<key>NSPhotoLibraryUsageDescription</key><string>选择并保存图片和视频</string>
+<key>NSLocalNetworkUsageDescription</key><string>在局域网内发现设备并传输聊天与文件</string>
+<key>NSBonjourServices</key><array><string>_pickdrop._tcp</string></array>
+<key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
+</dict></plist>

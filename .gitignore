@@ -14,6 +14,13 @@ apps/mobile/export-check/
 !.env.example
 coverage/
 *.tsbuildinfo
+target/
+apps/tauri/dist/
+apps/tauri/src-tauri/gen/
+apps/tauri/src-tauri/plugins/*/android/build/
+apps/tauri/src-tauri/plugins/*/android/.gradle/
+apps/tauri/src-tauri/plugins/*/ios/.build/
+apps/mobile/export-check-ios/
 *.pem
 *.key
 *.p12
