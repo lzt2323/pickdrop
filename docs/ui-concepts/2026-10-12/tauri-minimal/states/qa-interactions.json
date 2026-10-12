@@ -17,11 +17,15 @@
       "passed": true
     },
     {
-      "name": "clear cache result preserves records",
+      "name": "clear cache result",
       "passed": true
     },
     {
       "name": "reduced viewport draft sends locally",
+      "passed": true
+    },
+    {
+      "name": "desktop one-row composer sends",
       "passed": true
     }
   ],

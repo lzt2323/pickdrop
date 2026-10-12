@@ -18,15 +18,6 @@
     "platform": "desktop"
   },
   {
-    "id": "workspace",
-    "title": "宽工作区",
-    "file": "workspace.html",
-    "width": 960,
-    "height": 720,
-    "category": "desktop",
-    "platform": "desktop"
-  },
-  {
     "id": "groups",
     "title": "群组菜单",
     "file": "groups.html",
