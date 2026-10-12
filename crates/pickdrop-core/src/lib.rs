@@ -1053,7 +1053,7 @@ impl Core {
         let g = data.groups.get_mut(id).context("Unknown group")?;
         self.0.transfers.lock().await.remove(transfer_id);
         ensure!(!token.is_cancelled(), "已取消");
-        let m = json!({"id":uuid::Uuid::new_v4(),"type":"file","fileName":name,"mime":"application/octet-stream","size":size,"sha256":sha,"senderId":device["id"],"senderName":device["name"],"createdAt":chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis,true)});
+        let m = json!({"id":uuid::Uuid::new_v4(),"type":"file","fileName":name,"mime":file_mime(&name),"size":size,"sha256":sha,"senderId":device["id"],"senderName":device["name"],"createdAt":chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis,true)});
         g.replica
             .append("message", m.clone(), &device, &self.0.key)?;
         self.changed(id, &mut data).await?;
@@ -1119,6 +1119,45 @@ impl Core {
             }
         }
         Ok((count, size))
+    }
+}
+// MIME is an interoperability hint; hosts validate image bytes before decoding thumbnails.
+fn file_mime(name: &str) -> &'static str {
+    match std::path::Path::new(name)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "avif" => "image/avif",
+        "heic" => "image/heic",
+        "heif" => "image/heif",
+        "bmp" => "image/bmp",
+        "tif" | "tiff" => "image/tiff",
+        "svg" => "image/svg+xml",
+        "mp4" | "m4v" => "video/mp4",
+        "mov" => "video/quicktime",
+        "webm" => "video/webm",
+        "mp3" => "audio/mpeg",
+        "m4a" => "audio/mp4",
+        "wav" => "audio/wav",
+        "ogg" => "audio/ogg",
+        "flac" => "audio/flac",
+        "pdf" => "application/pdf",
+        "zip" => "application/zip",
+        "gz" => "application/gzip",
+        "tar" => "application/x-tar",
+        "json" => "application/json",
+        "txt" => "text/plain",
+        "md" => "text/markdown",
+        "csv" => "text/csv",
+        "html" | "htm" => "text/html",
+        _ => "application/octet-stream",
     }
 }
 fn origin(url: &str) -> Result<String> {
