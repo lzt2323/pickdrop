@@ -1,0 +1,13 @@
+[
+  {
+    "date": "2026-10-12",
+    "genre": "modern-minimal",
+    "macrostructure": "Workbench",
+    "theme": "existing blue-white app system",
+    "brief": "Optimize previous desktop/mobile PickDrop layouts; independent HTML preview",
+    "screens": 67,
+    "enrichment": "none; only UI icons and a labelled sample attachment",
+    "contrast": "all named text pairs >4.5:1",
+    "responsive": "320/375/414/768 passed"
+  }
+]

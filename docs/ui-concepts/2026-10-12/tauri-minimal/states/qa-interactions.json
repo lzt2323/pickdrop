@@ -1,0 +1,29 @@
+{
+  "checks": [
+    {
+      "name": "invalid invitation stays editable",
+      "passed": true
+    },
+    {
+      "name": "corrected invitation navigates",
+      "passed": true
+    },
+    {
+      "name": "manual connect shows result",
+      "passed": true
+    },
+    {
+      "name": "owner cancel returns owner settings",
+      "passed": true
+    },
+    {
+      "name": "clear cache result preserves records",
+      "passed": true
+    },
+    {
+      "name": "reduced viewport draft sends locally",
+      "passed": true
+    }
+  ],
+  "passed": true
+}
