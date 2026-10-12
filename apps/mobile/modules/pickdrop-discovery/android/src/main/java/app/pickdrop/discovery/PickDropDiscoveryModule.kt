@@ -29,6 +29,9 @@ class PickDropDiscoveryModule : Module() {
   private var udpSocket: MulticastSocket? = null
   private var connectivity: ConnectivityManager? = null
   private var networkCallback: ConnectivityManager.NetworkCallback? = null
+  // Keep address observations across scan restarts: registering a callback
+  // replays current networks, which must not be mistaken for another change.
+  private val networkAddresses = mutableMapOf<Network, String>()
   private val infoCallbacks = mutableMapOf<String, NsdManager.ServiceInfoCallback>()
   private val main = Handler(Looper.getMainLooper())
   private var manager: NsdManager? = null
@@ -203,18 +206,59 @@ class PickDropDiscoveryModule : Module() {
   private fun startNetworkMonitor(context: Context, id: String) {
     val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     connectivity = cm
-    val seen = cm.allNetworks.associateWith { cm.getLinkProperties(it)?.linkAddresses.toString() }.toMutableMap()
+    fun signature(network: Network, properties: android.net.LinkProperties): String? {
+      val caps = cm.getNetworkCapabilities(network) ?: return null
+      if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return null
+      if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) && !caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) return null
+      val addresses = properties.linkAddresses.map { it.address }.filterIsInstance<Inet4Address>()
+        .filter { !it.isLoopbackAddress && !it.isLinkLocalAddress && !it.isAnyLocalAddress && !it.isMulticastAddress }
+        .mapNotNull { it.hostAddress }.sorted()
+      return if (addresses.isEmpty()) "" else "${properties.interfaceName}:${addresses.joinToString(",")}"
+    }
+    for (network in cm.allNetworks) {
+      val properties = cm.getLinkProperties(network) ?: continue
+      val current = signature(network, properties) ?: continue
+      networkAddresses.putIfAbsent(network, current)
+    }
     val callback = object : ConnectivityManager.NetworkCallback() {
-      override fun onAvailable(network: Network) { if (!seen.containsKey(network)) main.post { if (session == id) sendEvent("onNetworkChanged", mapOf("sessionId" to id)) } }
+      // onAvailable can precede IPv4 provisioning. Wait for link properties
+      // rather than repeatedly restarting a scan during callback registration.
       override fun onLinkPropertiesChanged(network: Network, properties: android.net.LinkProperties) {
-        val signature = properties.linkAddresses.toString()
-        val previous = seen.put(network, signature)
-        if (previous != null && previous != signature) main.post { if (session == id) sendEvent("onNetworkChanged", mapOf("sessionId" to id)) }
+        main.post {
+          if (session != id) return@post
+          val current = signature(network, properties) ?: return@post
+          val previous = networkAddresses.put(network, current)
+          if (networkAddresses.size > 64) networkAddresses.remove(networkAddresses.keys.first())
+          if (previous != current && !(previous == null && current.isEmpty())) {
+            sendEvent("onNetworkChanged", mapOf("sessionId" to id))
+          }
+        }
       }
-      override fun onLost(network: Network) { seen.remove(network); main.post { if (session == id) sendEvent("onNetworkChanged", mapOf("sessionId" to id)) } }
+      override fun onLost(network: Network) {
+        main.post {
+          if (session == id && !networkAddresses.remove(network).isNullOrEmpty()) {
+            sendEvent("onNetworkChanged", mapOf("sessionId" to id))
+          }
+        }
+      }
     }
     networkCallback = callback
     cm.registerNetworkCallback(NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).addTransportType(NetworkCapabilities.TRANSPORT_ETHERNET).build(), callback)
+  }
+
+  private fun lanInterface(cm: ConnectivityManager): NetworkInterface? {
+    fun physicalInterface(network: Network): NetworkInterface? {
+      val caps = cm.getNetworkCapabilities(network) ?: return null
+      // A VPN may inherit WIFI; multicast must use the actual LAN interface.
+      if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return null
+      if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) && !caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) return null
+      val properties = cm.getLinkProperties(network) ?: return null
+      if (properties.linkAddresses.none { it.address is java.net.Inet4Address && !it.address.isLoopbackAddress && !it.address.isLinkLocalAddress && !it.address.isAnyLocalAddress && !it.address.isMulticastAddress }) return null
+      return properties.interfaceName?.let { NetworkInterface.getByName(it) }
+    }
+    cm.activeNetwork?.let { physicalInterface(it)?.let { iface -> return iface } }
+    for (network in cm.allNetworks) physicalInterface(network)?.let { return it }
+    return null
   }
 
   private fun startUdp(id: String) {
@@ -226,9 +270,7 @@ class PickDropDiscoveryModule : Module() {
         activeSocket.apply { reuseAddress = true; bind(InetSocketAddress(47320)); soTimeout = 1000; timeToLive = 1 }
         synchronized(udpGuard) { if (session != id) { activeSocket.close(); return@Thread }; udpSocket = activeSocket }
         val cm = connectivity
-        val network = cm?.allNetworks?.firstOrNull { val caps = cm?.getNetworkCapabilities(it); caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true || caps?.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) == true }
-        val ifaceName = network?.let { cm?.getLinkProperties(it)?.interfaceName }
-        val iface = ifaceName?.let { NetworkInterface.getByName(it) }
+        val iface = cm?.let { lanInterface(it) }
         if (iface != null) { activeSocket.networkInterface = iface; activeSocket.joinGroup(InetSocketAddress("239.255.47.32", 47320), iface) }
         else return@Thread
         val query = "{\"protocol\":\"pickdrop-discover-v1\"}".toByteArray()

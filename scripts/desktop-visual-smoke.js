@@ -1,3 +1,4 @@
+import { firstContentWindow, nextContentWindow } from './desktop-test-windows.js';
 import assert from 'node:assert/strict';
 import { _electron as electron } from 'playwright';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
@@ -12,11 +13,11 @@ const peers = [], errors = [];
 app.process().stderr?.on('data', chunk => { const line = chunk.toString(); if (/Error|Exception|finalized/.test(line)) console.error('Electron stderr:', line); });
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 try {
-  const home = await app.firstWindow();
+  const home = await firstContentWindow(app);
   await home.waitForFunction(() => document.querySelector('#connection-status')?.dataset.connected === 'true');
-  const opened = app.waitForEvent('window');
+  const opened = nextContentWindow(app);
   await home.evaluate(() => window.pickdrop.createGroup('项目传输群'));
-  const page = await opened;
+  const page = await opened; await page.locator('#invite-code').waitFor(); await page.locator('#close-panel').click();
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.waitForFunction(() => document.querySelector('#connection-status')?.dataset.connected === 'true');
@@ -54,7 +55,14 @@ try {
   await app.evaluate(({ BrowserWindow }) => {
     const win = BrowserWindow.getAllWindows().find(w => w.getTitle() === '项目传输群 · 拾传'); win.setBounds({ width: 420, height: 620 });
   });
+  // Reopening history must prepare a visible image without a click or a new-message event.
+  await page.reload();
+  // This newly created group intentionally reopens its invitation on renderer reload.
+  await page.locator('#invite-code').waitFor();
+  await page.locator('#close-panel').click();
+  await page.waitForFunction(() => document.querySelector('#connection-status')?.dataset.connected === 'true');
   const thumbnail = page.locator('.file-thumbnail');
+  await thumbnail.scrollIntoViewIfNeeded();
   await thumbnail.locator('img').waitFor();
   await thumbnail.evaluate(node => node.closest('.file-bubble').scrollIntoView({ block: 'center' }));
   await pause(250);
@@ -71,6 +79,8 @@ try {
   await mkdir('artifacts', { recursive: true });
   await page.screenshot({ animations:'disabled', path: 'artifacts/group-transfer-desktop.png', omitBackground: true });
   assert.equal(await page.locator('.message').count(), 5);
+  const alignment = await page.locator('#timeline').evaluate(node => { const box=node.getBoundingClientRect(); const peer=node.querySelector('.message:not(.own) .bubble').getBoundingClientRect(); const own=node.querySelector('.message.own .bubble').getBoundingClientRect(); return {peer:peer.left-box.left,own:own.left-box.left}; });
+  assert.ok(alignment.own > alignment.peer, 'own bubbles must sit on the right side');
   const layout = await page.evaluate(() => ({
     horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
     composerFits: document.querySelector('#composer').getBoundingClientRect().bottom <= innerHeight,
@@ -78,11 +88,34 @@ try {
     visibleMessageCount: document.querySelectorAll('.message').length,
   }));
   assert.equal(layout.horizontalOverflow, false); assert.equal(layout.composerFits, true); assert.ok(layout.inputWidth > 100);
+  // Approved layout uses real content filters and retains drafts while switching.
+  assert.equal(await page.locator('#message-input').evaluate(node => node.tagName), 'TEXTAREA');
+  assert.equal(await page.locator('#file-count').textContent(), '3');
+  await page.locator('#message-input').fill('切换视图时保留的草稿');
+  const focusGeometry = await page.locator('#message-input').evaluate(input => {
+    const style = getComputedStyle(input), field = input.getBoundingClientRect();
+    const add = document.querySelector('#choose-file').getBoundingClientRect(), send = document.querySelector('#send-text').getBoundingClientRect();
+    const composer = document.querySelector('#composer').getBoundingClientRect();
+    return { outline: style.outlineWidth, shadow: style.boxShadow, contained: field.left >= composer.left && field.right <= composer.right, separated: add.right <= field.left && field.right <= send.left };
+  });
+  assert.equal(focusGeometry.outline, '0px', 'textarea focus does not paint outside the field');
+  assert.equal(focusGeometry.shadow, 'none', 'compact text field has no nested focus frame');
+  assert.ok(focusGeometry.contained && focusGeometry.separated, 'focused textarea remains between the add and send buttons');
+
+  await page.locator('#view-files').click();
+  assert.equal(await page.locator('#view-files').getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('.message').count(), 3);
+  assert.equal(await page.locator('.text-bubble').count(), 0);
+  await page.screenshot({ animations:'disabled', path:'artifacts/desktop-approved-files.png', omitBackground:true });
+  await page.locator('#view-all').click();
+  assert.equal(await page.locator('.message').count(), 5);
+  assert.equal(await page.locator('#message-input').inputValue(), '切换视图时保留的草稿');
+  await page.locator('#message-input').fill('');
   // Presence updates must not rebuild the message DOM or close a user's file menu.
   const more = page.locator('.file-more').last(), summary = more.locator('summary');
   await summary.click();
   peers[0].terminate();
-  await page.waitForFunction(() => document.querySelector('#connection-status')?.textContent === '2 在线');
+  await page.waitForFunction(() => document.querySelector('#device-summary')?.textContent === '2 台设备在线');
   assert.equal(await more.getAttribute('open'), '');
   await summary.focus(); await page.keyboard.press('Escape');
   assert.equal(await more.getAttribute('open'), null);
@@ -110,6 +143,7 @@ try {
   assert.match(invitation.qrDataUrl, /^data:image\/png;base64,/);
   await page.locator('#group-menu-button').click();
   await page.locator('#invite-members').click();
+  await page.locator('.invite-scan').click();
   await page.locator('.invite-qr').waitFor();
   assert.ok(await page.locator('.invite-qr').evaluate(image => image.complete && image.naturalWidth > 0));
   await page.screenshot({ animations:'disabled', path: 'artifacts/mobile-invite-desktop.png', omitBackground: true });

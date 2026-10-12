@@ -70,7 +70,8 @@ export class TransferManager {
   private picking = false;
   private downloadLeases = new Map<string, number>();
   private downloadTails = new Map<string, Promise<void>>();
-  private previewTail: Promise<void> = Promise.resolve();
+  private previewTails: Promise<void>[] = [Promise.resolve(), Promise.resolve()];
+  private previewSlot = 0;
   private cacheSweep: Promise<void> = Promise.resolve();
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   getSnapshot = () => this.snapshot;
@@ -288,8 +289,9 @@ export class TransferManager {
     const abort = () => { task.cancelled = true; void task.native?.cancelAsync().catch(() => {}); release(); };
     signal?.addEventListener('abort', abort, { once: true });
     if (signal?.aborted) abort();
-    // One background preview download at a time, sharing the per-file lock with explicit saves.
-    const operation = this.previewTail.catch(() => {}).then(async () => {
+    // At most two original-image downloads, sharing per-file locks with explicit saves.
+    const slot = this.previewSlot++ % this.previewTails.length;
+    const operation = this.previewTails[slot].catch(() => {}).then(async () => {
       checkCancelled(task);
       const key = locked.id + '\n' + (locked.hostDeviceId || locked.baseUrl) + '\n' + message.id;
       const previous = this.downloadTails.get(key) || Promise.resolve();
@@ -304,7 +306,7 @@ export class TransferManager {
       checkCancelled(task);
       return { uri: task.item.localUri!, release };
     });
-    this.previewTail = operation.then(() => {}, () => {});
+    this.previewTails[slot] = operation.then(() => {}, () => {});
     try { return await operation; }
     catch (error) { release(); throw error; }
   }

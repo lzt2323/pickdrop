@@ -1,3 +1,4 @@
+import { isAnimalId, groupAnimal } from './animals.js';
 import { ed25519 } from '@noble/curves/ed25519';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
@@ -24,9 +25,10 @@ export function createPeerIdentity(privateKey) {
   if (!hex(secret)) throw fail('Invalid peer private key');
   return { privateKey: secret, publicKey: bytesToHex(ed25519.getPublicKey(hexToBytes(secret))) };
 }
-export function createPeerGenesis({ groupId, name, identity, device }) {
+export function createPeerGenesis({ groupId, name, identity, device, animalId }) {
   if (!uuid(groupId) || !uuid(device?.id) || !String(name).trim()) throw fail('Invalid peer group');
-  const body = { protocol: PEER_PROTOCOL, groupId, name: name.trim().slice(0, 40), creatorDeviceId: device.id, creatorPublicKey: identity.publicKey, creator: { id: device.id, name: device.name, kind: device.kind || 'desktop', publicKey: identity.publicKey } };
+  if (animalId !== undefined && !isAnimalId(animalId)) throw fail('Invalid group animal');
+  const body = { protocol: PEER_PROTOCOL, groupId, ...(animalId ? { animalId } : {}), name: name.trim().slice(0, 40), creatorDeviceId: device.id, creatorPublicKey: identity.publicKey, creator: { id: device.id, name: device.name, kind: device.kind || 'desktop', publicKey: identity.publicKey } };
   return { ...body, signature: sign(body, identity) };
 }
 export function createPeerJoinProof(identity, code, device) {
@@ -62,7 +64,7 @@ export function createPeerReplica({ identity, device, genesis, events = [], now 
     const grants = ordered.filter(e => e.type === 'member.add'), grantValidity = new Map();
     const hasAuthorization = e => e.authorDeviceId === genesis.creatorDeviceId && e.authorPublicKey === genesis.creatorPublicKey || grants.some(g => g.payload.id === e.authorDeviceId && g.payload.publicKey === e.authorPublicKey && ancestors(e.parents).has(g.eventId) && validGrant(g));
     const validGrant = e => { if (grantValidity.has(e.eventId)) return grantValidity.get(e.eventId); const value = allowed(e) && hasAuthorization(e); grantValidity.set(e.eventId, value); return value; };
-    let name = genesis.name, dissolved = false; const messages = new Map(), conflicts = new Set();
+    let name = genesis.name, animalId = groupAnimal({ id: genesis.groupId, animalId: genesis.animalId }), dissolved = false; const messages = new Map(), conflicts = new Set();
     for (const e of ordered) {
       if (!allowed(e) && !['member.remove', 'member.leave'].includes(e.type)) continue;
       if (e.type === 'member.add') {
@@ -72,7 +74,7 @@ export function createPeerReplica({ identity, device, genesis, events = [], now 
         // A removed identity is never revived by an old or concurrent grant.
         const removals = (removed.get(e.payload.id) || []).filter(r => r.type !== 'member.leave' || r.authorPublicKey === e.payload.publicKey);
         if (removals.every(r => ancestors(e.parents).has(r.eventId))) members.set(e.payload.id, clone(e.payload));
-      } else if (e.type === 'rename') name = e.payload.name;
+      } else if (e.type === 'rename') { name = e.payload.name; if (isAnimalId(e.payload.animalId)) animalId = e.payload.animalId; }
       else if (e.type === 'dissolve') dissolved = true;
       else if (e.type === 'message' && hasAuthorization(e)) { const previous = messages.get(e.payload.id); if (previous && canonical(previous.payload) !== canonical(e.payload)) conflicts.add(e.payload.id); else messages.set(e.payload.id, { payload: clone(e.payload), eventId: e.eventId }); }
     }
@@ -82,7 +84,7 @@ export function createPeerReplica({ identity, device, genesis, events = [], now 
       const grants = ordered.filter(e => e.type === 'member.add' && e.payload.id === id && validGrant(e));
       if (!grants.some(e => removals.every(r => ancestors(e.parents).has(r.eventId)))) members.delete(id);
     }
-    return { id: genesis.groupId, name, members: [...members.values()], messages: [...messages].filter(([id]) => !conflicts.has(id)).map(([,value]) => ({...value.payload,peerEventId:value.eventId})), dissolved };
+    return { id: genesis.groupId, name, animalId, members: [...members.values()], messages: [...messages].filter(([id]) => !conflicts.has(id)).map(([,value]) => ({...value.payload,peerEventId:value.eventId})), dissolved };
   }
   function validate(event) {
     if (!event || event.groupId !== genesis.groupId || !Array.isArray(event.parents) || event.parents.length > 256 || !Number.isSafeInteger(event.clock) || event.clock < 1 || !uuid(event.authorDeviceId)) throw fail('Invalid peer event');
@@ -110,6 +112,7 @@ export function createPeerReplica({ identity, device, genesis, events = [], now 
     } else if (event.type === 'rename' || event.type === 'dissolve') {
       if (event.authorPublicKey !== genesis.creatorPublicKey) throw fail('Only creator may manage the group', 403);
       if (event.type === 'rename' && (typeof p?.name !== 'string' || !p.name.trim() || p.name.length > 40)) throw fail('Invalid group name');
+      if (event.type === 'rename' && p.animalId !== undefined && !isAnimalId(p.animalId)) throw fail('Invalid group animal');
     } else if (event.type !== 'member.leave') throw fail('Unsupported event type');
   }
   function merge(incoming) {

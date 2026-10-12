@@ -1,3 +1,4 @@
+import { isAnimalId, groupAnimal, nextAnimal } from '../shared/animals.js';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
@@ -59,21 +60,24 @@ export async function createGroupManager({ dataDir, device, discoveryFactory = c
     const payload = body === undefined ? undefined : JSON.stringify(body);
     const outgoingHeaders = { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...headers };
     if (fetchImpl) {
-      const response = await fetchImpl(url, { method, headers: outgoingHeaders, body: payload, redirect: 'error', signal: signal || AbortSignal.timeout(3000) });
+      const response = await fetchImpl(url, { method, headers: outgoingHeaders, body: payload, redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(3000)]) : AbortSignal.timeout(3000) });
       const result = await response.json(); if (!response.ok) throw fail(response.status, result.error || '群连接失败'); return result;
     }
     // Binding the source address makes an explicit selection affect outbound
     // validation and pairing as well as hosted listeners and advertisements.
     return new Promise((resolve, reject) => {
       const transport = url.startsWith('https:') ? https : http;
-      const req = transport.request(url, { method, headers: outgoingHeaders, localAddress: selected.address, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(3000)]) : AbortSignal.timeout(3000), timeout: 3000 }, res => {
+      // Android's bounded native HTTP transport accepts a known body length,
+      // not chunked encoding. Count UTF-8 bytes rather than string characters.
+      const headers = { ...outgoingHeaders, ...(payload === undefined ? {} : { 'Content-Length': Buffer.byteLength(payload) }) };
+      const req = transport.request(url, { method, headers, localAddress: selected.address, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(3000)]) : AbortSignal.timeout(3000), timeout: 3000 }, res => {
         let data = '', bytes = 0;
         res.on('data', chunk => { bytes += chunk.length; if (bytes > 32 * 1024 * 1024) { req.destroy(fail(413, '群消息过大')); return; } data += chunk; });
         res.on('error', reject);
         res.on('end', () => { try { const result = JSON.parse(data); if (res.statusCode < 200 || res.statusCode >= 300) reject(fail(res.statusCode, result.error || '群连接失败')); else resolve(result); } catch { reject(fail(502, '主机返回了无效数据')); } });
       });
       req.on('timeout', () => req.destroy(fail(408, '群连接超时'))); req.on('error', reject);
-      if (payload !== undefined) req.write(payload); req.end();
+      req.end(payload);
     });
   }
   async function authenticate(group, baseUrl) {
@@ -95,9 +99,9 @@ export async function createGroupManager({ dataDir, device, discoveryFactory = c
   async function startHosted(group) {
     let peer;
     if (group.mode === 'peer') {
-      peer = await openPeerStore({ dataDir: path.join(dataDir, 'groups', group.id), identity: peerIdentity, device, genesis: group.peer?.genesis, events: group.peer?.events, request, localAddress: () => selected?.address, acquireTransfer: () => { if(switching||!networkAvailable)throw fail(503,'网络正在切换或已断开');leasedTransfers++;let released=false;return()=>{if(!released){released=true;leasedTransfers--;}}; }, endpoint: () => hosted.get(group.id)?.baseUrl, onChange: state => { group.name = state.name; group.dissolved=state.dissolved; events.emit('requests-changed', group.id); changed(); } });
+      peer = await openPeerStore({ dataDir: path.join(dataDir, 'groups', group.id), identity: peerIdentity, device, genesis: group.peer?.genesis, events: group.peer?.events, request, localAddress: () => selected?.address, acquireTransfer: () => { if(switching||!networkAvailable)throw fail(503,'网络正在切换或已断开');leasedTransfers++;let released=false;return()=>{if(!released){released=true;leasedTransfers--;}}; }, endpoint: () => hosted.get(group.id)?.baseUrl, onChange: state => { group.name = state.name; group.animalId = state.animalId; const retiredChanged=group.dissolved!==state.dissolved; group.dissolved=state.dissolved; if(retiredChanged)persist().catch(error=>events.emit('storage-error',{groupId:group.id,message:error.message})); events.emit('requests-changed', group.id); changed(); } });
       for (const hint of group.peerEndpoints || []) peer.remember(hint);
-      await peer.initialize(); group.name=peer.state().name; peerStores.set(group.id, peer); delete group.peer;
+      await peer.initialize(); group.name=peer.state().name; group.animalId=peer.state().animalId; group.dissolved=peer.state().dissolved; peerStores.set(group.id, peer); delete group.peer;
     }
     const options = { dataDir: path.join(dataDir, 'groups', group.id), host: selected?.address || '127.0.0.1', listen: networkAvailable, port: group.preferredPort || 0, group: { id: group.id, name: group.name, hostDeviceId: group.mode === 'peer' ? device.id : group.hostDeviceId, authVersion: group.mode === 'peer' ? 2 : group.authVersion }, peer, pairingOptions: { ...pairingOptions, onRequestsChanged: () => events.emit('requests-changed', group.id) } };
     let inbox;
@@ -157,7 +161,7 @@ export async function createGroupManager({ dataDir, device, discoveryFactory = c
   }
   for (const group of saved?.groups || []) {
     if (!uuid.test(group.id) || !uuid.test(group.hostDeviceId) || !/^[a-f0-9]{64}$/.test(group.key)) throw new Error('Invalid saved group');
-    groups.set(group.id, { ...group, online: false });
+    groups.set(group.id, { ...group, animalId: groupAnimal(group), online: false });
   }
   try {
     for (const group of groups.values()) if (group.local) await restoreHosted(group);
@@ -173,7 +177,7 @@ export async function createGroupManager({ dataDir, device, discoveryFactory = c
   } catch (error) { await directory?.close(); await Promise.allSettled([...hosted.values()].map(inbox => inbox.close())); throw error; }
   async function resolveGroup(groupId) {
     const group = groups.get(groupId); if (!group) throw fail(404, '找不到这个群');
-    if(group.mode==='peer' && peerStores.get(groupId)?.state().dissolved)return {...group,online:false,storageError:'此群已被创建者解散，等待通知其他设备'};
+    if(group.dissolved || group.pendingDeparture)return {...group,online:false,storageError:group.dissolved?'此群已解散':'已退出此群'};
     if (group.local || !networkAvailable || switching) return { ...group, online: group.local ? networkAvailable && hosted.has(group.id) : false };
     if (resolving.has(groupId)) { await resolving.get(groupId); return { ...group }; }
     const operation = track((async () => {
@@ -203,8 +207,9 @@ export async function createGroupManager({ dataDir, device, discoveryFactory = c
   async function rebind({ force = false } = {}) {
     switching = true; for (const inbox of hosted.values()) inbox.pauseTransfers(); networkChanged();
     directoryAbort?.abort(); await directoryScan?.catch(() => {}); directoryRecords.clear();
-    await directory?.close(); directory = null; await discovery.close(); await Promise.allSettled([...active]);
-    await Promise.all([...peerStores.values()].map(peer => peer.close())); peerStores.clear();
+    await directory?.close(); directory = null; await discovery.close();
+    await Promise.all([...peerStores.values()].map(peer => peer.close()));
+    await Promise.allSettled([...active]); peerStores.clear();
     await Promise.all([...hosted.values()].map(inbox => inbox.close({ force }))); hosted.clear();
     for (const group of groups.values()) { group.online = false; if (group.local) await restoreHosted(group); }
     await startDiscovery(); switching = false; await persist(); networkChanged();
@@ -225,11 +230,17 @@ export async function createGroupManager({ dataDir, device, discoveryFactory = c
       return networkState();
     });
   }
-  let monitoring = false;
+  // A slow or unreachable group must not hold up the other groups' next poll.
+  const monitoring = new Set();
   const monitor = setInterval(() => {
-    if (monitoring || closed || switching) return;
-    monitoring = true;
-    track(Promise.allSettled([...groups.keys()].map(async id => { await resolveGroup(id); await peerStores.get(id)?.syncAll(); }))).finally(() => { monitoring = false; });
+    if (closed || switching) return;
+    for (const id of groups.keys()) {
+      if (monitoring.has(id)) continue;
+      monitoring.add(id);
+      track((async () => { await resolveGroup(id); await peerStores.get(id)?.syncAll(); })())
+        .catch(() => {}) // Connection failures are retried independently per group.
+        .finally(() => monitoring.delete(id));
+    }
   }, monitorIntervalMs); monitor.unref();
   const networkMonitor = setInterval(() => refreshNetwork().catch(error => events.emit('network-error', error)), networkPollMs); networkMonitor.unref();
   const manager = {
@@ -257,7 +268,8 @@ export async function createGroupManager({ dataDir, device, discoveryFactory = c
       leasedTransfers++; let released = false;
       return () => { if (!released) { released = true; leasedTransfers--; } };
     },
-    listGroups: () => [...groups.values()].map(group => ({ ...group })),
+    // Retired replicas remain durable synchronization relays, never active UI groups.
+    listGroups: () => [...groups.values()].filter(group => !group.dissolved && !group.pendingDeparture).map(group => ({ ...group })),
     listNearby() { discovery.refresh(); scanNearbyDirectories();
       const unique = new Map(); for (const record of nearbyRecords()) unique.set(`${record.groupId}:${record.baseUrl}`, record);
       return [...unique.values()].map(record => ({ ...record })); },
@@ -266,12 +278,13 @@ export async function createGroupManager({ dataDir, device, discoveryFactory = c
       if (group.local) { const inbox = hosted.get(groupId); if (!networkAvailable) throw fail(503, '所选网络已断开'); return endpoint(selected?.address, inbox?.port); }
       const url = new URL(group.baseUrl); if (!isPublicIPv4(url.hostname)) throw fail(503, '群主机尚无可分享的局域网地址'); return url.origin;
     },
-    createGroup(name) { return serializedNetwork(async () => {
+    createGroup(name, animalId) { return serializedNetwork(async () => {
       if (closed) throw fail(503, '服务已关闭');
       if (switching) throw fail(409, '正在切换网络，请稍后再建群');
       if (typeof name !== 'string' || !name.trim()) throw fail(400, '请输入群名称');
-      const group = { id: randomUUID(), name: name.trim().slice(0, 40), local: true, hostDeviceId: device.id, authVersion: 2 };
-      if (peerGroups) { group.mode = 'peer'; group.authVersion = 3; group.creatorDeviceId = device.id; group.canManage = true; group.peer = { genesis: createPeerGenesis({ groupId: group.id, name: group.name, identity: peerIdentity, device }), events: [] }; }
+      if (animalId !== undefined && !isAnimalId(animalId)) throw fail(400, '请选择有效的小动物');
+      const group = { id: randomUUID(), animalId: animalId || nextAnimal([...groups.values()]), name: name.trim().slice(0, 40), local: true, hostDeviceId: device.id, authVersion: 2 };
+      if (peerGroups) { group.mode = 'peer'; group.authVersion = 3; group.creatorDeviceId = device.id; group.canManage = true; group.peer = { genesis: createPeerGenesis({ groupId: group.id, name: group.name, animalId: group.animalId, identity: peerIdentity, device }), events: [] }; }
       await startHosted(group); groups.set(group.id, group);
       try { await persist(); } catch (error) { groups.delete(group.id); await hosted.get(group.id).close(); hosted.delete(group.id); throw error; }
       discovery.refresh(); changed(); return { ...group };
@@ -379,7 +392,13 @@ export async function createGroupManager({ dataDir, device, discoveryFactory = c
     },
     async leaveGroup(groupId) {
       const group = groups.get(groupId); if (!group) throw fail(404, '找不到这个群');
-      if (group.mode === 'peer') { const peer = peerStores.get(groupId); if(peer.state().members.some(m=>m.id===device.id))await peer.append('member.leave', {});group.pendingDeparture='leave';await persist();const acknowledged=await peer.syncAll();if(!acknowledged && peer.state().members.length)throw fail(409,'退出记录已保存，尚未获得其他成员同步确认；保留此群等待同步后重试，或仅从本机忘记');return manager.forgetGroup(groupId); }
+      if (group.mode === 'peer') {
+        const peer = peerStores.get(groupId);
+        if(peer.state().members.some(m=>m.id===device.id))await peer.append('member.leave', {});
+        group.pendingDeparture='leave';await persist();changed();
+        track(peer.syncAll()).catch(()=>{});
+        return {id:groupId};
+      }
       if (group.local) throw fail(409, '群主机不能退出托管的群');
       await authenticated(groupId, '/api/members/leave', { method: 'POST', body: {} });
       return manager.forgetGroup(groupId);
@@ -387,6 +406,7 @@ export async function createGroupManager({ dataDir, device, discoveryFactory = c
     async forgetGroup(groupId) {
       const group = groups.get(groupId); if (!group) throw fail(404, '找不到这个群');
       if (group.local && group.mode !== 'peer') throw fail(409, '群主机不能忘记托管的群');
+      if(group.mode==='peer' && (group.dissolved || group.pendingDeparture)){changed();return {id:groupId};}
       groups.delete(groupId);
       try { await persist(); } catch (error) { groups.set(groupId, group); throw error; }
       if (group.mode === 'peer') { await hosted.get(groupId)?.close({ force: true }); hosted.delete(groupId); await peerStores.get(groupId)?.close(); peerStores.delete(groupId); discovery.refresh(); }
@@ -395,14 +415,25 @@ export async function createGroupManager({ dataDir, device, discoveryFactory = c
     getHostedInbox: groupId => hosted.get(groupId) || null,
     getPeerStore: groupId => peerStores.get(groupId) || null,
     preparePeerFile: (groupId, id, options) => { const peer = peerStores.get(groupId); if (!peer) throw fail(400, '不是点对点群'); return peer.prepareFile(id, options); },
-    async renameGroup(groupId, name) {
+    async renameGroup(groupId, name, animalId) {
       const group = groups.get(groupId); if (!group) throw fail(404, '找不到群'); if (typeof name !== 'string' || !name.trim()) throw fail(400, '请输入群名'); name = name.trim().slice(0,40);
-      if (peerStores.has(groupId)) await peerStores.get(groupId).append('rename', {name}); else { if (!group.local) throw fail(403, '只有创建者可改名'); hosted.get(groupId)?.renameGroup(name); }
-      group.name = name; await persist(); changed(); return {...group};
+      if (animalId !== undefined && !isAnimalId(animalId)) throw fail(400, '请选择有效的小动物');
+      if (peerStores.has(groupId)) await peerStores.get(groupId).append('rename', {name, ...(animalId ? {animalId} : {})}); else { if (!group.local) throw fail(403, '只有创建者可改名'); hosted.get(groupId)?.renameGroup(name); }
+      group.name = name; if (animalId) group.animalId = animalId; await persist(); changed(); return {...group};
     },
     async deleteGroup(groupId) {
       const group = groups.get(groupId); if (!group) throw fail(404, '找不到群');
-      if (peerStores.has(groupId)) { const peer=peerStores.get(groupId);if(group.creatorDeviceId!==device.id)throw fail(403,'Only creator may dissolve group');if(!peer.state().dissolved)await peer.append('dissolve', {});group.pendingDeparture='dissolve';await persist();const acknowledged=await peer.syncAll();if(!acknowledged && peer.state().members.some(m=>m.id!==device.id))throw fail(409,'解散记录已保存，尚未获得其他成员同步确认；保留此群等待同步后重试，尚未完成全群通知');return manager.forgetGroup(groupId); }
+      if (peerStores.has(groupId)) {
+        const peer=peerStores.get(groupId);
+        if(group.creatorDeviceId!==device.id)throw fail(403,'Only creator may dissolve group');
+        if(!peer.state().dissolved)await peer.append('dissolve', {});
+        group.dissolved=true;group.pendingDeparture='dissolve';await persist();changed();
+        // A single acknowledgement cannot stand in for every offline member.
+        // Keep the signed tombstone and listener across restarts; normal polling
+        // and discovery will deliver it when any former member returns.
+        track(peer.syncAll()).catch(()=>{});
+        return {id:groupId};
+      }
       if (!group.local) return manager.forgetGroup(groupId);
       if (hosted.get(groupId)?.activeTransfers()) throw fail(409, '有文件正在传输'); groups.delete(groupId); await persist(); await hosted.get(groupId)?.close(); hosted.delete(groupId); discovery.refresh(); changed(); return {id:groupId};
     },
@@ -410,7 +441,7 @@ export async function createGroupManager({ dataDir, device, discoveryFactory = c
       const group=groups.get(groupId); if(!group?.local)throw fail(403,'请在原托管设备升级'); if(group.mode==='peer')return {...group};
       const inbox=hosted.get(groupId); if(inbox.activeTransfers())throw fail(409,'有文件正在传输');
       const oldMessages=inbox.exportMessages(), previous={...group};
-      const genesis=createPeerGenesis({groupId,name:group.name,identity:peerIdentity,device}), staged=createPeerReplica({identity:peerIdentity,device,genesis,randomBytes});
+      const genesis=createPeerGenesis({groupId,name:group.name,animalId:group.animalId || groupAnimal(group),identity:peerIdentity,device}), staged=createPeerReplica({identity:peerIdentity,device,genesis,randomBytes});
       for(const message of oldMessages)staged.append('message',{...message,senderId:device.id,senderName:`${message.senderName}（旧记录导入）`,legacySenderId:message.senderId});
       const peerPath=path.join(dataDir,'groups',groupId,'peer.json');
       await writeJsonWithBackup(peerPath,staged.snapshot());
@@ -427,8 +458,9 @@ export async function createGroupManager({ dataDir, device, discoveryFactory = c
     },
     async close({ force = false } = {}) {
       if (closed) return; closed = true; clearInterval(monitor); clearInterval(networkMonitor); await networkWrites.catch(() => {}); directoryAbort?.abort(); await directoryScan?.catch(() => {}); await directory?.close(); await discovery.close();
+      await Promise.all([...peerStores.values()].map(peer => peer.close()));
       await Promise.allSettled([...active]);
-      await Promise.all([...peerStores.values()].map(peer => peer.close())); await Promise.all([...hosted.values()].map(inbox => inbox.close({ force }))); await writeQueue;
+      await Promise.all([...hosted.values()].map(inbox => inbox.close({ force }))); await writeQueue;
     },
   };
   return manager;

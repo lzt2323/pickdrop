@@ -1,3 +1,4 @@
+import { firstContentWindow, nextContentWindow } from './desktop-test-windows.js';
 import assert from 'node:assert/strict';
 import { _electron as electron } from 'playwright';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -18,7 +19,7 @@ const bootstrap = page => page.evaluate(() => window.pickdrop.bootstrap());
 async function start(name) {
   const app = await electron.launch({ executablePath, args: packaged ? [] : [root], cwd: root, env: { ...process.env, PICKDROP_TEST_LEGACY_GROUPS: '0', PICKDROP_USER_DATA: path.join(dir, name) } });
   apps.push(app);
-  const page = await app.firstWindow();
+  const page = await firstContentWindow(app);
   page.on('pageerror', error => errors.push(error.message));
   await connected(page); return { app, page };
 }
@@ -30,7 +31,7 @@ async function join(owner, peer, groupId) {
   const peerId = (await bootstrap(peer.page)).device.id;
   const request = list.find(item => item.device.id === peerId); assert.ok(request);
   await owner.evaluate(id => window.pickdrop.respondJoin(id, true), request.id);
-  const opened = peer.app.waitForEvent('window');
+  const opened = nextContentWindow(peer.app);
   await peer.page.evaluate(value => window.pickdrop.checkJoin(value), ticket);
   const page = await opened; page.on('pageerror', error => errors.push(error.message)); await connected(page); return page;
 }
@@ -47,34 +48,47 @@ try {
   await send(owner.page, '三台设备同步');
   await bGroup.getByText('三台设备同步', { exact: true }).waitFor({ timeout: 20000 });
   await cGroup.getByText('三台设备同步', { exact: true }).waitFor({ timeout: 20000 });
-  // Establish the two survivors through the real manual-address path. Hosted CI
-  // does not promise multicast loopback; strict LAN discovery remains covered by
-  // desktop:smoke, not silently skipped here. No server or renderer mocks.
-  const bEndpoint = (await bootstrap(bGroup)).room.baseUrl;
-  const cEndpoint = (await bootstrap(cGroup)).room.baseUrl;
-  await bGroup.evaluate(address => window.pickdrop.reconnectGroup(address), cEndpoint);
-  await cGroup.evaluate(address => window.pickdrop.reconnectGroup(address), bEndpoint);
+  // Joining only through the creator must discover the other member through
+  // signed address exchange. Do not manually reconnect survivors: that would
+  // conceal a broken automatic mesh when multicast is unavailable.
+  const bId = (await bootstrap(bGroup)).device.id;
+  const cId = (await bootstrap(cGroup)).device.id;
+  for (const [page, peerId] of [[bGroup, cId], [cGroup, bId]]) {
+    await page.waitForFunction(async id => {
+      const { room, device } = await window.pickdrop.bootstrap();
+      const response = await fetch(room.baseUrl + '/api/state', {
+        headers: { 'X-Room-Key': room.key, 'X-Device-Id': device.id },
+      });
+      const state = await response.json();
+      return state.devices.some(member => member.id === id && member.online);
+    }, peerId, { timeout: 30000 });
+  }
   await owner.app.close(); apps.splice(apps.indexOf(owner.app), 1);
-  await send(bGroup, '创建电脑退出后继续发送');
-  await cGroup.getByText('创建电脑退出后继续发送', { exact: true }).waitFor({ timeout: 20000 });
-  const bytes = randomBytes(256 * 1024 + 13);
-  await bGroup.locator('#file-input').setInputFiles({ name: '无主机互传.bin', mimeType: 'application/octet-stream', buffer: bytes });
-  await cGroup.getByText('无主机互传.bin', { exact: true }).waitFor({ timeout: 20000 });
-  const fileId = await cGroup.evaluate(async () => {
-    const { room, device } = await window.pickdrop.bootstrap();
-    const state = await (await fetch(room.baseUrl + '/api/state', { headers: { 'X-Room-Key': room.key, 'X-Device-Id': device.id } })).json();
-    return state.messages.find(item => item.fileName === '无主机互传.bin').id;
-  });
-  assert.equal(await cGroup.evaluate(id => window.pickdrop.prepareFile(id), fileId), true);
-  const cConfig = await bootstrap(cGroup);
-  const downloaded = await fetch(cConfig.room.baseUrl + '/api/files/' + fileId, { headers: { 'X-Room-Key': cConfig.room.key, 'X-Device-Id': cConfig.device.id } });
-  assert.equal(downloaded.status, 200); assert.deepEqual(Buffer.from(await downloaded.arrayBuffer()), bytes);
+  await assert.rejects(fetch(initial.room.baseUrl + '/api/peer/info', { signal: AbortSignal.timeout(1000) }),
+    'The creator must stop serving, not just hide its window');
+  for (const [sender, receiver, label] of [[bGroup, cGroup, 'B到C'], [cGroup, bGroup, 'C到B']]) {
+    const text = `创建电脑退出后继续发送：${label}`;
+    await send(sender, text);
+    await receiver.getByText(text, { exact: true }).waitFor({ timeout: 20000 });
+    const bytes = randomBytes(256 * 1024 + 13), fileName = `无主机互传-${label}.bin`;
+    await sender.locator('#file-input').setInputFiles({ name: fileName, mimeType: 'application/octet-stream', buffer: bytes });
+    await receiver.getByText(fileName, { exact: true }).waitFor({ timeout: 20000 });
+    const fileId = await receiver.evaluate(async name => {
+      const { room, device } = await window.pickdrop.bootstrap();
+      const state = await (await fetch(room.baseUrl + '/api/state', { headers: { 'X-Room-Key': room.key, 'X-Device-Id': device.id } })).json();
+      return state.messages.find(item => item.fileName === name).id;
+    }, fileName);
+    assert.equal(await receiver.evaluate(id => window.pickdrop.prepareFile(id), fileId), true);
+    const config = await bootstrap(receiver);
+    const downloaded = await fetch(config.room.baseUrl + '/api/files/' + fileId, { headers: { 'X-Room-Key': config.room.key, 'X-Device-Id': config.device.id } });
+    assert.equal(downloaded.status, 200); assert.deepEqual(Buffer.from(await downloaded.arrayBuffer()), bytes);
+  }
   await bGroup.locator('#members-button').click();
   assert.equal(await bGroup.locator('#delete-group').count(), 0, 'replica is not owner');
   assert.equal(await bGroup.locator('#rename-group').count(), 0, 'replica cannot rename group');
   await bGroup.locator('#close-panel').click();
   assert.deepEqual(errors, []);
-  console.log('Desktop peer smoke passed: three real processes, signed pairing, creator exit, surviving peer messages and verified file transfer, creator-only controls.');
+  console.log('Desktop peer smoke passed: three real processes, signed pairing, creator port closed, bidirectional survivor messages and verified file transfers, creator-only controls.');
 } finally {
   await Promise.allSettled(apps.map(app => app.close()));
   await rm(dir, { recursive: true, force: true });

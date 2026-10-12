@@ -1,3 +1,4 @@
+import { firstContentWindow, nextContentWindow, nativeWindowPage } from './desktop-test-windows.js';
 import assert from 'node:assert/strict';
 import { _electron as electron } from 'playwright';
 import { createRequire } from 'node:module';
@@ -50,20 +51,25 @@ async function settled(page, collapsed) {
   throw new Error('Window motion did not settle');
 }
 async function bounds(app, groupName) {
-  return app.evaluate(({ BrowserWindow }, name) => BrowserWindow.getAllWindows().find(win => win.getTitle() === `${name} · 拾传`).getBounds(), groupName);
+  for (const page of app.windows()) {
+    if (await page.title() !== `${groupName} · 拾传`) continue;
+    const state = (await bootstrap(page)).window;
+    return app.evaluate(({ BrowserWindow }, id) => BrowserWindow.fromId(id).getBounds(), state.collapsed ? state.tabWindowId : state.contentWindowId);
+  }
+  throw new Error(`Missing content window for ${groupName}`);
 }
 
 try {
   hostApp = await start(path.join(temp, 'host'));
-  const personal = await hostApp.firstWindow(); await connected(personal);
+  const personal = await firstContentWindow(hostApp); await connected(personal);
   const original = await bootstrap(personal);
   assert.equal((await bounds(hostApp, original.group.name)).width, 340);
   await personal.locator('#group-menu-button').click();
   await personal.locator('#create-group').click();
   await personal.locator('#new-group-name').fill('工作资料');
-  const workOpened = hostApp.waitForEvent('window');
+  const workOpened = nextContentWindow(hostApp);
   await personal.locator('#confirm-create-group').click();
-  const work = await workOpened; await connected(work);
+  const work = await workOpened; await connected(work); await work.locator('#invite-code').waitFor(); await work.locator('#close-panel').click();
   const workConfig = await bootstrap(work);
   assert.notEqual(workConfig.group.id, original.group.id);
   assert.equal((await bootstrap(personal)).group.id, original.group.id);
@@ -91,19 +97,14 @@ try {
 
   // Two genuinely separate desktop processes discover and pair via the LAN.
   peerApp = await start(path.join(temp, 'peer'));
-  const peerHome = await peerApp.firstWindow(); await connected(peerHome);
+  const peerHome = await firstContentWindow(peerApp); await connected(peerHome);
   await peerHome.evaluate(() => window.pickdrop.rename('另一台电脑'));
-  // Keep the join panel open before a new host advertisement exists. No manual refresh.
-  await peerHome.locator('#group-menu-button').click(); await peerHome.locator('#join-group').click();
-  const lateGroup = await personal.evaluate(() => window.pickdrop.createGroup('发现刷新回归'));
-  await peerHome.locator(`#nearby-groups option[data-group-id="${lateGroup.id}"]`).waitFor({ state: 'attached', timeout: 15000 });
-  await peerHome.locator('#close-panel').click();
   await work.locator('#group-menu-button').click(); await work.locator('#invite-members').click();
   await work.waitForFunction(() => /^\d{6}$/.test(document.querySelector('#invite-code')?.textContent || ''));
   const code = await work.locator('#invite-code').innerText();
   await work.locator('#close-panel').click();
   await peerHome.locator('#group-menu-button').click(); await peerHome.locator('#join-group').click();
-  await peerHome.locator('#join-code').fill(code); await peerHome.locator('#confirm-join-group').click();
+  await peerHome.locator('#join-code').fill(code); const endpoint = new URL(workConfig.group.baseUrl); await peerHome.locator('#join-address').fill(endpoint.hostname); await peerHome.locator('#join-port').fill(endpoint.port); await peerHome.locator('#confirm-join-group').click();
   await work.locator('[data-action=approve-join]').waitFor({ timeout: 15000 }).catch(async error => { console.error('Pairing state:', await peerHome.locator('body').innerText()); throw error; });
   await work.locator('[data-action=approve-join]').click();
   const peerWork = await pageFor(peerApp, workConfig.group.id); await connected(peerWork);
@@ -136,9 +137,10 @@ try {
   await work.locator('#dock-button').click();
   await settled(work);
   await settled(work, true);
-  assert.equal((await bounds(hostApp, '工作资料')).width, 40);
-  await work.screenshot({ path: path.join(output, 'group-edge-halfball.png') });
-  await work.locator('#pickdrop-native-tab').click(); await settled(work, false);
+  assert.equal((await bounds(hostApp, '工作资料')).width, 56);
+  const anchor = await nativeWindowPage(hostApp, (await bootstrap(work)).window.tabWindowId);
+  await anchor.screenshot({ path: path.join(output, 'group-edge-halfball.png') });
+  await anchor.locator('#pickdrop-native-tab').click(); await settled(work, false);
   assert.equal((await bounds(hostApp, '工作资料')).width, 340);
   await work.locator('#pin-button').click();
   assert.equal((await bootstrap(work)).window.pinned, true);
@@ -177,7 +179,7 @@ try {
   assert.ok([401, 403].includes(revoked.status), 'Removed device token still accesses group');
   await peerWork.waitForFunction(() => document.querySelector('#connection-status')?.title.includes('授权已失效'), null, { timeout: 15000 });
   // An offline/revoked member can forget locally and the native window is destroyed.
-  await peerWork.locator('#members-button').click(); await peerWork.locator('#forget-group').click();
+  await peerWork.locator('#members-button').click(); await peerWork.locator('.task-disclosure > summary').filter({ hasText: '退出与移除' }).click(); await peerWork.locator('#forget-group').click();
   const closedPeer = peerWork.waitForEvent('close'); await peerWork.locator('#confirm-operation').click(); await closedPeer;
   assert.ok(!(await bootstrap(peerHome)).groups.some(group => group.id === oldPeer.room.id));
   // Rejoin the same identity with a new grant, then explicitly leave online.
@@ -190,7 +192,7 @@ try {
   await peerHome.evaluate(ticket => window.pickdrop.checkJoin(ticket), reTicket);
   const rePeer = await pageFor(peerApp, oldPeer.room.id); await connected(rePeer);
   const reGrant = await bootstrap(rePeer); assert.notEqual(reGrant.room.key, oldPeer.room.key);
-  await rePeer.locator('#members-button').click(); await rePeer.locator('#leave-group').click();
+  await rePeer.locator('#members-button').click(); await rePeer.locator('.task-disclosure > summary').filter({ hasText: '退出与移除' }).click(); await rePeer.locator('#leave-group').click();
   const left = rePeer.waitForEvent('close'); await rePeer.locator('#confirm-operation').click(); await left;
   const leftAccess = await fetch(reGrant.room.baseUrl + '/api/state', { headers: { 'X-Room-Key': reGrant.room.key, 'X-Device-Id': reGrant.device.id } });
   assert.ok([401, 403].includes(leftAccess.status));
@@ -198,9 +200,9 @@ try {
   await assert.rejects(hostRestored.evaluate(() => window.pickdrop.leaveGroup()), /托管电脑|群主机/);
   await assert.rejects(hostRestored.evaluate(() => window.pickdrop.forgetGroup()), /托管电脑|群主机/);
   assert.deepEqual(errors, []);
-  const report = { nativeMultiWindow: true, liveNearbyRefresh: true, memberTokenRevoked: true, revokedMemberForget: true, onlineLeaveRevokesToken: true, hostLeaveProtected: true, groupIsolation: true, binaryTransfer: true, dropToGroup: true, shortCodeApproval: true, persistentGroups: true, hostRestartDiscovery: true, remoteCacheHashVerified: true, nativeDragIPC: true, edgeTabBounds: true, nonOverlappingTabs: true, pinKeepsExpanded: true, physicalOSDropTested: false, consoleErrors: errors };
+  const report = { nativeMultiWindow: true, memberTokenRevoked: true, revokedMemberForget: true, onlineLeaveRevokesToken: true, hostLeaveProtected: true, groupIsolation: true, binaryTransfer: true, dropToGroup: true, shortCodeApproval: true, persistentGroups: true, hostRestartDiscovery: true, remoteCacheHashVerified: true, nativeDragIPC: true, edgeTabBounds: true, nonOverlappingTabs: true, pinKeepsExpanded: true, physicalOSDropTested: false, consoleErrors: errors };
   await writeFile(path.join(output, 'desktop-groups-smoke.json'), JSON.stringify(report, null, 2));
-  console.log('Desktop groups smoke passed: independent apps/groups, live nearby discovery, pairing, file drag/cache, restart recovery, member revocation, forget/leave and host protection.');
+  console.log('Desktop groups smoke passed: independent apps/groups, manual three-field invitations, pairing, file drag/cache, restart recovery, member revocation, forget/leave and host protection.');
 } catch (error) { console.error('Desktop groups smoke failed:', error); throw error;
 } finally {
   if (peerApp) await peerApp.close().catch(() => {});

@@ -8,7 +8,8 @@ import { transfers, MAX_IMAGE_PREVIEW_BYTES, type TransferGroup } from '../trans
 import { Button, IconButton, palette, Sheet } from './ui';
 
 const MAX_PREVIEW = MAX_IMAGE_PREVIEW_BYTES;
-const AUTO_PREVIEW = 2 * 1024 * 1024;
+// Automatic previews download the original into the verified receive cache, not Photos.
+const AUTO_PREVIEW = 8 * 1024 * 1024;
 const previewTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 type Props = { message: Message; own: boolean; group: TransferGroup; visible: boolean; onAction(action: 'save' | 'file' | 'share'): void };
 
@@ -20,7 +21,9 @@ export function ReceivedFile({ message, own, group, visible, onAction }: Props) 
   const [requested, setRequested] = useState(false), [attempt, setAttempt] = useState(0), [expanded, setExpanded] = useState(false), [menu, setMenu] = useState(false);
   const context = useRef({ group, message });
   context.current = { group, message };
-  const shouldLoad = supported && !message.deleted && (visible || expanded) && (requested || (message.size || 0) <= AUTO_PREVIEW);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => { if (visible) setSeen(true); }, [visible]);
+  const shouldLoad = supported && !message.deleted && (seen || expanded) && (requested || (message.size || 0) <= AUTO_PREVIEW);
   useEffect(() => {
     setUri(''); setError('');
     if (!shouldLoad) { setLoading(false); return; }
@@ -38,7 +41,7 @@ export function ReceivedFile({ message, own, group, visible, onAction }: Props) 
   useEffect(() => { if (message.deleted) { setExpanded(false); setMenu(false); } }, [message.deleted]);
   const pendingAction = useRef<'save' | 'file' | 'share' | null>(null);
   const finishAction = () => { const value = pendingAction.current; pendingAction.current = null; if (value && !message.deleted) onAction(value); };
-  const action = (value: 'save' | 'file' | 'share') => { pendingAction.current = value; setMenu(false); setExpanded(false); };
+  const action = (value: 'save' | 'file' | 'share') => { if (!menu && !expanded) { onAction(value); return; } pendingAction.current = value; setMenu(false); setExpanded(false); };
   // UIKit must finish dismissing our modal before presenting its save/share UI.
   useEffect(() => {
     if (Platform.OS === 'ios' || menu || expanded || !pendingAction.current) return;
@@ -59,6 +62,7 @@ export function ReceivedFile({ message, own, group, visible, onAction }: Props) 
         <View style={styles.info}><Text numberOfLines={2} style={styles.name}>{message.fileName}</Text><Text style={styles.size}>{fileSize(message.size || 0)} · {message.deleted ? '原文件已清理' : extension}</Text></View>
         <IconButton icon="more" label={`${message.fileName}，更多操作`} disabled={message.deleted} onPress={() => setMenu(true)} />
       </View>
+      <View style={styles.fileActions}><Text style={styles.size}>{message.deleted ? '原文件已清理' : own ? '已发送' : '可接收'}</Text><Button compact label={image ? '保存图片' : '另存文件'} disabled={message.deleted} onPress={() => action('save')} /></View>
     </View>
     <Sheet visible={menu && !message.deleted} title="文件操作" onClose={() => setMenu(false)} onDismiss={finishAction}>
       <Text selectable style={styles.fullName}>{message.fileName}</Text><Text style={styles.menuMeta}>{fileSize(message.size || 0)}</Text>
@@ -70,13 +74,14 @@ export function ReceivedFile({ message, own, group, visible, onAction }: Props) 
   </>;
 }
 function MenuAction({ icon, label, onPress }: { icon: React.ReactNode; label: string; onPress(): void }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.menuAction, pressed && { backgroundColor: '#E1F3EC' }]}>{icon}<Text style={styles.menuLabel}>{label}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.menuAction, pressed && { backgroundColor: palette.recess }]}>{icon}<Text style={styles.menuLabel}>{label}</Text></Pressable>;
 }
 const styles = StyleSheet.create({
-  card: { width: 290, maxWidth: '100%', borderRadius: 16, borderColor: palette.border, borderWidth: 1, backgroundColor: '#fff', overflow: 'hidden' }, own: { backgroundColor: '#F1F7F2' },
-  preview: { height: 184, backgroundColor: '#E6F0E9', justifyContent: 'center' }, thumbnail: { width: '100%', height: '100%' }, placeholder: { alignItems: 'center', gap: 9, padding: 15 }, previewLabel: { fontSize: 12, color: palette.ink }, previewHint: { fontSize: 11, color: palette.secondary },
-  previewBadge: { position: 'absolute', bottom: 10, right: 10, borderRadius: 12, paddingVertical: 5, paddingHorizontal: 9, backgroundColor: '#24443CCC' }, previewBadgeText: { color: '#fff', fontSize: 10 },
-  footer: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 }, fileIcon: { width: 38, height: 48, backgroundColor: '#E6F2EB', borderRadius: 9, justifyContent: 'center', alignItems: 'center', gap: 3 }, extension: { color: palette.blue, fontSize: 8, fontWeight: '700' }, info: { flex: 1, minWidth: 0 }, name: { fontSize: 13, lineHeight: 19, color: palette.ink }, size: { fontSize: 11, marginTop: 4, color: palette.secondary },
+  fileActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingHorizontal: 10, paddingBottom: 6 },
+  card: { width: 228, maxWidth: '100%', borderRadius: 12, borderColor: palette.border, borderWidth: 1, backgroundColor: palette.surface }, own: { backgroundColor: palette.recess },
+  preview: { borderTopLeftRadius: 12, borderTopRightRadius: 12, overflow: 'hidden', height: 138, backgroundColor: palette.recess, justifyContent: 'center' }, thumbnail: { width: '100%', height: '100%' }, placeholder: { alignItems: 'center', gap: 9, padding: 15 }, previewLabel: { fontSize: 12, color: palette.ink }, previewHint: { fontSize: 11, color: palette.secondary },
+  previewBadge: { position: 'absolute', bottom: 10, right: 10, borderRadius: 12, paddingVertical: 5, paddingHorizontal: 9, backgroundColor: palette.backdrop }, previewBadgeText: { color: palette.surface, fontSize: 10 },
+  footer: { flexDirection: 'row', alignItems: 'center', padding: 10, gap: 7 }, fileIcon: { width: 30, height: 38, backgroundColor: palette.recess, borderRadius: 9, justifyContent: 'center', alignItems: 'center', gap: 3 }, extension: { color: palette.blue, fontSize: 8, fontWeight: '700' }, info: { flex: 1, minWidth: 0 }, name: { fontSize: 14, fontWeight: '600', lineHeight: 20, color: palette.ink }, size: { fontSize: 11, marginTop: 4, color: palette.secondary },
   fullName: { fontSize: 16, color: palette.ink, lineHeight: 24 }, menuMeta: { color: palette.secondary, marginTop: 8 }, menuActions: { marginTop: 20, gap: 4 }, menuAction: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 13, padding: 13, borderRadius: 12 }, menuLabel: { color: palette.ink, fontSize: 15 },
-  viewer: { flex: 1, backgroundColor: '#F8FAF7' }, viewerHeader: { padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }, viewerName: { flex: 1, fontSize: 14, color: palette.ink }, viewerScroll: { flex: 1 }, viewerContent: { flexGrow: 1 }, fullImage: { flex: 1, width: '100%', minHeight: 250 }, viewerActions: { flexDirection: 'row', justifyContent: 'center', padding: 16, gap: 12 },
+  viewer: { flex: 1, backgroundColor: palette.background }, viewerHeader: { padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }, viewerName: { flex: 1, fontSize: 14, color: palette.ink }, viewerScroll: { flex: 1 }, viewerContent: { flexGrow: 1 }, fullImage: { flex: 1, width: '100%', minHeight: 250 }, viewerActions: { flexDirection: 'row', justifyContent: 'center', padding: 16, gap: 12 },
 });

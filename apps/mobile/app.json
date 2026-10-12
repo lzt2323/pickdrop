@@ -29,7 +29,7 @@
       "versionCode": 501,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#126A5A",
+        "backgroundColor": "#ffffff",
         "monochromeImage": "./assets/monochrome-icon.png"
       }
     },
@@ -75,7 +75,9 @@
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": true,
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
           }
         }
       ],
@@ -84,6 +86,11 @@
     "icon": "./assets/icon.png",
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
     }
   }
 }

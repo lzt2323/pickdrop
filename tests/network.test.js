@@ -12,7 +12,7 @@ import { pipeline } from 'node:stream/promises';
 import { createRequire } from 'node:module';
 const { createNetworkTransferScope } = createRequire(import.meta.url)('../apps/desktop/network-transfers.cjs');
 import { WebSocketServer } from 'ws';
-import { normalizeInterfaces, chooseNetwork, publicEndpoint } from '../server/network.js';
+import { normalizeInterfaces, chooseNetwork, recoverNetwork, publicEndpoint } from '../server/network.js';
 import { createLanDiscovery, discoveryTxt, parseDiscoveredService, restrictServiceAddress } from '../server/discovery.js';
 import { createGroupManager } from '../server/groups.js';
 import { createDesktopUiServer } from '../server/index.js';
@@ -190,4 +190,20 @@ test('desktop native downloads abort on adapter loss and release leases without 
   assert.equal(scope.size, 0); assert.equal(manager.getNetwork().transferBusy, false);
   await manager.setNetwork({ mode: 'manual', id: vpn.id });
   assert.equal(manager.getNetwork().selected.name, 'vpn');
+});
+
+
+test('auto reclaims higher-priority LAN but keeps equal-priority adapters and manual IP stable', () => {
+  const wifi = { ...physical, address: '192.168.1.20' };
+  const otherWifi = { ...wifi, name: 'other-wifi', address: '192.168.2.20' };
+  const ethernet = { ...physical, name: 'ethernet', type: 'ethernet', address: '10.0.0.20' };
+  const unknown = { ...ethernet, name: 'unknown', type: 'unknown' };
+  assert.equal(chooseNetwork([unknown, ethernet, wifi]), wifi);
+  assert.equal(recoverNetwork([unknown, ethernet, wifi], { mode: 'auto' }, ethernet), wifi);
+  assert.equal(recoverNetwork([unknown, ethernet], { mode: 'auto' }, unknown), ethernet);
+  assert.equal(recoverNetwork([otherWifi, wifi], { mode: 'auto' }, wifi), wifi);
+  const changed = { ...wifi, address: '192.168.1.21' };
+  assert.equal(recoverNetwork([otherWifi, changed], { mode: 'auto' }, wifi), changed);
+  assert.equal(recoverNetwork([changed], { mode: 'manual', interfaceName: wifi.name, address: wifi.address }, wifi), wifi);
+  assert.equal(recoverNetwork([vpn], { mode: 'auto' }, ethernet), null);
 });

@@ -2,6 +2,7 @@ package app.pickdrop.peer
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
@@ -32,6 +33,7 @@ class PickDropPeerModule : Module() {
   private val sockets = ConcurrentHashMap.newKeySet<Socket>()
   private val streaming = ConcurrentHashMap.newKeySet<String>()
   private var server: ServerSocket? = null
+  private val transportLock = Any()
   private var address: String? = null
   private var pool: ThreadPoolExecutor? = null
   private val advertisements = mutableListOf<NsdManager.RegistrationListener>()
@@ -41,7 +43,7 @@ class PickDropPeerModule : Module() {
   }
   private fun root(): File = File((appContext.reactContext ?: error("应用暂不可用")).filesDir, "PickDropPeer").apply { mkdirs() }
   private fun checkedKey(key: String): String { require(key.matches(Regex("[a-zA-Z0-9_-]{1,100}"))) { "Invalid storage key" }; return key }
-  private fun stop() {
+  private fun stop() = synchronized(transportLock) {
     clearAdvertisements()
     val current = server; server = null; address = null
     runCatching { current?.close() }
@@ -49,32 +51,60 @@ class PickDropPeerModule : Module() {
     sockets.toList().forEach { runCatching { it.close() } }; sockets.clear()
     pool?.shutdownNow(); pool = null
   }
+  private fun lanAddress(connectivity: ConnectivityManager): Inet4Address? {
+    fun physicalAddress(network: Network): Inet4Address? {
+      val caps = connectivity.getNetworkCapabilities(network) ?: return null
+      // VPNs may also report their underlying Wi-Fi transport. Never publish
+      // the tunnel address as a LAN endpoint, even when Wi-Fi is set.
+      if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return null
+      if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) && !caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) return null
+      return connectivity.getLinkProperties(network)?.linkAddresses
+        ?.map { it.address }?.filterIsInstance<Inet4Address>()
+        ?.firstOrNull { !it.isLoopbackAddress && !it.isLinkLocalAddress && !it.isAnyLocalAddress && !it.isMulticastAddress }
+    }
+    // Prefer the default physical LAN, otherwise try the other connected LANs.
+    // This changes only our listener address, never process or VPN routing.
+    connectivity.activeNetwork?.let { physicalAddress(it)?.let { address -> return address } }
+    for (network in connectivity.allNetworks) physicalAddress(network)?.let { return it }
+    return null
+  }
   override fun definition() = ModuleDefinition {
     Name("PickDropPeer")
     Events("request", "diagnostic")
     AsyncFunction("start") {
       val context = appContext.reactContext ?: error("应用暂不可用")
       val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-      val network = connectivity.activeNetwork ?: error("请连接 Wi-Fi 或有线局域网")
-      val caps = connectivity.getNetworkCapabilities(network)
-      require(caps != null && (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET))) { "请连接 Wi-Fi 或有线局域网" }
-      val ip = connectivity.getLinkProperties(network)?.linkAddresses?.map { it.address }?.firstOrNull { it is Inet4Address && !it.isLoopbackAddress && !it.isLinkLocalAddress }?.hostAddress ?: error("当前网络没有 IPv4 地址")
-      if (server == null || address != ip) {
-        stop()
-        val listener = try { ServerSocket(47325, 16, InetAddress.getByName(ip)) } catch (_: Exception) { ServerSocket(0, 16, InetAddress.getByName(ip)) }
-        server = listener; address = ip
-        val executor = ThreadPoolExecutor(2, 8, 30L, TimeUnit.SECONDS, ArrayBlockingQueue<Runnable>(16))
-        pool = executor
-        Thread {
-          while (!listener.isClosed) {
-            val socket = try { listener.accept() } catch (_: Exception) { break }
-            sockets.add(socket)
-            try { executor.execute { try { handle(socket) } finally { sockets.remove(socket); runCatching { socket.close() } } } }
-            catch (_: Exception) { sockets.remove(socket); runCatching { socket.close() } }
-          }
-        }.apply { name = "pickdrop-peer-http"; isDaemon = true; start() }
+      val ip = lanAddress(connectivity)?.hostAddress ?: error("请连接具有 IPv4 地址的 Wi-Fi 或有线局域网")
+      synchronized(transportLock) {
+        if (server == null || server!!.isClosed || address != ip) {
+          stop()
+          val listener = try { ServerSocket(47325, 16, InetAddress.getByName(ip)) } catch (_: Exception) { ServerSocket(0, 16, InetAddress.getByName(ip)) }
+          server = listener; address = ip
+          val executor = ThreadPoolExecutor(2, 8, 30L, TimeUnit.SECONDS, ArrayBlockingQueue<Runnable>(16))
+          pool = executor
+          Thread {
+            try {
+              while (!listener.isClosed) {
+                val socket = try { listener.accept() } catch (_: Exception) { break }
+                sockets.add(socket)
+                try { executor.execute { try { handle(socket) } finally { sockets.remove(socket); runCatching { socket.close() } } } }
+                catch (_: Exception) { sockets.remove(socket); runCatching { socket.close() } }
+              }
+            } finally {
+              // Android can destroy a bound socket when its Wi-Fi network is
+              // removed without updating ServerSocket.isClosed. Release the
+              // failed listener so the next foreground retry binds again, even
+              // when DHCP returns exactly the same address. An old accept loop
+              // must never stop a newer listener installed by a network switch.
+              synchronized(transportLock) {
+                if (server === listener) stop()
+                else runCatching { listener.close() }
+              }
+            }
+          }.apply { name = "pickdrop-peer-http"; isDaemon = true; start() }
+        }
+        mapOf("baseUrl" to "http://$ip:${server!!.localPort}", "address" to ip, "port" to server!!.localPort)
       }
-      mapOf("baseUrl" to "http://$ip:${server!!.localPort}", "address" to ip, "port" to server!!.localPort)
     }
     AsyncFunction("stop") { stop() }
     AsyncFunction("advertise") { groups: List<Map<String, String>> ->

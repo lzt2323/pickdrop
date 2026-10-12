@@ -1,3 +1,4 @@
+import { firstContentWindow, nextContentWindow } from './desktop-test-windows.js';
 import assert from 'node:assert/strict';
 import { _electron as electron } from 'playwright';
 import { createRequire } from 'node:module';
@@ -11,7 +12,7 @@ const temporary = await mkdtemp(path.join(os.tmpdir(), 'pickdrop-requests-'));
 const packaged = process.env.PICKDROP_TEST_EXECUTABLE;
 const app = await electron.launch({ executablePath: packaged || require('electron'), args: packaged ? [] : ['.'], env: { ...process.env, PICKDROP_TEST_LEGACY_GROUPS: '1', PICKDROP_USER_DATA: temporary } });
 try {
-  const page = await app.firstWindow(), errors = [];
+  const page = await firstContentWindow(app), errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.waitForFunction(() => document.querySelector('#connection-status')?.dataset.connected === 'true');
   const { group, device } = await page.evaluate(() => window.pickdrop.bootstrap());
@@ -38,7 +39,7 @@ try {
   assert.equal(await page.evaluate(() => window.lastMessageNode === document.querySelector('#timeline').lastElementChild), true);
   const second = await request('第二台电脑'), third = await request('第三台电脑');
   await page.getByRole('button', { name: '查看全部（3）', exact: true }).waitFor();
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setBounds({ width: 280, height: 340 }));
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(win => !win.webContents.getURL().includes('native-anchor.html')).setBounds({ width: 280, height: 340 }));
   await page.waitForFunction(() => innerWidth === 280);
   const position = await page.evaluate(() => {
     const banner = document.querySelector('#join-request-banner').getBoundingClientRect();

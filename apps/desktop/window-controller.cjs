@@ -1,6 +1,19 @@
+// Legacy single-surface controller retained for compatibility tests only.
+// Production docking uses split-window-controller.cjs; only initialBounds is imported by main.
 const { screen } = require('electron');
-const WIDTH = 340, HEIGHT = 470, TAB_DEPTH = 40, TAB_SPAN = 48;
+const WIDTH = 400, HEIGHT = 600, TAB_DEPTH = 40, TAB_SPAN = 48;
 const EDGES = ['left', 'right', 'top'];
+const MOTION_DURATION = { expand: 220, collapse: 200, snap: 180 };
+// Emil animate's Ionic/iOS drawer curve, solved in time rather than using y(t).
+// Native windows still need setBounds; Chromium cannot resize an OS surface.
+function drawerProgress(progress) {
+  if (progress <= 0 || progress >= 1) return progress;
+  const coordinate = (t, first, second) => 3 * (1 - t) * (1 - t) * t * first + 3 * (1 - t) * t * t * second + t * t * t;
+  let low = 0, high = 1;
+  for (let i = 0; i < 16; i++) { const middle = (low + high) / 2; if (coordinate(middle, .32, 0) < progress) low = middle; else high = middle; }
+  return coordinate((low + high) / 2, .72, 1);
+}
+const sameBounds = (a, b) => a && b && ['x', 'y', 'width', 'height'].every(key => a[key] === b[key]);
 const tabSize = edge => edge === 'top' ? { width: 64, height: 34 } : { width: TAB_DEPTH, height: TAB_SPAN };
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const tabWindows = new Set();
@@ -14,7 +27,7 @@ function fitBounds(bounds, display = screen.getDisplayMatching(bounds)) {
   return { x: clamp(Math.round(bounds.x), area.x, area.x + area.width - width), y: clamp(Math.round(bounds.y), area.y, area.y + area.height - height), width, height };
 }
 function initialBounds(saved, index = 0) {
-  if (saved?.bounds && ['x', 'y', 'width', 'height'].every(key => Number.isFinite(saved.bounds[key]))) return fitBounds(saved.bounds);
+  if (saved?.bounds && ['x', 'y', 'width', 'height'].every(key => Number.isFinite(saved.bounds[key]))) return fitBounds(saved.bounds.width === 340 && saved.bounds.height === 470 ? { ...saved.bounds, width: WIDTH, height: HEIGHT } : saved.bounds);
   const area = screen.getPrimaryDisplay().workArea;
   return fitBounds({ x: area.x + area.width - WIDTH - 32 - (index % 5) * 40, y: area.y + 70 + (index % 5) * 48, width: WIDTH, height: HEIGHT });
 }
@@ -68,15 +81,23 @@ function createWindowController(win, saved, persist) {
     clearInterval(motionTimer); motionTimer = null; transition = ''; motionDuration = 0; motionTarget = null; finishMotion = null;
   }
   function animateBounds(target, kind, done = () => {}) {
+    // Other group tabs can relayout this lane while we are still collapsing.
+    // Keep the original clock when our destination has not changed.
+    if (transition === kind && sameBounds(motionTarget, target)) return;
     stopMotion();
     if (reducedMotion || !win.isVisible()) { applyBounds(target); done(); emit(); save(); scheduleCollapse(); return; }
     const from = win.getBounds(), start = Date.now();
-    const distance = Math.max(Math.abs(target.width - from.width), Math.abs(target.height - from.height));
-    const duration = kind === 'expand' ? Math.min(280, 200 + distance / 10) : kind === 'collapse' ? Math.min(220, 150 + distance / 10) : 180;
+    const baseDuration = MOTION_DURATION[kind] || MOTION_DURATION.snap;
+    const tab = tabSize(edge);
+    const fullTravel = Math.max(expandedBounds.width - tab.width, expandedBounds.height - tab.height, 1);
+    const remainingTravel = Math.max(Math.abs(target.width - from.width), Math.abs(target.height - from.height));
+    // A reversal near its destination should not replay a full-length reveal.
+    // Bounds start at the last native frame; retiming keeps short trips responsive.
+    const duration = kind === 'snap' ? baseDuration : Math.round(clamp(baseDuration * remainingTravel / fullTravel, 140, baseDuration));
     motionDuration = duration; transition = kind; motionTarget = { ...target }; finishMotion = done; emit();
     motionTimer = setInterval(() => {
       if (!alive()) { stopMotion(); return; }
-      const t = Math.min(1, (Date.now() - start) / duration), eased = 1 - Math.pow(1 - t, 3);
+      const t = Math.min(1, (Date.now() - start) / duration), eased = drawerProgress(t);
       const next = {};
       for (const key of ['x', 'y', 'width', 'height']) next[key] = Math.round(from[key] + (target[key] - from[key]) * eased);
       applyBounds(next);

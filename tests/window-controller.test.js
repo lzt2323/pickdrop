@@ -126,7 +126,9 @@ test('crossing a display seam follows the pointer display; negative-coordinate e
 
 test('new windows use the selected compact dimensions, while saved dimensions survive', t => {
   const { initialBounds } = setup(t);
-  const fresh = initialBounds(); assert.equal(fresh.width, 340); assert.equal(fresh.height, 470);
+  const fresh = initialBounds(); assert.equal(fresh.width, 400); assert.equal(fresh.height, 600);
+  const migrated = initialBounds({ bounds: { x: 20, y: 40, width: 340, height: 470 } });
+  assert.equal(migrated.width, 400); assert.equal(migrated.height, 600);
   const saved = initialBounds({ bounds: { x: 20, y: 40, width: 400, height: 550 } });
   assert.equal(saved.width, 400); assert.equal(saved.height, 550);
 });
@@ -209,4 +211,52 @@ test('dragging files makes the courier reach before expanding without focusing',
   assert.equal(c.state().accepting, true); assert.equal(c.state().collapsed, true);
   tick(144); assert.equal(c.state().collapsed, false); assert.equal(focusCalls, 0);
   c.dragActivity(false); assert.equal(c.state().accepting, false);
+});
+
+test('unchanged tab destinations do not restart motion during another group relayout', t => {
+  const { controller: a, win: one, makeWindow, tick } = setup(t);
+  dockRight(a, one); tick(112);
+  const { controller: b, win: two } = makeWindow({ x: 600, y: 500, width: 320, height: 420 });
+  dockRight(b, two);
+  assert.equal(a.state().motionDuration, 200);
+  tick(112);
+  assert.equal(a.state().transition, '');
+  assert.equal(one.getBounds().width, 40);
+  assert.equal(b.state().transition, 'collapse');
+});
+
+test('repeated collapse/reveal reversals preserve custom expanded bounds on every edge', t => {
+  const { makeWindow, tick, cursor } = setup(t);
+  cursor({ x: 700, y: 800 });
+  for (const edge of ['left', 'right', 'top']) {
+    const { controller: c, win } = makeWindow({ x: 600, y: 200, width: 410, height: 560 }, { edge });
+    c.collapse(true); tick(48);
+    c.expand(); tick(48);
+    assert.ok(c.state().motionDuration >= 140 && c.state().motionDuration <= 220);
+    c.collapse(true); tick(48);
+    c.expand(); tick(48);
+    c.setReducedMotion(true);
+    assert.equal(c.state().transition, '');
+    assert.equal(win.getBounds().width, 410);
+    assert.equal(win.getBounds().height, 560);
+    assert.equal(c.state().contentWidth, 410);
+    assert.equal(c.state().contentHeight, 560);
+    tick(320);
+    assert.equal(win.getBounds().width, 410);
+  }
+});
+
+ test('short reveal reversals start at the current frame and shorten the remaining trip', t => {
+  const { controller: c, win, tick } = setup(t);
+  dockRight(c, win); tick(16);
+  const partial = win.getBounds();
+  c.expand();
+  assert.deepEqual(win.getBounds(), partial, 'retargeting must not jump the native frame');
+  assert.ok(c.state().motionDuration < 220);
+  tick(16);
+  assert.ok(win.getBounds().width >= partial.width);
+  assert.ok(win.getBounds().width <= 320);
+  tick(240);
+  assert.equal(win.getBounds().width, 320);
+  assert.equal(win.getBounds().height, 420);
 });

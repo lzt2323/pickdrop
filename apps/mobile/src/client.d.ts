@@ -1,12 +1,12 @@
 export type Device = { id: string; name: string; kind: 'desktop' | 'ios' | 'android' | 'web'; online?: boolean };
-export type Group = { id: string; name: string; baseUrl: string; key: string; hostDeviceId?: string; legacy?: boolean; authVersion?: 2 | 3; mode?: 'peer'; creatorDeviceId?: string; membershipRevoked?: boolean };
+export type Group = { dissolved?: boolean; animalId?: string; id: string; name: string; baseUrl: string; key: string; hostDeviceId?: string; legacy?: boolean; authVersion?: 2 | 3; mode?: 'peer'; creatorDeviceId?: string; membershipRevoked?: boolean };
 export type Message = { id: string; type: 'text' | 'file'; text?: string; fileName?: string; size?: number; mime?: string; sha256?: string; senderId: string; senderName: string; createdAt: string; seq?: string; deleted?: boolean };
 export type GroupState = { networkWarning?: string; pendingDeparture?: { type: string; eventId: string; acknowledged: boolean }; dissolved?: boolean; messages: Message[]; devices: Device[]; maxFileBytes?: number; history?: { hasMore: boolean; before: string | null; latest: string | null; total: number }; mode?: 'snapshot' | 'delta'; type?: 'state' };
 export type ConnectionStatus = 'connecting' | 'online' | 'offline' | 'paused';
 export type JoinStatus = 'pending' | 'approved' | 'denied' | 'expired' | 'revoked';
 export type JoinTicket = { mode?: 'peer'; status: 'pending'; requestId: string; pollToken: string; groupId: string; groupName: string; hostDeviceId: string; expiresAt: number; baseUrl: string };
 export type JoinRequest = { id: string; requestId: string; device: Device; createdAt: number; expiresAt: number; status: JoinStatus };
-export type Invite = { code: string; expiresAt: number; groupId: string; link: string };
+export type Invite = { baseUrl?: string; code: string; expiresAt: number; groupId: string; link: string };
 export type Session = { device: Device; groups: Group[]; activeGroupId: string | null };
 export type Storage = { getItemAsync(key: string): Promise<string | null>; setItemAsync(key: string, value: string): Promise<void>; deleteItemAsync?(key: string): Promise<void> };
 export type RequestOptions = { method?: string; body?: unknown; headers?: Record<string, string>; signal?: AbortSignal };
@@ -15,8 +15,8 @@ export type GroupWatch = { groupId: string; setActive(active: boolean): void; cl
 export type MobileClient = {
   readonly peerSupported: boolean;
   setPeerActive(active: boolean): Promise<void>;
-  createGroup(name: string): Promise<Group>;
-  renameGroup(id: string, name: string): Promise<void>;
+  createGroup(name: string, animalId?: string): Promise<Group>;
+  renameGroup(id: string, name: string, animalId?: string): Promise<void>;
   dissolveGroup(id: string): Promise<void>;
   peerUpload(id: string, uri: string, name: string, mime?: string, cancelled?: () => boolean): Promise<{ id: string; size: number }>;
   peerFileSources(id: string, messageId: string): Promise<{ localUri?: string; sources: Array<{ url: string; headers: Record<string, string> }> }>;
@@ -26,6 +26,7 @@ export type MobileClient = {
   getSession(): Session;
   listGroups(): Group[];
   getGroup(id: string): Group;
+  subscribeGroupMetadata(listener: (group: Group) => void): () => void;
   authHeaders(id: string): Record<string, string>;
   verifyGroup(id: string, options?: Pick<RequestOptions, 'signal'>): Promise<{ groupId: string; hostDeviceId: string; proof: string }>;
   api<T = any>(id: string, route: string, options?: RequestOptions): Promise<T>;

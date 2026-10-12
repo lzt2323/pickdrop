@@ -528,3 +528,25 @@ test('peer missing attachment waits durably, restarts, then resumes when a holde
   assert.equal(env.downloads[0].options.headers['X-Peer-Proof'], 'signed');
   assert.ok(![...env.files.keys()].some(path => path.endsWith('/waiting/' + id + '.json')));
 });
+
+
+test('visible image previews cap original downloads at two and reuse verified cache', async () => {
+  const env = setup(), image = { ...message, mime: 'image/png' };
+  const gates = [];
+  env.state.downloadHandler = () => new Promise(resolve => gates.push(resolve));
+  const first = env.manager.previewImage(group(), { ...image, id: 'visible-first' });
+  const second = env.manager.previewImage(group(), { ...image, id: 'visible-second' });
+  const third = env.manager.previewImage(group(), { ...image, id: 'visible-third' });
+  for (let tick = 0; tick < 100 && gates.length < 2; tick++) await new Promise(resolve => setTimeout(resolve, 1));
+  assert.equal(env.downloads.length, 2, 'two visible originals load concurrently; the third waits');
+  gates[0]();
+  for (let tick = 0; tick < 100 && gates.length < 3; tick++) await new Promise(resolve => setTimeout(resolve, 1));
+  assert.equal(env.downloads.length, 3);
+  gates[1](); gates[2]();
+  const results = await Promise.all([first, second, third]);
+  results.forEach(result => result.release());
+  env.state.downloadHandler = undefined;
+  const reused = await env.manager.previewImage(group(), { ...image, id: 'visible-first' });
+  assert.equal(env.downloads.length, 3, 'returning to history reuses verified original bytes');
+  reused.release();
+});

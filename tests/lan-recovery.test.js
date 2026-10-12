@@ -175,3 +175,37 @@ test('directory scanner includes all four ports and own announcements do not sup
   assert.ok(requests.length > 0, 'Own announcements suppressed the subnet fallback');
   assert.deepEqual([...new Set(requests.map(value => value.port))], [47321, 47322, 47323, 47324]);
 });
+
+
+test('peer group returns from Ethernet fallback to recovered Wi-Fi at its new address', async t => {
+  const live = Object.values(os.networkInterfaces()).flat().find(item => item && !item.internal && item.family === 'IPv4');
+  if (!live) return t.skip('No second bindable IPv4 address for listener recovery');
+  const originalWifi = adapter();
+  // Both initial synthetic LANs use loopback so this test needs only one real NIC.
+  // The recovered Wi-Fi uses that NIC's actual address: listener rebinding is real.
+  const ethernet = { ...adapter(), id: 'ethernet:127.0.0.1', name: 'ethernet', interfaceName: 'ethernet', type: 'ethernet' };
+  const returnedWifi = adapter(live.address);
+  const { create } = await fixture(t);
+  let links = [originalWifi, ethernet];
+  const manager = await create('wifi-return', { peerGroups: true, directoryPort: 0, listInterfaces: async () => links });
+  const group = await manager.createGroup('Wi-Fi DHCP恢复');
+  const deviceId = manager.device.id;
+  const before = await manager.authenticated(group.id, '/api/messages', { method: 'POST', body: { text: '断网前历史' } });
+  links = [ethernet]; await manager.refreshNetwork();
+  assert.equal(manager.getNetwork().selected.name, 'ethernet');
+  const during = await manager.authenticated(group.id, '/api/messages', { method: 'POST', body: { text: '有线回退期间' } });
+  links = [ethernet, returnedWifi]; await manager.refreshNetwork();
+  assert.equal(manager.getNetwork().selected.name, 'wifi');
+  assert.equal(manager.getNetwork().selected.address, live.address);
+  const recovered = manager.listGroups().find(item => item.id === group.id);
+  assert.equal(manager.device.id, deviceId);
+  assert.equal(recovered.mode, 'peer');
+  assert.equal(new URL(recovered.baseUrl).hostname, live.address);
+  assert.equal(new URL(recovered.baseUrl).port, new URL(group.baseUrl).port);
+  const info = await (await fetch(recovered.baseUrl + '/api/peer/info')).json();
+  assert.equal(info.groupId, group.id); assert.equal(info.deviceId, deviceId);
+  await assert.rejects(fetch(group.baseUrl + '/api/peer/info', { signal: AbortSignal.timeout(1000) }));
+  const after = await manager.authenticated(group.id, '/api/messages', { method: 'POST', body: { text: '无线自动回来后' } });
+  const state = await manager.authenticated(group.id, '/api/state');
+  assert.deepEqual(state.messages.map(item => item.id), [before.id, during.id, after.id]);
+});

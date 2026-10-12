@@ -19,6 +19,7 @@ function fixture(fetchImpl = async () => ({ ok: true, json: async () => ({ messa
       close() { this.readyState = 3; this.onclose?.({ code: 1006 }); }
     },
     document: {},
+    visibleImages: { disconnect() {} }, thumbnailQueue: [],
     $(id) { if (!nodes.has(id)) nodes.set(id, {}); return nodes.get(id); },
     groupName: () => 'Test', renderMessages() {}, showError(error) { throw error; },
     applyState(next) { states.push(next); },

@@ -1,21 +1,24 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const { webUtils } = require('electron');
 const subscribe = channel => callback => {
   if (typeof callback !== 'function') throw new TypeError('callback must be a function');
   const listener = (_event, value) => callback(value);
   ipcRenderer.on(channel, listener);
   return () => ipcRenderer.removeListener(channel, listener);
 };
+let allowedDropIndexes = null;
 contextBridge.exposeInMainWorld('pickdrop', {
+  allowedDropIndexes: () => allowedDropIndexes,
   bootstrap: () => ipcRenderer.invoke('app:bootstrap'),
   listGroups: () => ipcRenderer.invoke('group:list'),
-  createGroup: name => ipcRenderer.invoke('group:create', name),
+  createGroup: (name, animalId) => ipcRenderer.invoke('group:create', name, animalId),
   openGroup: id => ipcRenderer.invoke('group:open', id),
   joinGroup: code => ipcRenderer.invoke('group:join', code),
   joinAt: (address, code, groupId) => ipcRenderer.invoke('group:join-at', address, code, groupId),
   listNearby: () => ipcRenderer.invoke('group:nearby'),
   discoveryStatus: () => ipcRenderer.invoke('group:discovery-status'),
   onDiscoveryError: subscribe('discovery:error'),
-  renameGroup: name => ipcRenderer.invoke('group:rename', name),
+  renameGroup: (name, animalId) => ipcRenderer.invoke('group:rename', name, animalId),
   upgradeGroup: () => ipcRenderer.invoke('group:upgrade'),
   reconnectGroup: address => ipcRenderer.invoke('group:reconnect', address),
   deleteGroup: () => ipcRenderer.invoke('group:delete'),
@@ -38,10 +41,12 @@ contextBridge.exposeInMainWorld('pickdrop', {
   listJoinRequests: () => ipcRenderer.invoke('group:requests'),
   respondJoin: (id, allow) => ipcRenderer.invoke('group:respond', id, allow),
   rename: name => ipcRenderer.invoke('app:rename', name),
+  readClipboardText: () => ipcRenderer.invoke('app:clipboard-text'),
   copy: text => ipcRenderer.invoke('app:copy', text),
   readClipboardImage: () => ipcRenderer.invoke('app:clipboard-image'),
   previewFile: (id, full = false) => ipcRenderer.invoke('file:preview', id, full),
   prepareFile: id => ipcRenderer.invoke('file:prepare', id),
+  onNativeDrag: subscribe('file:drag-state'),
   startDrag: id => ipcRenderer.send('file:drag', id),
   revealFile: id => ipcRenderer.invoke('file:reveal', id),
   openFile: id => ipcRenderer.invoke('file:open', id),
@@ -57,18 +62,54 @@ contextBridge.exposeInMainWorld('pickdrop', {
   onWindowChanged: subscribe('window:changed'),
 });
 
+let anchorErrorTimer;
+function anchorTransferToast(message) {
+  const toast = document.querySelector('#toast');
+  if (!toast) return;
+  toast.textContent = String(message); toast.hidden = false;
+  clearTimeout(anchorErrorTimer);
+  anchorErrorTimer = setTimeout(() => { toast.hidden = true; }, 5000);
+}
+const anchorUploadRows = new Map();
+ipcRenderer.on('anchor:upload-state', (_event, upload) => {
+  if (!upload || typeof upload.id !== 'string') return;
+  let entry = anchorUploadRows.get(upload.id);
+  if (upload.status === 'start' && !entry) {
+    const host = document.querySelector('#uploads'); if (!host) return;
+    const row = document.createElement('div'); row.className = 'upload'; row.dataset.anchorUpload = upload.id;
+    const name = document.createElement('span'); name.className = 'upload-name'; name.textContent = upload.name;
+    const progress = document.createElement('progress'); progress.max = 100; progress.value = 0;
+    const percent = document.createElement('span'); percent.textContent = '准备中';
+    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = '取消';
+    cancel.addEventListener('click', () => { cancel.disabled = true; percent.textContent = '取消中'; ipcRenderer.invoke('anchor:cancel-upload', upload.id).catch(error => anchorTransferToast(error.message)); });
+    row.append(name, progress, percent, cancel); host.append(row);
+    entry = { row, progress, percent }; anchorUploadRows.set(upload.id, entry);
+  }
+  if (upload.status === 'progress' && entry) {
+    const value = upload.size ? Math.min(100, Math.round(upload.loaded / upload.size * 100)) : 100;
+    entry.progress.value = value; entry.percent.textContent = value < 100 ? `${value}%` : '确认中';
+  }
+  if (['complete', 'cancelled', 'error'].includes(upload.status)) {
+    entry?.row.remove(); anchorUploadRows.delete(upload.id);
+    if (upload.status === 'cancelled') anchorTransferToast(`已取消发送 ${upload.name}`);
+    if (upload.status === 'error') anchorTransferToast(upload.error || '文件发送失败');
+  }
+});
+
 // A real, narrow BrowserWindow receives file drag events. No global drop hooks or
 // transparent full-height hit area are installed at the screen edge.
 let tab, latestState = { collapsed: false }, groupName = '拾传';
 function renderTab() {
   if (!tab) return;
-  tab.hidden = !latestState.collapsed && latestState.transition !== 'expand';
+  tab.hidden = latestState.separateAnchor || (!latestState.collapsed && latestState.transition !== 'expand');
   tab.title = `${groupName} · 拖动移位，悬停展开，拖入文件发送`;
   tab.dataset.accepting = String(Boolean(latestState.accepting));
   tab.setAttribute('aria-label', `${groupName} · 展开群窗口`);
   if (latestState.moving) suppressTabClick = true;
   const root = document.documentElement;
-  root.dataset.pickdropCollapsed = latestState.collapsed && !latestState.transition ? 'true' : 'false';
+  root.dataset.pickdropCollapsed = !latestState.separateAnchor && latestState.collapsed && !latestState.transition ? 'true' : 'false';
+  root.dataset.separateAnchor = String(Boolean(latestState.separateAnchor));
+  root.dataset.panelVisible = String(!latestState.collapsed || latestState.transition === 'collapse');
   root.dataset.nativeFrame = String(Boolean(latestState.nativeFrame));
   root.dataset.windowEdge = latestState.edge || '';
   root.dataset.snapEdge = latestState.candidateEdge || '';
@@ -77,16 +118,24 @@ function renderTab() {
   root.style.setProperty('--motion-duration', `${latestState.motionDuration || 180}ms`);
   root.style.setProperty('--content-width', `${latestState.contentWidth || 340}px`);
   root.style.setProperty('--content-height', `${latestState.contentHeight || 470}px`);
+  if (latestState.transition === 'prepare') {
+    const token=latestState.motionSequence;
+    void document.querySelector?.('.app')?.offsetWidth;
+    window.requestAnimationFrame?.(()=>{if(latestState.transition==='prepare'&&latestState.motionSequence===token)ipcRenderer.send('window:activity','panel-ready',token);});
+  }
 }
+ipcRenderer.on('groups:changed', async () => {
+  if (!tab) return;
+  try { const data = await ipcRenderer.invoke('app:bootstrap'); groupName = data.group.name; const id = data.group.animalId || 'cat'; tab.querySelector('img').src = `/assets/group-animals/${encodeURIComponent(id)}.png`; tab.dataset.animal = id; renderTab(); } catch {}
+});
 ipcRenderer.on('window:changed', (_event, state) => { latestState = state; renderTab(); });
 window.addEventListener('DOMContentLoaded', async () => {
   tab = document.createElement('button'); tab.id = 'pickdrop-native-tab'; tab.type = 'button';
   tab.setAttribute('aria-label', '展开群窗口');
-  // Original vector courier cat, drawn only inside the small native edge window.
-  tab.innerHTML = `<svg class="courier-cat" viewBox="0 0 64 64" aria-hidden="true"><g class="cat-body"><path class="cat-tail" d="M45 51c19 4 18-14 10-13" fill="none" stroke="#e6e9d9" stroke-width="7" stroke-linecap="round"/><path d="M15 48c-4-14-3-25 2-37l13 10 12-9c8 12 10 25 6 37Z" fill="#F8FAF7" stroke="#b4c6b7" stroke-width="1.5"/><path d="m18 15 8 7-9 2m25-7-7 7 10 1" fill="#ddcbbd"/><path d="M19 34c0-8 25-8 25 0v8c0 9-25 9-25 0Z" fill="#f0ede2"/><g class="cat-eyes" fill="#244a40"><ellipse cx="24" cy="33" rx="2" ry="3"/><ellipse cx="39" cy="33" rx="2" ry="3"/></g><path d="m29 39 3 2 3-2m-3 2v3" fill="none" stroke="#80655a" stroke-width="1.5" stroke-linecap="round"/><path d="m11 36 9 2m-8 5 8-1m24-4 9-2m-9 6 9 1" stroke="#b4c6b7" stroke-width="1"/><g class="cat-parcel"><rect x="19" y="46" width="26" height="15" rx="4" fill="#126A5A"/><path d="m21 48 11 7 11-7" fill="none" stroke="#83e1c1" stroke-width="1.5"/></g><g class="cat-paws" fill="#F8FAF7" stroke="#b4c6b7" stroke-width="1"><ellipse cx="18" cy="50" rx="5" ry="7"/><ellipse cx="46" cy="50" rx="5" ry="7"/></g></g></svg>`;
+  const animal = document.createElement('img'); animal.className = 'courier-animal courier-cat'; animal.alt = ''; animal.draggable = false; animal.decoding = 'async'; tab.append(animal);
   tab.addEventListener('click', () => { if (!suppressTabClick) ipcRenderer.invoke('window:expand'); });
   document.body.append(tab); renderTab();
-  try { const data = await ipcRenderer.invoke('app:bootstrap'); groupName = data.group.name; latestState = data.window; renderTab(); } catch { /* Renderer reports bootstrap failures. */ }
+  try { const data = await ipcRenderer.invoke('app:bootstrap'); groupName = data.group.name; animal.src = `/assets/group-animals/${encodeURIComponent(data.group.animalId || 'cat')}.png`; tab.dataset.animal = data.group.animalId || 'cat'; latestState = data.window; renderTab(); } catch { /* Renderer reports bootstrap failures. */ }
 });
 window.addEventListener('mouseenter', () => ipcRenderer.send('window:activity', 'pointer', true));
 window.addEventListener('mouseleave', () => ipcRenderer.send('window:activity', 'pointer', false));
@@ -99,7 +148,11 @@ window.addEventListener('dragenter', event => {
 window.addEventListener('dragover', event => {
   if (event.dataTransfer?.types.includes('Files')) { event.preventDefault(); ipcRenderer.send('window:activity', 'drag', true); }
 }, true);
-window.addEventListener('drop', () => ipcRenderer.send('window:activity', 'drag', false), true);
+window.addEventListener('drop', event => {
+  const files = Array.from(event.dataTransfer?.files || []);
+  allowedDropIndexes = ipcRenderer.sendSync('file:drop-filter', files.map(file => webUtils.getPathForFile(file)));
+  ipcRenderer.send('window:activity', 'drag', false);
+}, true);
 window.addEventListener('dragend', () => { ipcRenderer.send('window:activity', 'drag', false); ipcRenderer.send('window:activity', 'drag-end'); }, true);
 // A released pointer after a native drag also clears the conservative drag lock.
 window.addEventListener('pointerup', () => ipcRenderer.send('window:activity', 'drag-end'), true);
@@ -115,13 +168,17 @@ window.addEventListener('pointerdown', event => {
   if (!handle || (!resizing && handle !== tab && event.target.closest('button,input,a'))) return;
   event.preventDefault();
   document.activeElement?.blur();
-  windowPointer = { id: event.pointerId, x: event.screenX, y: event.screenY, fromTab: handle === tab, width: innerWidth, height: innerHeight };
+  windowPointer = { id: event.pointerId, x: event.screenX, y: event.screenY, fromTab: handle === tab, width: innerWidth, height: innerHeight, windowX: window.screenX, windowY: window.screenY };
   suppressTabClick = false; clearTimeout(clickReset);
   document.documentElement.setPointerCapture(event.pointerId);
   ipcRenderer.send('window:activity', resizing ? 'window-resize-start' : 'window-drag-start');
 }, true);
 window.addEventListener('pointermove', event => {
   if (windowPointer && Math.hypot(event.screenX - windowPointer.x, event.screenY - windowPointer.y) >= 5) suppressTabClick = true;
+  // Chromium can accept capture again once the next real held-pointer event arrives.
+  if (windowPointer && event.pointerId === windowPointer.id && (event.buttons & 1) && !document.documentElement.hasPointerCapture(event.pointerId)) {
+    try { document.documentElement.setPointerCapture(event.pointerId); } catch { /* A native bounds update may still be in progress. */ }
+  }
 }, true);
 function finishWindowPointer(cancel = false) {
   if (!windowPointer) return;
@@ -135,16 +192,17 @@ window.addEventListener('pointerup', () => finishWindowPointer(), true);
 window.addEventListener('pointercancel', () => finishWindowPointer(true), true);
 window.addEventListener('lostpointercapture', event => {
   if (!windowPointer || event.pointerId !== windowPointer.id) return;
-  // A native reveal changes both viewport axes. Chromium's capture-loss event
-  // reports buttons=0 even while held, and can temporarily reject recapture.
-  // Only that known small-tab resize keeps the session; release, cancel, Escape
-  // and lost focus still terminate it through the handlers below.
+  // setBounds can invalidate Chromium capture on both a native move and a
+  // tab reveal. That event reports buttons=0 even while the button is held.
+  // A focused, changing native window is not a release; pointerup/mouseup,
+  // pointercancel, Escape and blur remain the authoritative end signals.
   const root = document.documentElement;
-  const revealingTab = windowPointer.fromTab && (innerWidth > windowPointer.width || innerHeight > windowPointer.height) && document.hasFocus();
+  const nativeGeometryChanged = innerWidth !== windowPointer.width || innerHeight !== windowPointer.height || window.screenX !== windowPointer.windowX || window.screenY !== windowPointer.windowY;
+  const nativeDragInProgress = document.hasFocus() && (latestState.moving || nativeGeometryChanged);
   try {
     root.setPointerCapture(windowPointer.id);
-    if (!root.hasPointerCapture(windowPointer.id) && !revealingTab) finishWindowPointer(true);
-  } catch { if (!revealingTab) finishWindowPointer(true); }
+    if (!root.hasPointerCapture(windowPointer.id) && !nativeDragInProgress) finishWindowPointer(true);
+  } catch { if (!nativeDragInProgress) finishWindowPointer(true); }
 }, true);
 // Also accept the mouse release if a platform loses pointer capture while its
 // native window is resizing. Blur, pointercancel and Escape remain hard stops.

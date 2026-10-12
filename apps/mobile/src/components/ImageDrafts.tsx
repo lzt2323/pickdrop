@@ -1,3 +1,4 @@
+import { palette } from '../theme';
 import React from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { TransferItem } from '../transfers';
@@ -14,8 +15,8 @@ export function ImageDrafts({ items, disabled, onRemove }: { items: TransferItem
 }
 const styles = StyleSheet.create({
   strip: { flexGrow: 0, maxHeight: 92 }, content: { paddingHorizontal: 10, paddingTop: 10, paddingBottom: 4, gap: 8 },
-  card: { width: 76, height: 72, borderRadius: 8, backgroundColor: '#f4f8ff', padding: 4 },
+  card: { width: 76, height: 72, borderRadius: 8, backgroundColor: palette.recess, padding: 4 },
   image: { width: 68, height: 64 },
   remove: { position: 'absolute', right: -4, top: -5, width: 44, height: 44, alignItems: 'flex-end', padding: 4 },
-  cross: { textAlign: 'center', width: 24, height: 24, borderRadius: 12, backgroundColor: '#edf4ff', color: '#4f6683', fontSize: 20, lineHeight: 24 },
+  cross: { textAlign: 'center', width: 24, height: 24, borderRadius: 12, backgroundColor: palette.recess, color: palette.ink, fontSize: 20, lineHeight: 24 },
 });

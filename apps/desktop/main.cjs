@@ -7,9 +7,12 @@ const { createNetworkTransferScope } = require('./network-transfers.cjs');
 const { readClipboardImage } = require('./clipboard-image.cjs');
 const { canPreview, imagePreview } = require('./image-preview.cjs');
 const networkTransfers = createNetworkTransferScope();
+const internalDrags = require('./internal-drag.cjs').createInternalDragRegistry();
 const { desktopBackend, createNativeWindowController } = require('./platform-window.cjs');
 const { nativeFrame } = desktopBackend(process.platform, process.env, app.commandLine);
-const { initialBounds, createWindowController } = require('./window-controller.cjs');
+const { initialBounds } = require('./window-controller.cjs');
+const { createSplitWindowController } = require('./split-window-controller.cjs');
+const { sendAnchorFile } = require('./anchor-upload.cjs');
 
 let manager, config, configPath, tray, uiOrigin, uiServer, networkProxy, startupPromise, quitting = false, quitFinished = false, saveQueue = Promise.resolve();
 const welcomeGroup = { id: '__welcome__', name: '拾传', welcome: true, local: false };
@@ -42,6 +45,13 @@ function recordFor(event) {
   try { if (new URL(event.senderFrame.url).origin !== uiOrigin) return null; } catch { return null; }
   return record;
 }
+function anchorRecordFor(event) {
+  const record = [...windows.values()].find(item => item.anchor && !item.anchor.isDestroyed() && item.anchor.webContents === event.sender);
+  if (!record || event.senderFrame !== event.sender.mainFrame) return null;
+  try { const url = new URL(event.senderFrame.url); if (url.origin !== uiOrigin || url.pathname !== '/native-anchor.html') return null; } catch { return null; }
+  return record;
+}
+function anchorInfo(record) { const group=groupFor(record); return { ...record.control.state(),name:group.name,animalId:group.animalId||'cat' }; }
 function handle(channel, callback) {
   ipcMain.handle(channel, async (event, ...args) => {
     const record = recordFor(event); if (!record) throw new Error('Invalid sender');
@@ -57,7 +67,7 @@ function publicGroup({ key, ...group }) { return group; }
 function publicGroups() { return manager.listGroups().map(publicGroup); }
 function bootstrap(record) {
   const group = groupFor(record);
-  return { device: config.device, group, room: group, groups: publicGroups(), native: true, platform: process.platform, window: record.control.state(), network: manager.getNetwork(), discoveryError: manager.getNetwork().discoveryError || '' };
+  return { inviteOnOpen: record.inviteOnOpen, device: config.device, group, room: group, groups: publicGroups(), native: true, platform: process.platform, window: record.control.state(), network: manager.getNetwork(), discoveryError: manager.getNetwork().discoveryError || '' };
 }
 function cacheKey(group, id) { return `${group.id}|${group.key}|${id}`; }
 async function prepareFile(record, id) {
@@ -119,7 +129,7 @@ async function prepareFile(record, id) {
   try { return await operation; } finally { pending.delete(key); }
 }
 function broadcast(channel, value) {
-  for (const record of windows.values()) if (!record.win.isDestroyed()) record.win.webContents.send(channel, value);
+  for (const record of windows.values()) if (!record.win.isDestroyed()) { record.win.webContents.send(channel, value); if(record.anchor&&!record.anchor.isDestroyed()&&channel==='groups:changed') record.anchor.webContents.send('anchor:state',anchorInfo(record)); }
 }
 function updateTray() {
   if (!tray || !manager) return;
@@ -133,7 +143,7 @@ function updateTray() {
   ]));
 }
 function showError(error) { console.error(error); if (!quitting) dialog.showErrorBox('拾传', error.message || String(error)); }
-async function openGroup(groupId) {
+async function openGroup(groupId, inviteOnOpen = false) {
   if (quitting) return;
   if (typeof groupId !== 'string' || (groupId !== welcomeGroup.id && !manager.listGroups().some(group => group.id === groupId))) throw new Error('群不存在');
   const existing = windows.get(groupId);
@@ -150,25 +160,30 @@ async function openGroup(groupId) {
       title: `${group.name} · 拾传`, icon: path.join(__dirname, 'assets', process.platform === 'darwin' ? 'mac-icon.png' : 'icon.png'), frame: nativeFrame, roundedCorners: nativeFrame,
       transparent: !nativeFrame, backgroundColor: nativeFrame ? '#F8FAF7' : '#00000000', hasShadow: nativeFrame, fullscreenable: false, resizable: nativeFrame,
       autoHideMenuBar: true, alwaysOnTop: !nativeFrame, show: false,
-      webPreferences: { partition: 'persist:pickdrop-groups', preload: path.join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true },
+      webPreferences: { backgroundThrottling:false, partition: 'persist:pickdrop-groups', preload: path.join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true },
     });
-    const control = (nativeFrame ? createNativeWindowController : createWindowController)(win, saved, value => {
-      config.windows[groupId] = value;
-      saveConfig().catch(error => console.error('Save window preferences:', error.message));
+    const anchor = nativeFrame ? null : new BrowserWindow({
+      width:56,height:56,minWidth:56,minHeight:56,maxWidth:56,maxHeight:56,
+      title:`${group.name} · 拾传锚点`,frame:false,transparent:true,backgroundColor:'#00000000',hasShadow:false,
+      resizable:false,fullscreenable:false,skipTaskbar:true,alwaysOnTop:true,show:false,
+      webPreferences:{preload:path.join(__dirname,'anchor-preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true},
     });
-    const record = { win, groupId, control, transferReleases: [] }; windows.set(groupId, record);
+    const remember = value => { config.windows[groupId] = value; saveConfig().catch(error => console.error('Save window preferences:', error.message)); };
+    const control = nativeFrame ? createNativeWindowController(win,saved,remember) : createSplitWindowController(win,anchor,saved,remember);
+    const record = { win, anchor, groupId, control, inviteOnOpen, transferReleases: [], anchorUploads:new Map(), anchorBatches:0 }; windows.set(groupId, record);
     if (!nativeFrame) { if (process.platform === 'linux') win.setAlwaysOnTop(true); else win.setAlwaysOnTop(true, 'floating'); }
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     const guardNavigation = (event, url) => { try { if (new URL(url).origin !== uiOrigin) event.preventDefault(); } catch { event.preventDefault(); } };
+    if(anchor){anchor.setAlwaysOnTop(true,process.platform==='linux'?'normal':'floating');anchor.webContents.setWindowOpenHandler(()=>({action:'deny'}));anchor.webContents.on('will-navigate',(event,url)=>{try{const u=new URL(url);if(u.origin!==uiOrigin||u.pathname!=='/native-anchor.html')event.preventDefault();}catch{event.preventDefault();}});anchor.webContents.on('will-redirect',event=>event.preventDefault());anchor.on('close',event=>{if(!quitting){event.preventDefault();control.hide();}});}
     win.webContents.on('will-navigate', guardNavigation); win.webContents.on('will-redirect', guardNavigation);
     win.webContents.on('did-finish-load', () => control.emit());
-    win.on('close', event => { if (!quitting) { event.preventDefault(); win.hide(); } });
-    win.on('closed', () => { record.releaseDragPin?.(); record.transferReleases.forEach(release => release()); windows.delete(groupId); });
+    win.on('close', event => { if (!quitting) { event.preventDefault(); if(control.hide)control.hide();else win.hide(); } });
+    win.on('closed', () => { for(const upload of record.anchorUploads.values())upload.abort();record.releaseDragPin?.(); record.transferReleases.forEach(release => release()); windows.delete(groupId); });
     win.webContents.on('render-process-gone', () => { record.transferReleases.splice(0).forEach(release => release()); });
-    try { await win.loadURL(uiOrigin); }
+    try { await win.loadURL(uiOrigin); if(anchor)await anchor.loadURL(`${uiOrigin}/native-anchor.html`); }
     catch (error) { win.destroy(); throw error; }
     if (quitting) { if (!win.isDestroyed()) win.destroy(); return; }
-    win.show(); control.restore(); control.emit(); updateTray();
+    control.restore(); if(!control.state().collapsed)win.show(); control.emit(); updateTray();
     return publicGroup(groupFor(record));
   })();
   opening.set(groupId, operation);
@@ -193,6 +208,7 @@ function sweepCache(groupId, clear = false) {
 }
 function registerIPC() {
   handle('app:bootstrap', bootstrap);
+  handle('app:clipboard-text', () => clipboard.readText().slice(0, 8192));
   handle('storage:get', async record => {
     const { cacheStats, CACHE_POLICY } = await import('../../server/cache.js');
     return { cache: await cacheStats(cacheRoot(record.groupId), { boundary: app.getPath('userData') }), hosted: manager.getHostedInbox(record.groupId)?.storage() || { bytes: 0, files: 0 }, policy: CACHE_POLICY };
@@ -209,13 +225,13 @@ function registerIPC() {
     return result;
   });
   handle('group:list', publicGroups);
-  handle('group:create', async (_record, name) => { const group = await manager.createGroup(name); await openGroup(group.id); return publicGroup(group); });
+  handle('group:create', async (_record, name, animalId) => { const group = await manager.createGroup(name, animalId); await openGroup(group.id, true); return publicGroup(group); });
   handle('group:open', (_record, id) => openGroup(id));
   handle('group:join', (_record, code) => manager.joinWithCode(code));
   handle('group:join-at', (_record, address, code, groupId) => manager.joinAt(address, code, groupId));
   handle('group:nearby', () => manager.listNearby());
   handle('group:discovery-status', () => ({ error: manager.getNetwork().discoveryError || '' }));
-  handle('group:rename', (record, name) => manager.renameGroup(record.groupId, name));
+  handle('group:rename', (record, name, animalId) => manager.renameGroup(record.groupId, name, animalId));
   handle('group:upgrade', record => manager.upgradeGroup(record.groupId));
   handle('group:reconnect', (record, address) => manager.reconnectGroup(record.groupId, address));
   handle('group:remove-member', (record, id) => manager.removeMember(record.groupId, id));
@@ -271,7 +287,7 @@ function registerIPC() {
   handle('window:expand', record => record.control.expand(true));
   handle('window:busy', (record, value) => { record.control.setBusy('ui', value); return true; });
   handle('window:native-busy', (record, value) => { record.control.setBusy('native', Boolean(value)); return true; });
-  handle('window:close', record => { record.win.hide(); return true; });
+  handle('window:close', record => { if(record.control.hide)record.control.hide();else record.win.hide(); return true; });
   handle('file:preview', async (record, id, full) => {
     if (typeof id !== 'string' || !/^[a-f0-9-]{36}$/i.test(id)) throw new Error('文件编号不正确');
     const hosted = manager.getHostedInbox(record.groupId);
@@ -299,8 +315,77 @@ function registerIPC() {
       return true;
     } finally { unpin?.(); record.saving = false; record.control.setBusy('native', false); }
   });
+  ipcMain.handle('anchor:bootstrap',event=>{const r=anchorRecordFor(event);if(!r)throw new Error('Invalid sender');return anchorInfo(r);});
+  ipcMain.handle('anchor:expand',event=>{const r=anchorRecordFor(event);if(!r)throw new Error('Invalid sender');return r.control.expand(true);});
+  ipcMain.on('anchor:activity',(event,type,value)=>{const r=anchorRecordFor(event);if(!r)return;if(type==='pointer')r.control.pointer(!!value,'anchor');if(type==='drag-start')r.control.startWindowDrag('anchor');if(type==='drag-end')r.control.endWindowDrag(!!value);if(type==='files')r.control.dragActivity(!!value);if(type==='reduced-motion')r.control.setReducedMotion(!!value);});
+  handle('anchor:cancel-upload', (record, id) => {
+    if (typeof id !== 'string') throw new Error('无效的发送任务');
+    record.anchorUploads.get(id)?.abort();
+    return true;
+  });
+  ipcMain.handle('anchor:drop', async (event, files) => {
+    const record = anchorRecordFor(event);
+    if (!record) throw new Error('Invalid sender');
+    if (!Array.isArray(files) || !files.length || files.length > 100) throw new Error('无效的文件列表');
+    record.control.expand();
+    const release = manager.acquireTransfer();
+    record.anchorBatches++;
+    record.control.setBusy('anchor-upload', true);
+    const notify = value => {
+      if (!record.win.isDestroyed()) record.win.webContents.send('anchor:upload-state', value);
+    };
+    let sent = 0;
+    try {
+      for (const item of files) {
+        if (record.win.isDestroyed()) break;
+        const id = randomUUID(), controller = new AbortController();
+        record.anchorUploads.set(id, controller);
+        const name = typeof item?.name === 'string' ? path.basename(item.name) : '文件';
+        const transfer = networkTransfers.begin();
+        const onNetworkAbort = () => controller.abort(new Error('网络已断开，文件发送已停止'));
+        transfer.signal.addEventListener('abort', onNetworkAbort, { once: true });
+        notify({ id, name, size: 0, loaded: 0, status: 'start' });
+        try {
+          if (!item || typeof item.name !== 'string' || item.name.length > 1024) throw new Error('无效的文件');
+          let blob;
+          if (typeof item.path === 'string' && path.isAbsolute(item.path)) {
+            const stat = await fs.stat(item.path);
+            if (!stat.isFile()) throw new Error('请拖入文件');
+            blob = await require('node:fs').openAsBlob(item.path);
+          } else if (item.bytes instanceof Uint8Array && item.bytes.byteLength <= 1024 * 1024) {
+            blob = new Blob([item.bytes]);
+          } else throw new Error('无效的文件来源');
+          const group = await manager.resolveGroup(record.groupId);
+          controller.signal.throwIfAborted();
+          const mime = typeof item.type === 'string' && item.type.length < 256 && /^[\w.+-]+\/[\w.+-]+$/.test(item.type) ? item.type : 'application/octet-stream';
+          await sendAnchorFile({
+            blob, signal: controller.signal,
+            url: `${group.baseUrl}/api/files?name=${encodeURIComponent(name)}`,
+            headers: { 'X-Room-Key': group.key, 'X-Device-Id': config.device.id, 'Content-Type': mime },
+            fetch: (url, options) => session.fromPartition('persist:pickdrop-groups').fetch(url, options),
+            progress: loaded => notify({ id, name, size: blob.size, loaded, status: 'progress' }),
+          });
+          sent++;
+          notify({ id, name, status: 'complete' });
+        } catch (error) {
+          const cancelled = controller.signal.aborted && controller.signal.reason?.name === 'AbortError';
+          notify({ id, name, status: cancelled ? 'cancelled' : 'error', error: String(error.message || '文件发送失败') });
+        } finally {
+          transfer.signal.removeEventListener('abort', onNetworkAbort);
+          transfer.release();
+          record.anchorUploads.delete(id);
+        }
+      }
+      return { sent };
+    } finally {
+      release();
+      record.anchorBatches--;
+      record.control.setBusy('anchor-upload', record.anchorBatches > 0);
+    }
+  });
   ipcMain.on('window:activity', (event, type, value) => {
     const record = recordFor(event); if (!record) return;
+    if (type === 'panel-ready') record.control.panelReady?.(value);
     if (type === 'window-drag-start') record.control.startWindowDrag();
     if (type === 'window-resize-start') record.control.startWindowResize();
     if (type === 'window-drag-end') record.control.endWindowDrag(Boolean(value));
@@ -308,7 +393,10 @@ function registerIPC() {
     if (type === 'pointer') record.control.pointer(Boolean(value));
     if (type === 'input') record.control.setBusy('input', value);
     if (type === 'drag') record.control.dragActivity(value);
-    if (type === 'drag-end') { record.releaseDragPin?.(); record.releaseDragPin = null; record.dragFile = null; record.control.nativeDragEnd(); }
+    if (type === 'drag-end') { internalDrags.end(event.sender.id); event.sender.send('file:drag-state', null); record.releaseDragPin?.(); record.releaseDragPin = null; record.dragFile = null; record.control.nativeDragEnd(); }
+  });
+  ipcMain.on('file:drop-filter', (event, paths) => {
+    event.returnValue = (recordFor(event) || anchorRecordFor(event)) && Array.isArray(paths) && paths.length <= 1000 ? internalDrags.allowedIndexes(paths) : [];
   });
   ipcMain.on('file:drag', (event, id) => {
     const record = recordFor(event); if (!record || typeof id !== 'string') return;
@@ -316,8 +404,10 @@ function registerIPC() {
     if (!file) return;
     record.releaseDragPin?.(); record.releaseDragPin = pinCache(file); record.dragFile = file;
     record.control.nativeDragStart();
+    internalDrags.begin(event.sender.id, file);
+    event.sender.send('file:drag-state', id);
     try { event.sender.startDrag({ file, icon: dragIcon }); }
-    catch (error) { record.releaseDragPin?.(); record.releaseDragPin = null; record.dragFile = null; console.error('Native drag:', error.message); record.control.nativeDragEnd(); }
+    catch (error) { internalDrags.cancel(event.sender.id); event.sender.send('file:drag-state', null); record.releaseDragPin?.(); record.releaseDragPin = null; record.dragFile = null; console.error('Native drag:', error.message); record.control.nativeDragEnd(); }
   });
 }
 
@@ -325,6 +415,7 @@ app.setName('PickDrop');
 if (process.env.PICKDROP_USER_DATA) app.setPath('userData', path.resolve(process.env.PICKDROP_USER_DATA));
 if (!app.requestSingleInstanceLock()) app.quit();
 else startupPromise = app.whenReady().then(async () => {
+  if (process.platform === 'darwin') app.dock?.setIcon(nativeImage.createFromPath(path.join(__dirname, 'assets/mac-icon.png')));
   if (quitting) return;
   try {
     const dataDir = app.getPath('userData');
@@ -354,7 +445,7 @@ else startupPromise = app.whenReady().then(async () => {
         if (record.groupId === welcomeGroup.id || record.detaching || available.has(record.groupId)) continue;
         record.win.destroy(); delete config.windows[record.groupId];
       }
-      for (const record of windows.values()) if (!record.detaching && !record.win.isDestroyed()) record.win.webContents.send('groups:changed', publicGroups());
+      for (const record of windows.values()) if (!record.detaching && !record.win.isDestroyed()) { record.win.webContents.send('groups:changed', publicGroups()); if(record.anchor&&!record.anchor.isDestroyed())record.anchor.webContents.send('anchor:state',anchorInfo(record)); }
       updateTray();
       if (!quitting && !windows.size && uiOrigin) openGroup(manager.listGroups()[0]?.id || welcomeGroup.id).catch(showError);
     });

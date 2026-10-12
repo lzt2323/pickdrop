@@ -1,3 +1,4 @@
+import { firstContentWindow, nextContentWindow } from './desktop-test-windows.js';
 import assert from 'node:assert/strict';
 import { _electron as electron } from 'playwright';
 import { createRequire } from 'node:module';
@@ -17,7 +18,7 @@ async function start() {
     env: { ...process.env, PICKDROP_USER_DATA: dir }, timeout: 30000 });
   const child = instance.process(); children.push(child);
   child.stderr?.on('data', chunk => stderr.push(chunk.toString()));
-  const page = await instance.firstWindow();
+  const page = await firstContentWindow(instance);
   await page.waitForFunction(() => document.querySelector('#connection-status')?.dataset.connected === 'true');
   return { instance, page, bootstrap: await page.evaluate(() => window.pickdrop.bootstrap()) };
 }

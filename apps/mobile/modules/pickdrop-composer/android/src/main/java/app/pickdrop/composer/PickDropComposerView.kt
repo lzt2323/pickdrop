@@ -43,8 +43,8 @@ class PickDropComposerView(context: Context, appContext: AppContext) : ExpoView(
     editor.background = null
     editor.setPadding(dp(12), dp(10), dp(12), dp(10))
     editor.textSize = 14f
-    editor.setTextColor(Color.rgb(48, 65, 92))
-    editor.setHintTextColor(Color.rgb(161, 174, 192))
+    editor.setTextColor(Color.rgb(28, 28, 30))
+    editor.setHintTextColor(Color.rgb(142, 142, 147))
     editor.hint = "发文件或说点什么…"
     editor.contentDescription = "消息内容"
     editor.filters = arrayOf(InputFilter.LengthFilter(10000))

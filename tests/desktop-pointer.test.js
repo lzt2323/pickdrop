@@ -7,12 +7,12 @@ async function fixture() {
   const handlers = new Map(), sent = [], timers = []; let denyCapture = false, captured = false, focused = true, tab;
   class Element {
     constructor() { this.dataset = {}; this.classList = {contains:()=>false}; this.style = {setProperty(){}}; }
-    addEventListener() {} setAttribute() {} blur() {} closest(selector) { return selector.includes('#pickdrop-native-tab') ? this : null; }
+    append() {} addEventListener() {} setAttribute() {} blur() {} closest(selector) { return selector.includes('#pickdrop-native-tab') ? this : null; }
     setPointerCapture() { if (denyCapture) throw new Error('native resize rejected capture'); captured = true; }
     hasPointerCapture() { return captured && !denyCapture; } releasePointerCapture() { captured = false; }
   }
   const root = new Element(), document = { documentElement:root, activeElement:null, hasFocus:()=>focused,
-    createElement:()=>{ tab = new Element(); return tab; }, body:{append() {}} };
+    createElement:tag=>{ const node = new Element(); if (tag === 'button') tab = node; return node; }, body:{append() {}} };
   const context = vm.createContext({ Element, document, innerWidth:64, innerHeight:34,
     window:{addEventListener(type,handler){if (!handlers.has(type)) handlers.set(type,[]); handlers.get(type).push(handler);}},
     setTimeout(fn){timers.push(fn); return fn;},clearTimeout(){},
@@ -41,4 +41,26 @@ test('lost focus eventually cancels a held courier reveal and clears input focus
   for(const timer of f.timers) timer();
   assert.ok(f.sent.some(call=>call[1]==='input'&&call[2]===false));
   assert.equal(f.sent.find(call=>call[1]==='window-drag-end')?.[2],true);
+});
+test('native header movement survives rejected recapture without ending a held drag', async()=>{
+  const f=await fixture();f.context.innerWidth=340;f.context.innerHeight=470;
+  f.context.window.screenX=100;f.context.window.screenY=100;
+  await f.emit('pointerdown',{button:0,target:f.root,pointerId:7,screenX:240,screenY:120,preventDefault(){}});
+  f.deny();f.context.window.screenX=180;f.context.window.screenY=160;
+  await f.emit('lostpointercapture',{pointerId:7,buttons:0});
+  assert.equal(f.sent.some(call=>call[1]==='window-drag-end'),false);
+  await f.emit('mouseup',{button:0});
+  assert.equal(f.sent.find(call=>call[1]==='window-drag-end')?.[2],false);
+});
+test('Escape still cancels a native move after its capture is lost', async()=>{
+  const f=await fixture();f.context.window.screenX=100;
+  await f.down();f.deny();f.context.window.screenX=180;
+  await f.emit('lostpointercapture',{pointerId:7,buttons:0});
+  await f.emit('keydown',{key:'Escape'});
+  assert.equal(f.sent.find(call=>call[1]==='window-drag-end')?.[2],true);
+});
+test('content preload no longer scales or animates the native frame',()=>{
+ assert.equal(source.includes('syncNativeContentScale'),false);
+ assert.equal(source.includes('scheduleNativeContentScale'),false);
+ assert.ok(source.includes("'panel-ready'"));
 });

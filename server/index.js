@@ -1,3 +1,4 @@
+import { ANIMALS, animalSvg } from '../shared/animals.js';
 import http from 'node:http';
 import path from 'node:path';
 import os from 'node:os';
@@ -16,12 +17,30 @@ import { readJsonWithBackup, writeJsonWithBackup } from './persistence.js';
 const publicDir = fileURLToPath(new URL('../apps/desktop/public/', import.meta.url));
 const staticFiles = new Map([
   ['/', [path.join(publicDir, 'index.html'), 'text/html; charset=utf-8']],
+  ['/native-anchor.html', [path.join(publicDir, 'native-anchor.html'), 'text/html; charset=utf-8']],
   ['/app.js', [path.join(publicDir, 'app.js'), 'text/javascript; charset=utf-8']],
   ['/clipboard-images.js', [path.join(publicDir, 'clipboard-images.js'), 'text/javascript; charset=utf-8']],
   ['/history.js', [fileURLToPath(new URL('../shared/history.js', import.meta.url)), 'text/javascript; charset=utf-8']],
   ['/styles.css', [path.join(publicDir, 'styles.css'), 'text/css; charset=utf-8']],
+  ['/animals.js', [fileURLToPath(new URL('../shared/animals.js', import.meta.url)), 'text/javascript; charset=utf-8']],
+  ['/invitation.js', [fileURLToPath(new URL('../shared/invitation.js', import.meta.url)), 'text/javascript; charset=utf-8']],
   ['/protocol.js', [fileURLToPath(new URL('../shared/protocol.js', import.meta.url)), 'text/javascript; charset=utf-8']],
 ]);
+// Fixed desktop assets only; shared mobile animal representations stay unchanged.
+for (const name of ['tokens.css', 'paw-theme.css', 'native-motion.css', 'native-anchor.css']) {
+  staticFiles.set(`/${name}`, [path.join(publicDir, name), 'text/css; charset=utf-8']);
+}
+staticFiles.set('/assets/app-icon.svg', [path.join(publicDir, 'assets/app-icon.svg'), 'image/svg+xml']);
+for (const { id } of ANIMALS) {
+  staticFiles.set(`/assets/animals/${id}.svg`, [path.join(publicDir, 'assets/animals', `${id}.svg`), 'image/svg+xml']);
+  staticFiles.set(`/assets/group-animals/${id}.png`, [path.join(publicDir, 'assets/group-animals', `${id}.png`), 'image/png']);
+}
+function serveAnimal(req, res, route) {
+  const animal = ANIMALS.find(item => route === `/animals/${item.id}.svg`);
+  if (req.method !== 'GET' || !animal) return false;
+  res.writeHead(200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'no-store', 'Content-Security-Policy': "default-src 'none'" });
+  res.end(animalSvg(animal.id)); return true;
+}
 const uuidPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const json = (res, status, value) => {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -85,7 +104,7 @@ export async function createInboxServer({ dataDir, port = 0, host = '0.0.0.0', l
   let closing = false, closePromise;
   const activeUploads = new Set(), activeDownloads = new Set();
   let transfersPaused = false, cleanupBusy = false, activeTransferRequests = 0;
-  const summary = () => ({ devices: peer ? peer.state().members.map(member => ({ ...member, online: Boolean(connections.get(member.id)?.size) || peer.peers().some(p => p.deviceId === member.id && p.online) })) : [...devices.values()], maxFileBytes, authVersion: peer ? 3 : auth.version });
+  const summary = () => ({ devices: peer ? peer.state().members.map(member => ({ ...member, online: Boolean(connections.get(member.id)?.size) || peer.isDeviceOnline(member.id) })) : [...devices.values()], maxFileBytes, authVersion: peer ? 3 : auth.version });
   const state = () => ({ ...(peer ? { messages: peer.state().messages, history: { hasMore: false, before: null, total: peer.state().messages.length } } : history.page()), ...summary() });
   const persist = () => {
     const snapshot = { version: 2, auth: structuredClone(auth), devices: [...devices.values()].map(d => ({ ...d, online: false })) };
@@ -234,6 +253,7 @@ export async function createInboxServer({ dataDir, port = 0, host = '0.0.0.0', l
       const route = url.pathname;
       if (peer && await peer.handle(req, res, url)) return;
       if (!peer && route === '/api/peer/info') throw fail(404, '此群使用旧版协议');
+      if (serveAnimal(req, res, route)) return;
       if (req.method === 'GET' && staticFiles.has(route)) {
         const [file, mime] = staticFiles.get(route);
         res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-store', 'Content-Security-Policy': "default-src 'self'; connect-src 'self' http: https: ws: wss:; img-src 'self' data: blob: http: https:; style-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'" });
@@ -431,7 +451,9 @@ export async function createInboxServer({ dataDir, port = 0, host = '0.0.0.0', l
 export async function createDesktopUiServer() {
   const server = http.createServer(async (req, res) => {
     try {
-      const record = staticFiles.get(new URL(req.url, 'http://localhost').pathname);
+      const route = new URL(req.url, 'http://localhost').pathname;
+      if (serveAnimal(req, res, route)) return;
+      const record = staticFiles.get(route);
       if (req.method !== 'GET' || !record) { res.writeHead(404); res.end(); return; }
       res.writeHead(200, { 'Content-Type': record[1], 'Cache-Control': 'no-store', 'Content-Security-Policy': "default-src 'self'; connect-src 'self' http: https: ws: wss:; img-src 'self' data: blob: http: https:; style-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none'" });
       await pipeline(createReadStream(record[0]), res);
