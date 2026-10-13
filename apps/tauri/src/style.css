@@ -69,18 +69,30 @@ body[data-has-group=false] #viewbar, body[data-has-group=false] #app > .device-s
 .mine .message-copy { right: auto; left: 0; }
 .message:hover .message-copy, .message:focus-within .message-copy { opacity: 1; }
 .message-copy svg { width: 16px; height: 16px; }
-.file-card { width: min(272px,100%); border: 1px solid var(--line); background: var(--surface); padding: 12px; border-radius: var(--radius-card); }
-.file-heading { display: flex; align-items: center; gap: 10px; }
-.file-icon { display: grid; place-items: center; width: 32px; height: 40px; border: 1px solid var(--line); border-radius: 9px; background: var(--recess); color: #424245; flex-shrink: 0; }
-.file-icon svg { width: 20px; height: 20px; }
+/* Attachments lead with the actual content, with quiet secondary actions. */
+.file-card { width: min(272px,100%); border: 1px solid var(--line); background: var(--surface); padding: 10px; border-radius: var(--radius-card); }
+.file-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.file-icon { display: grid; place-items: center; width: 36px; height: 42px; border-radius: 9px; background: #edf3fb; color: #537395; flex-shrink: 0; }
+.file-icon svg { width: 22px; height: 22px; }
 .file-copy { flex: 1; min-width: 0; }
-.file-name { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; line-height: 1.5; }
-.file-size { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); margin: 4px 0 8px; }
-.file-actions { display: flex; flex-wrap: wrap; gap: 4px; }
-.file-actions button { color: var(--accent); min-height: 30px; padding: 4px 8px; font-size: 11px; }
-.file-actions button:first-child { background: var(--recess); color: #424245; }
-.file-more { margin-left: auto; color: var(--muted); }
-.thumbnail { width: 100%; height: 150px; object-fit: contain; display: block; margin-top: 8px; border-radius: var(--radius-control); }
+.file-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 13px; font-weight: 550; overflow-wrap: anywhere; line-height: 1.45; }
+.file-size { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); margin: 4px 0 0; }
+.file-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.file-actions button { color: var(--accent); min-height: 30px; padding: 4px 8px; font-size: 12px; }
+.file-actions .icon-action { width: 30px; padding: 5px; color: var(--muted); }
+.file-actions .icon-action svg { width: 17px; height: 17px; }
+.file-more { color: var(--muted); }
+.file-card.image-card { padding: 0; overflow: hidden; }
+.image-card .file-heading { padding: 9px 10px 0; }
+.image-card .file-icon { display: none; }
+.image-card .file-name { font-size: 12px; font-weight: 500; }
+.image-card .file-actions { padding: 0 6px 5px; margin-top: 0; }
+.file-preview { position: relative; display: block; width: 100%; padding: 0; border-radius: 0; background: var(--recess); overflow: hidden; cursor: zoom-in; }
+.file-preview:hover { background: var(--recess); }
+.thumbnail:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.thumbnail { width: 100%; height: auto; max-height: 260px; object-fit: contain; display: block; margin: 0; border-radius: 0; }
+.thumbnail-fallback { display: grid; place-items: center; min-height: 96px; padding: 16px; font-size: 12px; color: var(--muted); text-align: center; }
+.file-unreceived { margin: 7px 10px 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 
 /* Composer: one focus outline follows the enclosing rounded control. */
 #composer { display: flex; align-items: center; min-height: 44px; gap: 6px; margin: 0 11px 11px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 16px; flex-shrink: 0; }
@@ -103,12 +115,13 @@ dialog { border: 1px solid var(--line); border-radius: 18px; padding: 16px; widt
 dialog[open] { display: flex; flex-direction: column; }
 dialog::backdrop { background: rgb(20 20 24 / 16%); }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-shrink: 0; }
+.panel-heading h2:focus { outline: none; }
 .panel-heading h2 { font-size: 17px; font-weight: 600; margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .panel-heading button { font-size: 22px; color: var(--muted); width: 32px; min-height: 32px; padding: 0; border-radius: 50%; background: var(--recess); }
 #panel-body { display: grid; gap: 12px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 3px; margin: -3px; scrollbar-width: thin; }
 .panel-actions { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--line); }
 .panel-actions > button { flex: 1; min-width: 0; }
-dialog[data-kind=image] .panel-actions > button { flex: 1 1 80px; white-space: nowrap; }
+dialog[data-kind=image] .panel-actions > button { flex: 1 1 0; white-space: nowrap; }
 label { display: grid; gap: 6px; font-size: 13px; font-weight: 550; }
 input, select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--rule); border-radius: var(--radius-control); padding: 10px; color: inherit; background: var(--surface); }
 input[aria-invalid=true], select[aria-invalid=true] { border-color: var(--danger); }
@@ -124,12 +137,66 @@ input[aria-invalid=true], select[aria-invalid=true] { border-color: var(--danger
 .qr { width: 160px; height: 160px; max-width: 100%; margin: auto; }
 .invite-code { text-align: center; letter-spacing: .2em; font-size: 23px; font-weight: 650; }
 .address-row { display: grid; grid-template-columns: minmax(0,1fr) 84px; gap: 10px; }
-.image-preview { display: block; max-width: 100%; max-height: 55dvh; object-fit: contain; margin: auto; }
+/* Image inspection keeps controls outside the scrollable full-resolution stage. */
+dialog[data-kind=image] { width: min(600px,calc(100vw - 16px)); }
+dialog[data-kind=image] .panel-heading h2 { font-size: 13px; font-weight: 550; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+dialog[data-kind=image] #panel-body { gap: 8px; }
+.image-preview-stage { position: relative; display: grid; place-items: center; min-height: 100px; height: clamp(100px,calc(100dvh - 192px),520px); overflow: auto; background: var(--recess); border-radius: 10px; }
+.image-preview { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; margin: auto; }
+.image-preview-stage[data-size=actual] { display: block; }
+.image-preview-stage[data-size=actual] .image-preview { max-width: none; max-height: none; margin: 0; }
+.image-preview-toolbar { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.image-preview-toolbar button { color: var(--accent); font-size: 12px; }
+.preview-status { margin: 0; padding: 8px; color: var(--muted); font-size: 13px; text-align: center; }
+dialog[data-kind=image] .panel-actions { gap: 4px; flex-wrap: nowrap; }
+dialog[data-kind=image] .panel-actions > .icon-action { flex: 0 0 30px; width: 30px; padding: 4px; }
+body[data-desktop=false] dialog[data-kind=image] .panel-actions > .icon-action { flex-basis: 44px; width: 44px; }
+dialog[data-kind=image] .panel-actions > button { padding-inline: 4px; font-size: 12px; }
+
 .section-title { font-size: 12px; color: var(--muted); font-weight: 400; margin: 12px 0 0; }
-.setting-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 4px; border-radius: 0; border-bottom: 1px solid var(--line); background: var(--surface); }
+.setting-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px; border-radius: 10px; background: var(--surface); }
 .setting-row:after { content: '›'; color: var(--muted); font-size: 20px; flex-shrink: 0; }
 .danger-zone { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; }
 .version { color: var(--muted); font-size: 12px; text-align: center; margin: 12px 0 0; }
+
+/* Group switching and preferences use the same quiet navigation hierarchy. */
+dialog[data-kind=groups] .group-list { margin: 0; gap: 6px; }
+dialog[data-kind=groups] .group-option { min-height: 58px; padding: 10px; border: 0; border-radius: 12px; background: #f7f7f9; font-size: 13px; font-weight: 500; }
+dialog[data-kind=groups] .group-option:hover { background: #ededf1; }
+dialog[data-kind=groups] .group-option:after { content: none; }
+dialog[data-kind=groups] .group-option[aria-current=true] { background: #f0f4fa; }
+dialog[data-kind=groups] .group-option img { width: 34px; height: 34px; flex-shrink: 0; }
+.group-option-copy { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.group-option-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 550; }
+.group-option-detail { color: var(--muted); font-size: 11px; font-weight: 400; }
+.group-current { color: var(--accent); width: 16px; height: 16px; flex-shrink: 0; }
+.group-shortcuts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; padding-top: 4px; }
+.group-shortcuts > button:nth-child(3) { grid-column: 1 / -1; }
+.group-shortcuts > button { display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1; min-width: 0; color: var(--accent); font-size: 12px; background: transparent; border: 1px solid var(--line); border-radius: 10px; }
+.group-shortcuts > button { padding: 8px 6px; }
+.group-shortcuts > button:after, .group-shortcuts .setting-chevron { display: none; }
+.group-shortcuts .setting-icon { width: 16px; }
+.group-shortcuts .setting-copy { flex: 0 1 auto; }
+.group-shortcuts .setting-label { font-size: 12px; white-space: nowrap; }
+.group-shortcuts > button:hover { background: var(--recess); }
+.group-shortcuts svg { width: 16px; height: 16px; }
+.settings-section { display: grid; gap: 6px; }
+.settings-section-title { color: var(--muted); font-size: 11px; font-weight: 500; margin: 0 4px; }
+.settings-list { padding: 3px; border-radius: 12px; background: #f7f7f9; }
+.settings-list .setting-row { background: transparent; min-height: 50px; padding: 8px; }
+.settings-list .setting-row:after { content: none; }
+.settings-list .setting-row:hover { background: #ededf1; }
+.setting-icon { display: grid; place-items: center; color: #727b88; width: 24px; flex-shrink: 0; }
+.setting-icon svg { width: 18px; height: 18px; }
+.setting-copy { display: grid; gap: 3px; flex: 1; min-width: 0; }
+.setting-label { font-size: 13px; font-weight: 500; }
+.setting-detail { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setting-chevron { display: grid; place-items: center; color: #929298; width: 14px; height: 14px; flex-shrink: 0; }
+.setting-chevron svg { width: 14px; height: 14px; transform: rotate(-90deg); }
+.panel-back { justify-self: start; display: flex; align-items: center; gap: 4px; color: var(--accent); font-size: 12px; padding-inline: 4px; }
+.panel-back svg { width: 14px; height: 14px; }
+dialog[data-kind=preferences] .version { font-size: 11px; margin: 4px 0 0; }
+:is(.group-option,.setting-row,.group-shortcuts > button):focus-visible { outline-offset: -2px; outline-width: 2px; }
 
 /* Members and transfers separate the content, state, and actions. */
 .member-heading { font-size: 13px; margin: 8px 0 0; color: var(--muted); }
@@ -187,7 +254,8 @@ body[data-desktop=false] #app > .device-strip { min-height: 46px; background: tr
 body[data-desktop=false] .message-meta { font-size: 11px; }
 body[data-desktop=false] .bubble { font-size: 15px; line-height: 22px; border: 1px solid var(--line); background: var(--surface); }
 body[data-desktop=false] .mine .bubble { background: #f2f2f7; }
-body[data-desktop=false] .file-card { width: min(228px,100%); }
+body[data-desktop=false] .file-card { width: min(264px,100%); }
+body[data-desktop=false] .file-actions .icon-action { width: 44px; height: 44px; }
 body[data-desktop=false] #composer { margin: 8px 12px calc(12px + env(safe-area-inset-bottom)); padding: 6px; min-height: 58px; border-radius: 18px; }
 body[data-desktop=false] #composer button { height: 44px; min-height: 44px; width: 44px; }
 body[data-desktop=false] #composer textarea { height: 44px; min-height: 44px; padding-block: 11px; font-size: 15px; }
@@ -208,7 +276,8 @@ body[data-desktop=true] .bubble { padding: 7px 10px; background: var(--surface);
 body[data-desktop=true] .mine .bubble { background: var(--recess); border-radius: 13px; }
 body[data-desktop=true] .file-card { width: min(232px,100%); padding: 9px; border-radius: 13px; }
 body[data-desktop=true] .mine .file-card { border-radius: 13px; }
-body[data-desktop=true] .thumbnail { height: 106px; }
+body[data-desktop=true] .thumbnail { max-height: 180px; }
+body[data-desktop=true] .file-card.image-card { padding: 0; }
 
 /* Mini desktop content retains a usable scroll region at 320 × 420. */
 body[data-desktop=true] dialog { padding: 12px; }
@@ -266,7 +335,7 @@ body[data-macos=true] #window-resize-handle { display: block; }
   body[data-desktop=false] #viewbar { margin-bottom: 4px; }
   body[data-desktop=false] #composer { margin-block: 4px; }
   #empty { margin-top: 8vh; }
-  .image-preview { max-height: 45dvh; }
+
 }
 @media(hover:none) { .message-copy { opacity: 1; } }
 @media(prefers-reduced-motion:reduce) { * { scroll-behavior: auto !important; } }

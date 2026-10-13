@@ -81,8 +81,7 @@ const thumbnails = new IntersectionObserver(entries => { for (const entry of ent
     if (entry.isIntersecting) {
         thumbnails.unobserve(entry.target);
         const img = entry.target, path = img.dataset.path;
-        native('native_thumbnail', { path }).then(src => { if (img.isConnected)
-            img.src = src; }).catch(() => img.remove());
+        native('native_thumbnail', { path }).then(src => { if (!src) throw Error('No thumbnail'); if (img.isConnected) img.src = src; }).catch(() => { if (img.isConnected) img.dispatchEvent(new Event('error')); });
     } }, { root: $('timeline'), rootMargin: '150px' });
 function rowFor(m) { const row = el('article', 'message'); row.dataset.messageId = m.id; row.classList.toggle('mine', m.deviceId === app.device.id || m.senderId === app.device.id); const time = new Date(m.createdAt || m.timestamp || Date.now()); row.append(el('div', 'message-meta', `${m.deviceName || m.senderName || '设备'} · ${time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`)); if (m.deleted) {
     row.append(el('div', 'bubble', '消息已删除'));
@@ -96,7 +95,10 @@ function rowFor(m) { const row = el('article', 'message'); row.dataset.messageId
 else {
     const card = el('div', 'file-card');
     const name = m.fileName || m.name || m.file?.name || '文件';
-    const heading = el('div', 'file-heading'), glyph = el('div', 'file-icon'), details = el('div', 'file-copy'); glyph.append(icon(/\.(png|jpg|jpeg|webp|gif)$/i.test(name) ? 'image' : 'file')); details.append(el('div', 'file-name', name), el('div', 'file-size', formatBytes(m.size || m.fileSize || m.file?.size))); heading.append(glyph, details); card.append(heading);
+    const isImage = /\.(png|jpg|jpeg|webp|gif|bmp|tiff?)$/i.test(name);
+    card.classList.toggle('image-card', isImage);
+    const extension = name.includes('.') ? name.split('.').pop().toUpperCase() : '文件';
+    const heading = el('div', 'file-heading'), glyph = el('div', 'file-icon'), details = el('div', 'file-copy'); glyph.append(icon(isImage ? 'image' : 'file')); details.append(el('div', 'file-name', name), el('div', 'file-size', `${formatBytes(m.size || m.fileSize || m.file?.size)} · ${extension}`)); heading.append(glyph, details); card.append(heading);
     const actions = el('div', 'file-actions');
     const local = app.files.get(m.id) || m.localPath || m.path;
     if (local) {
@@ -105,10 +107,10 @@ else {
             card.dataset.draggable = 'true';
             card.title = '拖出文件到桌面或其他应用';
             let dragAllowed = true, dragged = false;
-            card.addEventListener('pointerdown', event => { dragged = false; dragAllowed = event.button === 0 && !event.target.closest('.file-actions'); });
+            card.addEventListener('pointerdown', event => { dragged = false; dragAllowed = event.button === 0 && !event.target.closest('button, .file-actions'); });
             card.addEventListener('dragstart', event => {
                 event.preventDefault();
-                if (!dragAllowed || event.target.closest('.file-actions')) return;
+                if (!dragAllowed || event.target.closest('button, .file-actions')) return;
                 dragged = true;
                 run(() => native('native_drag_file', { path: local, suggestedName: name }));
             });
@@ -118,24 +120,57 @@ else {
             }, true);
 
         }
-        actions.append(button('保存', () => native('native_save_file', { sourcePath: local, suggestedName: name })), button('更多', () => fileActionsPanel(local, name), 'file-more'));
-        if (/\.(png|jpg|jpeg|webp|gif)$/i.test(name)) {
+        actions.append(fileIconButton('保存', 'download', () => native('native_save_file', { sourcePath: local, suggestedName: name })), fileIconButton('更多', 'more', () => fileActionsPanel(local, name), 'file-more'));
+        if (isImage) {
             const img = el('img', 'thumbnail');
             img.alt = name;
             img.draggable = false;
             img.loading = 'lazy';
             img.dataset.path = local;
-            card.append(img);
+            const preview = el('div', 'file-preview'); preview.dataset.state = 'loading';
+            const fallback = el('div', 'thumbnail-fallback'), status = el('span', null, '正在载入预览…');
+            const open = button('打开原图', () => native('native_open_file', { path: local, suggestedName: name })); open.hidden = true;
+            fallback.append(icon('image'), status, open); preview.append(img, fallback); card.prepend(preview);
+            img.addEventListener('load', () => { preview.dataset.state = 'ready'; fallback.hidden = true; });
+            img.addEventListener('error', () => { preview.dataset.state = 'failed'; img.hidden = true; fallback.hidden = false; status.textContent = '暂时无法预览'; open.hidden = false; });
             thumbnails.observe(img);
-            img.tabIndex = 0; img.setAttribute('role', 'button'); img.onclick = () => imagePanel(local, name, img.src); img.onkeydown = e => { if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); imagePanel(local, name, img.src); } };
+            img.tabIndex = 0; img.setAttribute('role', 'button'); img.setAttribute('aria-label', `预览图片：${name}`); img.onclick = () => imagePanel(local, name, img.getAttribute('src')); img.onkeydown = e => { if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); imagePanel(local, name, img.getAttribute('src')); } };
         }
     }
-    else
+    else {
+        if (isImage) card.append(el('p', 'file-unreceived', '接收后可预览图片'));
         actions.append(button('接收文件', () => receive(m)));
+    }
     card.append(actions);
     row.append(card);
 } return row; }
-function imagePanel(path, name, source) { const body = panel(name); $('panel').dataset.kind = 'image'; const image = el('img', 'image-preview'); image.alt = name; image.src = source; body.append(image); panelActions(button('打开原图', () => native('native_open_file', { path, suggestedName: name })), button('保存', () => native('native_save_file', { sourcePath: path, suggestedName: name })), button('更多', () => fileActionsPanel(path,name))); }
+function fileIconButton(label, glyph, action, extra = '') {
+    const control = button(label, action, `icon-action ${extra}`.trim());
+    control.title = label; control.replaceChildren(icon(glyph)); return control;
+}
+function imagePanel(path, name, source) {
+    const body = panel(name), generation = panelGeneration;
+    $('panel').dataset.kind = 'image';
+    const stage = el('div', 'image-preview-stage'); stage.dataset.size = 'fit';
+    const image = el('img', 'image-preview'); image.alt = name; image.draggable = false;
+    const status = el('p', 'preview-status', source ? '正在载入清晰预览…' : '正在载入图片…'); status.setAttribute('role', 'status');
+    if (source) image.src = source; else image.hidden = true;
+    stage.append(image); body.append(stage, status);
+    const toolbar = el('div', 'image-preview-toolbar');
+    const size = button('实际大小', () => {
+        const actual = stage.dataset.size !== 'actual'; stage.dataset.size = actual ? 'actual' : 'fit';
+        size.textContent = actual ? '适合窗口' : '实际大小'; size.setAttribute('aria-label', size.textContent); size.setAttribute('aria-pressed', String(actual));
+    }); size.setAttribute('aria-pressed', 'false'); size.hidden = true; toolbar.append(size); body.append(toolbar);
+    panelActions(button('打开原图', () => native('native_open_file', { path, suggestedName: name })), fileIconButton('保存', 'download', () => native('native_save_file', { sourcePath: path, suggestedName: name })), fileIconButton('更多', 'more', () => fileActionsPanel(path,name)));
+    const current = () => generation === panelGeneration && $('panel').open && image.isConnected;
+    native('native_image_preview', { path }).then(async src => {
+        if (!src) throw Error('No preview');
+        // Decode offscreen before replacing a usable thumbnail.
+        const decoded = new Image(); decoded.src = src; await decoded.decode();
+        if (!current()) return;
+        image.src = src; image.hidden = false; status.hidden = true; size.hidden = false;
+    }).catch(() => { if (current()) status.textContent = source ? '暂时无法载入清晰预览，可打开原图查看。' : '暂时无法预览，可打开原图查看。'; });
+}
 function fileActionsPanel(path, name) { const body = panel(name); body.append(button('打开', () => native('native_open_file', { path, suggestedName: name })), button('另存为', () => native('native_save_file', { sourcePath: path, suggestedName: name })), button('分享', () => native('native_share_file', { path, suggestedName: name }))); if (!isMobile()) body.append(button('拖出文件', () => native('native_drag_file', { path, suggestedName: name }))); if (isMobile() && /\.(png|jpg|jpeg|webp|gif)$/i.test(name)) body.append(button('保存到相册', () => native('native_save_gallery', { path, suggestedName: name }))); }
 function renderMessages() { const timeline = $('timeline'), nearBottom = timeline.scrollHeight - timeline.scrollTop - timeline.clientHeight < 100; const visible = app.messages.filter(m => app.filter !== 'files' || m.type === 'file'); const keep = new Set(visible.map(m => m.id)); for (const [id, record] of app.rows) {
     if (!keep.has(id)) {
@@ -190,14 +225,39 @@ async function selectGroup(id) { document.body.dataset.view = 'chat'; if ($('mob
     await refresh();
 } closePanel(); if (app.pendingIncoming?.length)
     incomingPanel(); }
-function groupsPanel() { const body = panel('我的群组'); for (const group of app.groups) {
-    const b = button(group.name, () => selectGroup(group.id), 'group-option');
-    const img = el('img');
-    img.src = asset(group.animalId);
-    img.alt = '';
-    b.prepend(img);
-    body.append(b);
-} body.append(button('创建群组', createPanel, 'primary'), button('加入群组', joinPanel), ...(/Android|iPhone|iPad/i.test(navigator.userAgent) ? [button('扫描邀请二维码', async () => joinPanel(await scanInvite()))] : [])); }
+function navigationRow(label, glyph, action, detail = '') {
+    const row = button(label, action, 'setting-row');
+    const symbol = el('span', 'setting-icon'); symbol.append(icon(glyph));
+    const copy = el('span', 'setting-copy'); copy.append(el('span', 'setting-label', label));
+    if (detail) copy.append(el('span', 'setting-detail', detail));
+    const arrow = el('span', 'setting-chevron'); arrow.append(icon('down')); arrow.setAttribute('aria-hidden', 'true');
+    row.replaceChildren(symbol, copy, arrow); return row;
+}
+function focusPanelHeading() {
+    const generation = panelGeneration;
+    $('panel-title').tabIndex = -1;
+    queueMicrotask(() => { if (generation === panelGeneration && $('panel').open) $('panel-title').focus(); });
+}
+function groupsPanel() {
+    const body = panel('我的群组'); $('panel').dataset.kind = 'groups';
+    const list = el('div', 'group-list');
+    for (const group of app.groups) {
+        const current = group.id === app.groupId;
+        const choice = button(group.name, () => selectGroup(group.id), 'group-option');
+        choice.setAttribute('aria-current', String(current));
+        const img = el('img'); img.src = asset(group.animalId); img.alt = '';
+        const copy = el('span', 'group-option-copy');
+        copy.append(el('span', 'group-option-name', group.name), el('span', 'group-option-detail', current ? '当前群组' : '点按切换'));
+        choice.replaceChildren(img, copy);
+        if (current) { const selected = el('span', 'group-current'); selected.append(icon('check')); selected.setAttribute('aria-hidden', 'true'); choice.append(selected); }
+        list.append(choice);
+    }
+    if (app.groups.length) body.append(list); else note(body, '创建一个群组，或加入其他设备的群组。');
+    const entries = el('div', 'group-shortcuts');
+    entries.append(navigationRow('创建群组', 'plus', createPanel), navigationRow('加入群组', 'people', joinPanel));
+    if (isMobile()) entries.append(navigationRow('扫描邀请二维码', 'scan', async () => joinPanel(await scanInvite())));
+    body.append(entries); focusPanelHeading();
+}
 function createPanel() { const body = panel('创建群组'), name = field(body, '群组名称', '拾传群'); let animalId = animals[app.groups.length % animals.length]; const grid = el('div', 'animal-picker'); animals.forEach((id, i) => { const b = button('', () => { animalId = id; grid.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); }); b.setAttribute('aria-label', names[i]); b.setAttribute('aria-pressed', String(id === animalId)); const img = el('img'); img.src = asset(id); img.alt = ''; b.append(img); grid.append(b); }); body.append(grid, button('创建', async () => { if (!name.value.trim())
     { name.setAttribute('aria-invalid','true'); name.focus(); throw Error('请输入群组名称'); } const group = await call('create_group', { name: name.value.trim(), animalId }); await loadBootstrap(); await selectGroup(group.id); }, 'primary')); }
 function joinPanel(invite = '') {
@@ -286,13 +346,35 @@ async function confirmPanel(title, text, action, { confirmLabel = title, destruc
 }
 function isMobile() { return document.body.dataset.desktop !== 'true'; }
 function isOwner() { return app.groups.find(g => g.id === app.groupId)?.creatorDeviceId === app.device.id; }
+function settingsSection(body, title, ...rows) {
+    const section = el('section', 'settings-section'), list = el('div', 'settings-list');
+    section.append(el('h3', 'settings-section-title', title)); list.append(...rows); section.append(list); body.append(section);
+}
 function settingsPanel() {
-    const body = panel('设置');
-    body.append(button('存储与缓存', storagePanel, 'setting-row'));
+    const body = panel('设置'); $('panel').dataset.kind = 'preferences';
+    settingsSection(body, '本机',
+        navigationRow('本机名称', isMobile() ? 'phone' : 'desktop', deviceNamePanel, app.device.name || '此设备'),
+        navigationRow('存储与缓存', 'folder', storagePanel));
+    if (app.groupId) settingsSection(body, '当前群组',
+        navigationRow('群组设置', 'settings', groupSettingsPanel, app.state?.name || app.groups.find(g => g.id === app.groupId)?.name || ''),
+        navigationRow('成员', 'people', membersPanel));
+    body.append(el('p', 'version', `拾传 ${packageInfo.version}`)); focusPanelHeading();
+}
+function deviceNamePanel() {
+    const body = panel('设备名称');
+    const back = button('返回设置', settingsPanel, 'panel-back'); back.prepend(icon('back')); body.append(back);
     const deviceName = field(body, '本机名称', app.device.name || '');
-    body.append(button('保存设备名称', async () => { if (!deviceName.value.trim()) throw Error('请输入设备名称'); await call('rename_device', { name: deviceName.value.trim() }); await loadBootstrap(); updateHeader(); toast('已保存'); }, 'primary'));
-    if (app.groupId) body.append(button('群组设置', groupSettingsPanel, 'setting-row'), button('成员', membersPanel, 'setting-row'));
-    body.append(el('p', 'version', `拾传 ${packageInfo.version}`));
+    deviceName.autocomplete = 'off';
+    note(body, '这个名称会显示在群内的其他设备上。');
+    const originalName = deviceName.value.trim();
+    const save = button('保存设备名称', async () => {
+        if (!deviceName.value.trim()) { deviceName.setAttribute('aria-invalid', 'true'); deviceName.focus(); throw Error('请输入设备名称'); }
+        await call('rename_device', { name: deviceName.value.trim() });
+        await loadBootstrap(); updateHeader(); settingsPanel(); toast('已保存');
+    }, 'primary');
+    const updateSave = () => { save.disabled = !deviceName.value.trim() || deviceName.value.trim() === originalName; };
+    deviceName.addEventListener('input', updateSave); updateSave(); panelActions(save);
+    queueMicrotask(() => { if (deviceName.isConnected && $('panel').open) deviceName.focus(); });
 }
 function groupSettingsPanel() {
     const body = panel('群组设置');

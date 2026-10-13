@@ -36,7 +36,7 @@ try {
             } if(method==='cancel_transfer'){cancelled.add(p.transferId);window.__emit({type:'transfer',id:p.transferId,status:'cancelled'});return{};}if (method === 'create_invite')
                 return { code: '123456', baseUrl: 'http://192.168.1.2:9000', link: 'pickdrop://join?address=http%3A%2F%2F192.168.1.2%3A9000&code=123456' }; if (method === 'list_join_requests')
                 return []; if(method==='receive_file')return{path:'/tmp/'+p.id+'.png',size:1};if (method === 'storage_stats')
-                return { cacheBytes: 1024, fileCount: 1 }; return {}; }, async native(command) { if(command==='native_thumbnail')return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jv1sAAAAASUVORK5CYII=';if (command === 'native_pick_files')
+                return { cacheBytes: 1024, fileCount: 1 }; return {}; }, async native(command) { if(command==='native_thumbnail'||command==='native_image_preview')return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jv1sAAAAASUVORK5CYII=';if (command === 'native_pick_files')
                 return [{ path: '/tmp/first.txt', name: 'first.txt', size: 1 }, { path: '/tmp/second.txt', name: 'second.txt', size: 2 }]; return []; }, async subscribe(fn) { handler = fn; window.__emit = fn; return () => { }; } }; });
         await page.goto(uiUrl);
         if (viewport.width < 600) {

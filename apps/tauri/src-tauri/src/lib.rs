@@ -313,38 +313,54 @@ async fn native_open_file(
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-async fn native_thumbnail(app: tauri::AppHandle, path: String) -> Result<String, String> {
+// Both image surfaces share permission checks and decode limits. Limit concurrent
+// decoders so opening several previews cannot multiply memory use without bound.
+static IMAGE_DECODERS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
+
+fn image_data_url(path: &Path, max_edge: u32) -> Result<String, String> {
+    if std::fs::metadata(path).map_err(|e| e.to_string())?.len() > 16 * 1024 * 1024 {
+        return Err("图片过大，请打开原文件".into());
+    }
+    let mut reader = image::ImageReader::open(path)
+        .map_err(|e| e.to_string())?
+        .with_guessed_format()
+        .map_err(|e| e.to_string())?;
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(8192);
+    limits.max_image_height = Some(8192);
+    limits.max_alloc = Some(64 * 1024 * 1024);
+    reader.limits(limits);
+    let decoded = reader.decode().map_err(|e| e.to_string())?;
+    let preview = decoded.thumbnail(max_edge.min(decoded.width()), max_edge.min(decoded.height()));
+    let mut encoded = Cursor::new(Vec::new());
+    preview
+        .write_to(&mut encoded, image::ImageFormat::Png)
+        .map_err(|e| e.to_string())?;
+    Ok(format!(
+        "data:image/png;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(encoded.into_inner())
+    ))
+}
+
+async fn permitted_image(app: tauri::AppHandle, path: String, max_edge: u32) -> Result<String, String> {
     let path = app.state::<Host>().permitted(&path)?;
+    let permit = IMAGE_DECODERS.acquire().await.map_err(|e| e.to_string())?;
     tauri::async_runtime::spawn_blocking(move || {
-        // Bound decoded memory as well as the encoded input; malicious image dimensions cannot exhaust RAM.
-        if std::fs::metadata(&path).map_err(|e| e.to_string())?.len() > 16 * 1024 * 1024 {
-            return Err("图片过大，请打开原文件".into());
-        }
-        let mut reader = image::ImageReader::open(path)
-            .map_err(|e| e.to_string())?
-            .with_guessed_format()
-            .map_err(|e| e.to_string())?;
-        let mut limits = image::Limits::default();
-        limits.max_image_width = Some(8192);
-        limits.max_image_height = Some(8192);
-        limits.max_alloc = Some(64 * 1024 * 1024);
-        reader.limits(limits);
-        let thumbnail = reader
-            .decode()
-            .map_err(|e| e.to_string())?
-            .thumbnail(320, 320);
-        let mut encoded = Cursor::new(Vec::new());
-        thumbnail
-            .write_to(&mut encoded, image::ImageFormat::Png)
-            .map_err(|e| e.to_string())?;
-        Ok(format!(
-            "data:image/png;base64,{}",
-            base64::engine::general_purpose::STANDARD.encode(encoded.into_inner())
-        ))
+        let _permit = permit;
+        image_data_url(&path, max_edge)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn native_thumbnail(app: tauri::AppHandle, path: String) -> Result<String, String> {
+    permitted_image(app, path, 320).await
+}
+
+#[tauri::command]
+async fn native_image_preview(app: tauri::AppHandle, path: String) -> Result<String, String> {
+    permitted_image(app, path, 1600).await
 }
 
 #[tauri::command]
@@ -604,6 +620,7 @@ pub fn run() {
             native_save_file,
             native_open_file,
             native_thumbnail,
+            native_image_preview,
             native_share_file,
             native_save_gallery,
             native_consume_incoming,
@@ -736,6 +753,46 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::safe_export_name;
+    #[test]
+    fn preview_and_thumbnail_use_distinct_bounded_sizes() {
+        use base64::Engine;
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("landscape.png");
+        image::RgbImage::from_pixel(2000, 1000, image::Rgb([20, 40, 60])).save(&path).unwrap();
+        for (edge, expected) in [(320, (320, 160)), (1600, (1600, 800))] {
+            let url = super::image_data_url(&path, edge).unwrap();
+            let png = base64::engine::general_purpose::STANDARD.decode(url.strip_prefix("data:image/png;base64,").unwrap()).unwrap();
+            let decoded = image::load_from_memory(&png).unwrap();
+            assert_eq!((decoded.width(), decoded.height()), expected);
+        }
+    }
+
+    #[test]
+    fn small_images_are_not_upscaled() {
+        use base64::Engine;
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("small.png");
+        image::RgbImage::new(32, 24).save(&path).unwrap();
+        for edge in [320, 1600] {
+            let url = super::image_data_url(&path, edge).unwrap();
+            let bytes = base64::engine::general_purpose::STANDARD.decode(url.split_once(',').unwrap().1).unwrap();
+            let image = image::load_from_memory(&bytes).unwrap();
+            assert_eq!((image.width(), image.height()), (32, 24));
+        }
+    }
+
+    #[test]
+    fn image_preview_rejects_bad_and_oversized_inputs() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("image.png");
+        std::fs::write(&path, b"not an image").unwrap();
+        assert!(super::image_data_url(&path, 1600).is_err());
+        std::fs::File::create(&path).unwrap().set_len(16 * 1024 * 1024 + 1).unwrap();
+        assert_eq!(super::image_data_url(&path, 1600).unwrap_err(), "图片过大，请打开原文件");
+        image::RgbImage::new(8193, 1).save(&path).unwrap();
+        assert!(super::image_data_url(&path, 1600).is_err());
+    }
+
     #[test]
     fn exports_cannot_escape_directory_or_create_reserved_windows_names() {
         assert_eq!(safe_export_name("../../private/照片.png"), "照片.png");
