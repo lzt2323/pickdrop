@@ -16,6 +16,16 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
                 return Err("pin failed".into());
             }
             super::docking::action(&window, "pin", Some(false))?;
+            super::window_resize(window.clone(), 1400., 1000.).await?;
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            let compact = window.inner_size().map_err(|e| e.to_string())?
+                .to_logical::<f64>(window.scale_factor().map_err(|e| e.to_string())?);
+            if compact.width > 520.5 || compact.height > 780.5 {
+                return Err("desktop resize exceeded compact limits".into());
+            }
+            if window.is_maximizable().map_err(|e| e.to_string())? {
+                return Err("compact desktop still allows maximize".into());
+            }
             super::window_resize(window.clone(), 510., 690.).await?;
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
             let resized = window.inner_size().map_err(|e| e.to_string())?;
@@ -160,7 +170,7 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
         }
         .await;
         let passed = result.is_ok();
-        let payload = json!({"passed":passed,"error":result.err(),"checks":["core bootstrap","pin/unpin","transparent animal anchor", "frameless Mac panel", "expanded animal and panel with 8px gap", "anchor file drop approval and forwarding", "pointer over animal keeps panel expanded", "resize/focus preserves dimensions", "restore uses saved bounds", "edge collapse/expand preserves dimensions","hide/show","multiwindow","rapid exit retrigger preserves full grace","exit timers are independent across windows","expand and hide invalidate old exit timers","native event emission"],"platform":std::env::consts::OS});
+        let payload = json!({"passed":passed,"error":result.err(),"checks":["core bootstrap","compact size cap and no maximize","pin/unpin","transparent animal anchor", "frameless Mac panel", "expanded animal and panel with 8px gap", "anchor file drop approval and forwarding", "pointer over animal keeps panel expanded", "resize/focus preserves dimensions", "restore uses saved bounds", "edge collapse/expand preserves dimensions","hide/show","multiwindow","rapid exit retrigger preserves full grace","exit timers are independent across windows","expand and hide invalidate old exit timers","native event emission"],"platform":std::env::consts::OS});
         let _ = std::fs::write(report, serde_json::to_vec_pretty(&payload).unwrap());
         app.exit(if passed { 0 } else { 1 });
     });

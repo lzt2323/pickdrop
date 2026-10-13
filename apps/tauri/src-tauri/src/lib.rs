@@ -483,8 +483,8 @@ async fn window_resize(
         }
         window
             .set_size(tauri::LogicalSize::new(
-                width.clamp(360., 10000.),
-                height.clamp(480., 10000.),
+                width.clamp(360., 520.),
+                height.clamp(480., 780.),
             ))
             .map_err(|e| e.to_string())
     }
@@ -549,7 +549,9 @@ async fn window_action(
             )
             .title("拾传 Preview")
             .inner_size(440., 720.)
-            .min_inner_size(360., 480.);
+            .min_inner_size(360., 480.)
+            .max_inner_size(520., 780.)
+            .maximizable(false);
             #[cfg(target_os = "macos")]
             let builder = builder.decorations(false).transparent(true);
             builder.build().map_err(|e| e.to_string())?;

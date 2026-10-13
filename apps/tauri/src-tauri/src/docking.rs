@@ -201,6 +201,17 @@ fn show_anchor(w: &WebviewWindow, b: Bounds) -> Result<(), String> {
 pub fn restore(w: &WebviewWindow) -> Result<(), String> {
     let manager = w.state::<Docking>();
     let mut r = manager.get(w);
+    // Migrate old full-screen-sized records to the compact desktop panel.
+    let scale = w.scale_factor().map_err(|e| e.to_string())?;
+    if let Some(ref mut saved) = r.expanded {
+        if saved.width as f64 > 520. * scale || saved.height as f64 > 780. * scale {
+            saved.width = (440. * scale).round() as u32;
+            saved.height = (720. * scale).round() as u32;
+        }
+    }
+    w.set_max_size(Some(tauri::LogicalSize::new(520., 780.)))
+        .map_err(|e| e.to_string())?;
+    w.set_maximizable(false).map_err(|e| e.to_string())?;
     // Native geometry setters can enqueue events. Keep saved bounds authoritative
     // until the first layout is applied instead of re-reading the startup size.
     r.collapsed = r.expanded.is_some();
