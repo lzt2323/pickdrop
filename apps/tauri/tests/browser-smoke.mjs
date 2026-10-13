@@ -45,6 +45,18 @@ try {
         }
         await page.locator('.message').first().waitFor();
         assert.equal(await page.locator('.message').count(), 60);
+        assert.equal(await page.locator('#message-input').getAttribute('placeholder'), null);
+        assert.equal(await page.locator('#hide-window').count(), 0);
+        if (viewport.width < 600) {
+            assert.equal(await page.locator('.message-copy').count(), 0);
+            assert.equal(await page.locator('.bubble').first().evaluate(n=>getComputedStyle(n).userSelect), 'text');
+            await page.context().grantPermissions(['clipboard-read','clipboard-write'], { origin: uiUrl });
+            await page.evaluate(()=>navigator.clipboard.writeText('粘贴检验文本'));
+            await page.locator('#message-input').focus();await page.keyboard.press(process.platform === 'darwin' ? 'Meta+V' : 'Control+V');
+            await page.waitForFunction(()=>document.querySelector('#message-input').value==='粘贴检验文本');
+            assert.equal(await page.locator('#message-input').inputValue(), '粘贴检验文本', 'native edit command pastes plain text into empty composer');
+            await page.locator('#message-input').fill('');
+        } else assert.ok(await page.locator('.message-copy').count()>0, 'desktop accessible copy actions remain');
         await page.locator('#groups-button').click();
         await page.getByRole('button', { name:'创建群组', exact:true }).click();
         const groupName = page.getByLabel('群组名称', { exact:true });

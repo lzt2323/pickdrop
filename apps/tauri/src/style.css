@@ -66,6 +66,7 @@ body[data-has-group=false] #viewbar, body[data-has-group=false] #app > .device-s
 .message { position: relative; margin-bottom: 14px; contain: layout style; }
 .message-meta { font-size: 11px; color: var(--muted); margin-bottom: 6px; padding-inline: 2px; }
 .bubble { border-radius: var(--radius-card); padding: 10px 12px; background: var(--recess); font-size: 13px; line-height: 1.65; max-width: 88%; white-space: pre-wrap; overflow-wrap: anywhere; }
+body[data-desktop=false] .bubble { -webkit-user-select: text; user-select: text; }
 .message.mine { display: flex; flex-direction: column; align-items: flex-end; }
 .message-copy { display: grid; place-items: center; position: absolute; top: 18px; right: 0; width: 40px; min-height: 40px; padding: 10px; opacity: 0; font-size: 12px; color: var(--muted); }
 .mine .message-copy { right: auto; left: 0; }
@@ -94,6 +95,7 @@ body[data-has-group=false] #viewbar, body[data-has-group=false] #app > .device-s
 .thumbnail:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 .thumbnail { width: 100%; height: auto; max-height: 260px; object-fit: contain; display: block; margin: 0; border-radius: 0; }
 .thumbnail-fallback { display: grid; place-items: center; min-height: 96px; padding: 16px; font-size: 12px; color: var(--muted); text-align: center; }
+.thumbnail-fallback .ui-icon { width: 24px; height: 24px; margin-bottom: 8px; }
 .file-unreceived { margin: 7px 10px 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 
 /* Composer: one focus outline follows the enclosing rounded control. */
@@ -263,7 +265,6 @@ body[data-desktop=false] #composer button { height: 44px; min-height: 44px; widt
 body[data-desktop=false] #composer textarea { height: 44px; min-height: 44px; padding-block: 11px; font-size: 15px; }
 body[data-desktop=false] .header-actions button { min-height: 44px; width: 44px; }
 body[data-desktop=false] #viewbar button, body[data-desktop=false] .file-actions button { min-height: 44px; }
-body[data-desktop=false] .message-copy { min-height: 44px; width: 44px; }
 body[data-desktop=true] #app > .titlebar { height: 43px; min-height: 43px; padding-inline: 11px 8px; }
 body[data-desktop=true] button { min-height: 34px; }
 body[data-desktop=true] .group-title strong { font-size: 15px; }
@@ -339,5 +340,4 @@ body[data-macos=true] #window-resize-handle { display: block; }
   #empty { margin-top: 8vh; }
 
 }
-@media(hover:none) { .message-copy { opacity: 1; } }
 @media(prefers-reduced-motion:reduce) { * { scroll-behavior: auto !important; } }

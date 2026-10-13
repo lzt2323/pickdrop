@@ -504,12 +504,7 @@ async fn window_resize(
         if !width.is_finite() || !height.is_finite() {
             return Err("无效窗口尺寸".into());
         }
-        window
-            .set_size(tauri::LogicalSize::new(
-                width.clamp(docking::PANEL_MIN.0, docking::PANEL_MAX.0),
-                height.clamp(docking::PANEL_MIN.1, docking::PANEL_MAX.1),
-            ))
-            .map_err(|e| e.to_string())
+        docking::resize(&window, width, height)
     }
     #[cfg(mobile)]
     {
@@ -548,7 +543,7 @@ async fn window_action(
     #[cfg(desktop)]
     match action.as_str() {
         "file-hover" | "sync" | "pointer-leave" | "anchor-drag-end" | "upload-busy" | "pin"
-        | "dock-left" | "dock-right" | "dock-top" | "undock" | "collapse" | "expand" | "busy" => {
+        | "dock-left" | "dock-right" | "dock-top" | "dock-bottom" | "undock" | "collapse" | "expand" | "busy" => {
             docking::action(&window, &action, value)
         }
         "drag" => window.start_dragging().map_err(|e| e.to_string()),

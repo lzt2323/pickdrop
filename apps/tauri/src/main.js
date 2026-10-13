@@ -112,9 +112,12 @@ function rowFor(m) { const row = el('article', 'message'); row.dataset.messageId
     return row;
 } if (m.type === 'text' || m.text != null) {
     const bubble = el('div', 'bubble', m.text);
-    bubble.title = '双击复制文字';
-    bubble.ondblclick = () => run(async () => { await copyText(m.text); toast('文字已复制'); });
-    row.append(bubble); const copy = button('复制', async () => { await copyText(m.text); toast('文字已复制'); }, 'message-copy'); copy.setAttribute('aria-label', '复制消息'); copy.replaceChildren(icon('copy')); row.append(copy);
+    row.append(bubble);
+    if (!isMobile()) {
+        bubble.title = '双击复制文字';
+        bubble.ondblclick = () => run(async () => { await copyText(m.text); toast('文字已复制'); });
+        const copy = button('复制', async () => { await copyText(m.text); toast('文字已复制'); }, 'message-copy'); copy.setAttribute('aria-label', '复制消息'); copy.replaceChildren(icon('copy')); row.append(copy);
+    }
 }
 else {
     const card = el('div', 'file-card');
@@ -477,7 +480,6 @@ async function receive(message, groupId = app.groupId) {
 }
 let pinned = false;
 $('pin-window').onclick = () => run(async () => { const value = !pinned; await native('window_action', { action: 'pin', value }); pinned = value; $('pin-window').setAttribute('aria-pressed', String(pinned)); }, $('pin-window'));
-$('hide-window').onclick = () => run(() => native('window_action', { action: 'collapse' }), $('hide-window'));
 $('groups-button').onclick = groupsPanel;
 $('settings-button').onclick = settingsPanel;
 $('invite-button').onclick = () => run(invitePanel);
@@ -568,7 +570,7 @@ else
 
 const queueParking = el('div'); queueParking.hidden = true; document.body.append(queueParking); queueParking.append($('queue'));
 function parkQueue() { if($('queue')) queueParking.append($('queue')); }
-for (const [id, name] of [['choose-file','plus'],['send-text','send'],['pin-window','pin'],['hide-window','collapse'],['settings-button','settings'],['close-panel','close'],['chat-back','back']]) { const node = $(id); if(node) node.replaceChildren(icon(name)); }
+for (const [id, name] of [['choose-file','plus'],['send-text','send'],['pin-window','pin'],['settings-button','settings'],['close-panel','close'],['chat-back','back']]) { const node = $(id); if(node) node.replaceChildren(icon(name)); }
 $('groups-button').querySelector('.group-chevron').append(icon('down'));
 $('members-button').append(icon('arrow'));
 for(const [id,name] of [['mobile-groups','people'],['mobile-transfers','transfer'],['mobile-profile','user']]) $(id)?.prepend(icon(name));
@@ -679,35 +681,37 @@ document.querySelector('header').addEventListener('click', event => {
 }, true);
 window.addEventListener('pointerup', () => { headerDrag = null; });
 window.addEventListener('blur', () => { headerDrag = null; });
-let resizing = null, resizePending = null, resizeSending = false;
+let resizing = null, resizePending = null, resizeSending = false, resizeReady = Promise.resolve();
 async function flushWindowResize() {
     if(resizeSending) return;
     resizeSending = true;
-    try { while(resizePending) { const size = resizePending; resizePending = null; await native('window_resize', size); } }
-    finally { resizeSending = false; if(!resizing) await native('window_action', {action:'busy',value:false}); }
+    try { await resizeReady; while(resizePending) { const size = resizePending; resizePending = null; await native('window_resize', size); } }
+    finally { resizeSending = false; if(!resizing && !$('panel').open) await native('window_action', {action:'busy',value:false}); }
 }
 $('window-resize-handle').addEventListener('pointerdown', event => {
-    if(event.button !== 0) return;
+    if(event.button !== 0 || resizing) return;
     event.preventDefault();
     resizing = { pointer:event.pointerId, x:event.screenX, y:event.screenY, width:window.innerWidth, height:window.innerHeight };
     event.currentTarget.setPointerCapture(event.pointerId);
-    run(() => native('window_action', {action:'busy',value:true}));
+    resizeReady = run(() => native('window_action', {action:'busy',value:true}));
 });
 $('window-resize-handle').addEventListener('pointermove', event => {
-    if(!resizing) return;
+    if(!resizing || event.pointerId !== resizing.pointer) return;
     resizePending = {width:Math.min(380,Math.max(300,resizing.width+event.screenX-resizing.x)),height:Math.min(520,Math.max(360,resizing.height+event.screenY-resizing.y))};
     run(flushWindowResize);
 });
 function finishWindowResize(event) {
     if(!resizing) return;
+    if(event.pointerId != null && event.pointerId !== resizing.pointer) return;
     const id = resizing.pointer; resizing = null;
     if($('window-resize-handle').hasPointerCapture(id)) $('window-resize-handle').releasePointerCapture(id);
     run(flushWindowResize);
 }
 $('window-resize-handle').addEventListener('pointerup', finishWindowResize);
 $('window-resize-handle').addEventListener('pointercancel', finishWindowResize);
+$('window-resize-handle').addEventListener('lostpointercapture', finishWindowResize);
 window.addEventListener('blur', finishWindowResize);
-document.documentElement.addEventListener('pointerleave', () => { if (app.dockEdge && !pinned && !$('panel').open)
+document.documentElement.addEventListener('pointerleave', () => { if (app.dockEdge && !$('panel').open && !resizing)
     run(() => native('window_action', { action: 'pointer-leave' })); });
 $('panel').addEventListener('close', () => { if ($('panel').open) return; clearTimeout(joinTimer); if(isMobile() && document.body.dataset.view === 'transfers' && !$('panel').open) { mobileHome.append($('queue')); renderQueue(); } if(panelReturnFocus?.isConnected)panelReturnFocus.focus(); if (document.body.dataset.desktop === 'true')
     run(() => native('window_action', { action: 'busy', value: false })); });
