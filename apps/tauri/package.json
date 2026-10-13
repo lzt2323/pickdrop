@@ -11,7 +11,8 @@
     "test:gallery": "node tests/ui-gallery.mjs",
     "test:motion": "node tests/dialog-motion.mjs",
     "tauri": "tauri",
-    "test:regression": "node tests/file-window-regression.mjs"
+    "test:regression": "node tests/file-window-regression.mjs",
+    "test:header": "node tests/header-controls.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",

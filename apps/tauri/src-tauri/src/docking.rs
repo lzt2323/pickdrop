@@ -45,6 +45,8 @@ struct Record {
     geometry_version: u8,
     collapsed: bool,
     pinned: bool,
+    #[serde(default)]
+    docking_disabled: bool,
     #[serde(default = "default_animal")]
     animal: String,
     #[serde(skip)]
@@ -162,7 +164,7 @@ fn bounds(w: &WebviewWindow) -> Result<Bounds, String> {
     })
 }
 fn emit(w: &WebviewWindow, r: &Record) {
-    let state = serde_json::json!({"owner":w.label(),"edge":r.edge,"collapsed":r.collapsed,"pinned":r.pinned});
+    let state = serde_json::json!({"owner":w.label(),"edge":r.edge,"collapsed":r.collapsed,"pinned":r.pinned,"dockingEnabled":!r.docking_disabled});
     let _ = w.emit_to(w.label(), "pickdrop:window", &state);
     if let Some(anchor) = w.app_handle().get_webview_window(&anchor_label(w)) {
         let _ = w.emit_to(anchor.label(), "pickdrop:window", &state);
@@ -479,6 +481,9 @@ pub fn restore(w: &WebviewWindow) -> Result<(), String> {
     // until the first layout is applied instead of re-reading the startup size.
     r.collapsed = r.expanded.is_some();
     r.busy = false;
+    if r.docking_disabled {
+        r.edge = None;
+    }
     r.layout_until = Some(std::time::Instant::now() + std::time::Duration::from_millis(250));
     manager.put(w, r);
     #[cfg(target_os = "macos")]
@@ -501,7 +506,21 @@ pub fn action(w: &WebviewWindow, action: &str, value: Option<bool>) -> Result<()
             emit(w, &manager.get(w));
             Ok(())
         }
+        "edge-docking" => {
+            r.docking_disabled = !value.unwrap_or(true);
+            manager.next_exit_generation(w.label());
+            if r.docking_disabled {
+                r.edge = None;
+            } else if let Some(m) = panel_monitor(w)? {
+                r.edge = detected_edge(bounds(w)?, work_area(&m), m.scale_factor());
+            }
+            manager.put(w, r);
+            expand(w)?;
+            manager.save();
+            Ok(())
+        }
         "dock-left" | "dock-right" | "dock-top" | "dock-bottom" => {
+            r.docking_disabled = false;
             r.edge = Some(action.trim_start_matches("dock-").into());
             if !r.collapsed {
                 r.expanded = Some(bounds(w)?);
@@ -667,7 +686,7 @@ pub fn anchor_moved(w: &WebviewWindow) -> Result<(), String> {
             ),
         ];
         let (edge, distance) = edges.iter().min_by_key(|(_, distance)| distance).unwrap();
-        r.edge = if *distance <= (24. * m.scale_factor()) as i32 {
+        r.edge = if !r.docking_disabled && *distance <= (24. * m.scale_factor()) as i32 {
             Some((*edge).into())
         } else {
             None
@@ -726,7 +745,7 @@ fn can_collapse(r: &Record, manual: bool) -> bool {
         && !r.upload_busy
         && !r.file_drag_busy
         && !r.file_hover
-        && (manual || r.edge.is_some())
+        && (manual || (!r.docking_disabled && r.edge.is_some()))
 }
 fn collapsed_bounds(panel: Bounds, area: Bounds, scale: f64, edge: Option<&str>) -> Bounds {
     let depth = ((56. * scale).round() as u32)
@@ -983,16 +1002,20 @@ pub fn moved(w: &WebviewWindow) {
         drop(generations);
         let a = m.work_area();
         r.resize_center = None;
-        r.edge = detected_edge(
-            b,
-            Bounds {
-                x: a.position.x,
-                y: a.position.y,
-                width: a.size.width,
-                height: a.size.height,
-            },
-            m.scale_factor(),
-        );
+        r.edge = if r.docking_disabled {
+            None
+        } else {
+            detected_edge(
+                b,
+                Bounds {
+                    x: a.position.x,
+                    y: a.position.y,
+                    width: a.size.width,
+                    height: a.size.height,
+                },
+                m.scale_factor(),
+            )
+        };
         r.expanded = Some(b);
         r.expanded_scale = Some(m.scale_factor());
         manager.put(w, r.clone());
@@ -1088,6 +1111,24 @@ mod tests {
         expanded_bounds, mini_bounds, rescaled_bounds, Bounds, Docking, Record,
     };
 
+    #[test]
+    fn edge_docking_defaults_on_persists_and_does_not_control_pin() {
+        let mut r = Record::default();
+        assert!(!r.docking_disabled);
+        r.edge = Some("right".into());
+        r.pinned = true;
+        assert!(can_collapse(&r, false));
+        r.docking_disabled = true;
+        assert!(!can_collapse(&r, false));
+        assert!(r.pinned);
+        let restored: Record = serde_json::from_value(serde_json::to_value(&r).unwrap()).unwrap();
+        assert!(restored.docking_disabled && restored.pinned);
+        let legacy: Record = serde_json::from_value(
+            serde_json::json!({"edge":null,"expanded":null,"collapsed":false,"pinned":false}),
+        )
+        .unwrap();
+        assert!(!legacy.docking_disabled);
+    }
     #[test]
     fn protection_reasons_do_not_release_each_other() {
         let stale = Record::default();

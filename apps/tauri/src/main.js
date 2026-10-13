@@ -7,6 +7,11 @@ import { createDialogMotion } from './dialog-motion.js';
 import { call, native, subscribe, subscribeWindow, subscribeBack, subscribeIncoming, copyText, scanInvite, isScanningInvite, cancelInviteScan } from './bridge.js';
 import { PAGE_SIZE, MAX_VISIBLE, mergeMessages, formatBytes, progressScheduler, parseInvite } from './model.js';
 import QRCode from 'qrcode';
+// Native restoration and showModal can focus a button before any keyboard
+// interaction. Keep focus itself, and reveal its ring only for keyboard use.
+document.addEventListener('pointerdown',()=>{document.body.dataset.inputMode='pointer';},true);
+window.addEventListener('blur',()=>{document.body.dataset.inputMode='pointer';});
+document.addEventListener('keydown',e=>{if(['Tab','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key))document.body.dataset.inputMode='keyboard';},true);
 const ownerLabel = window.__TAURI_INTERNALS__?.metadata?.currentWindow?.label || 'main';
 const fileStorageKey = ownerLabel === 'main' ? 'pickdrop.file-drafts.v1' : `pickdrop.file-drafts.v1.${ownerLabel}`;
 const seenDropKey=`pickdrop.drop-ids.v1.${ownerLabel}`;
@@ -105,6 +110,7 @@ function updateHeader() {
         native('window_animal', { animalId: windowAnimal }).catch(error);
     }
     $('group-name').textContent = group?.name || '拾传';
+    $('groups-button').title = group?.name || '选择群组';
     $('group-animal').src = group ? asset(group.animalId) : '/assets/app-icon.svg';
     $('composer').hidden = !app.groupId;
     document.body.dataset.hasGroup = String(!!app.groupId);
@@ -132,11 +138,10 @@ function rowFor(m) { const row = el('article', 'message'); row.dataset.messageId
     return row;
 } if (m.type === 'text' || m.text != null) {
     const bubble = el('div', 'bubble', m.text);
-    row.append(bubble);
+    const content=el('div','message-text'); content.append(bubble); row.append(content);
     if (!isMobile()) {
-        bubble.title = '双击复制文字';
         bubble.ondblclick = () => run(async () => { await copyText(m.text); toast('文字已复制'); });
-        const copy = button('复制', async () => { await copyText(m.text); toast('文字已复制'); }, 'message-copy'); copy.setAttribute('aria-label', '复制消息'); copy.replaceChildren(icon('copy')); row.append(copy);
+        const copy = button('复制', async () => { await copyText(m.text); toast('文字已复制'); }, 'message-copy'); copy.setAttribute('aria-label', '复制消息'); copy.title='复制消息'; copy.replaceChildren(icon('copy')); content.append(copy);
     }
 }
 else {
@@ -574,7 +579,14 @@ async function receive(message, groupId = app.groupId) {
         if (!cancelled) throw e;
     } finally { progress.flush(); }
 }
-let pinned = false;
+let pinned = false, dockingEnabled = true;
+function syncDockButton() {
+    $('dock-window').setAttribute('aria-pressed',String(dockingEnabled));
+    const edgeName={left:'左侧',right:'右侧',top:'顶部',bottom:'底部'}[app.dockEdge];
+    $('dock-window').title=dockingEnabled ? `自动贴边已开启${edgeName ? ` · 当前贴合${edgeName}` : ''}` : '自动贴边已关闭';
+}
+$('dock-window').onclick=()=>run(async()=>{const value=!dockingEnabled;await native('window_action',{action:'edge-docking',value});dockingEnabled=value;syncDockButton();},$('dock-window'));
+
 $('pin-window').onclick = () => run(async () => { const value = !pinned; await native('window_action', { action: 'pin', value }); pinned = value; $('pin-window').setAttribute('aria-pressed', String(pinned)); }, $('pin-window'));
 $('groups-button').onclick = groupsPanel;
 $('settings-button').onclick = settingsPanel;
@@ -685,7 +697,7 @@ else
 
 const queueParking = el('div'); queueParking.hidden = true; document.body.append(queueParking); queueParking.append($('queue'));
 function parkQueue() { if($('queue')) queueParking.append($('queue')); }
-for (const [id, name] of [['choose-file','plus'],['send-text','send'],['pin-window','pin'],['settings-button','settings'],['close-panel','close'],['chat-back','back']]) { const node = $(id); if(node) node.replaceChildren(icon(name)); }
+for (const [id, name] of [['choose-file','plus'],['send-text','send'],['pin-window','pin'],['dock-window','dock'],['settings-button','settings'],['close-panel','close'],['chat-back','back']]) { const node = $(id); if(node) node.replaceChildren(icon(name)); }
 $('groups-button').querySelector('.group-chevron').append(icon('down'));
 $('members-button').append(icon('arrow'));
 for(const [id,name] of [['mobile-groups','people'],['mobile-transfers','transfer'],['mobile-profile','user']]) $(id)?.prepend(icon(name));
@@ -762,7 +774,7 @@ async function start() { try {
     const boot = await loadBootstrap();
     await selectGroup(new URLSearchParams(location.search).get('group') || boot.activeGroupId || app.groups[0]?.id || null); if(isMobile() && !app.pendingIncoming?.length)homeView('groups');
     app.unlisten = await subscribe(onEvent);if(/Android/i.test(navigator.userAgent)){app.unlistenBack=await subscribeBack(()=>onEvent({type:'back'}));app.unlistenIncoming=await subscribeIncoming(()=>run(consumeIncoming));}
-    app.unlistenWindow = await subscribeWindow(state => { if(state.owner && state.owner !== ownerLabel)return; document.body.dataset.collapsed = String(state.collapsed); document.body.dataset.dockEdge = state.edge || ''; app.dockEdge = state.edge; pinned = state.pinned; $('pin-window').setAttribute('aria-pressed', String(pinned)); });
+    app.unlistenWindow = await subscribeWindow(state => { if(state.owner && state.owner !== ownerLabel)return; document.body.dataset.collapsed = String(state.collapsed); document.body.dataset.dockEdge = state.edge || ''; app.dockEdge = state.edge; dockingEnabled = state.dockingEnabled ?? true; syncDockButton(); pinned = state.pinned; $('pin-window').setAttribute('aria-pressed', String(pinned)); });
     await consumeIncoming();
     if (!window.__PICKDROP_TEST_BRIDGE__) {
         const { getCurrentWebview } = await import('@tauri-apps/api/webview');

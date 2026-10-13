@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#ffffff"><title>拾传 · PickDrop</title></head>
-<body>
+<body data-input-mode="pointer">
 <div id="app">
-<header class="titlebar"><button id="chat-back" class="mobile-only" aria-label="返回群组">返回</button><button id="groups-button" class="group-title" aria-label="选择群组"><img id="group-animal" src="/assets/app-icon.svg" alt=""><strong id="group-name">拾传</strong><span class="group-chevron" aria-hidden="true"></span></button><div class="header-actions"><button id="pin-window" class="desktop-only" aria-label="窗口置顶" title="窗口置顶" aria-pressed="false">置顶</button><button id="settings-button" aria-label="设置">设置</button></div></header>
+<header class="titlebar"><button id="chat-back" class="mobile-only" aria-label="返回群组">返回</button><button id="groups-button" class="group-title" aria-label="选择群组"><img id="group-animal" src="/assets/app-icon.svg" alt=""><strong id="group-name">拾传</strong><span class="group-chevron" aria-hidden="true"></span></button><div class="header-actions"><button id="dock-window" class="desktop-only" aria-label="自动贴边" title="自动贴边已开启" aria-pressed="true" type="button">贴边</button><button id="pin-window" class="desktop-only" aria-label="窗口置顶" title="窗口置顶" aria-pressed="false">置顶</button><button id="settings-button" aria-label="设置">设置</button></div></header>
 <button id="members-button" class="device-strip" aria-label="成员"><span id="device-summary">本群设备</span><span id="connection-status" class="connection-state" hidden></span></button>
 <nav id="viewbar" aria-label="内容视图"><button id="all-tab" aria-pressed="true">全部</button><button id="files-tab" aria-pressed="false">文件 <span id="file-count" class="file-count">0</span></button><button id="invite-button">邀请 +</button></nav>
 <aside id="membership-notice" hidden><span>你已离开此群，草稿已保留。</span><button id="rejoin-button">重新加入</button></aside>

@@ -150,6 +150,7 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
             verify_auto_edge(&window, Some(&other)).await?;
             verify_exit_timers(&window, &other).await?;
             verify_frame_fit(&window, &geometry).await?;
+            verify_docking_toggle(&window, &other).await?;
             let state = app
                 .state::<super::Host>()
                 .core
@@ -165,7 +166,7 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
         }
         .await;
         let passed = result.is_ok();
-        let payload = json!({"passed":passed,"error":result.err(),"checks":["native file drag does not clear modal busy", "core bootstrap","compact size cap and no maximize","pin/unpin","transparent animal anchor", "frameless Mac panel", "expanded panel hides animal and has no edge offset", "anchor file drop approval and forwarding", "drag to each edge then inactivity auto collapses while pinned", "resize/focus preserves dimensions", "restore uses saved bounds", "edge collapse/expand preserves dimensions", "dragging away disables automatic collapse", "animal restore preserves panel edge and dimensions", "all edge and free resizes preserve frame center anchors", "overshoot and corner restore fit actual OS outer frame", "repeated center resizing is stable", "hide/show","multiwindow","rapid exit retrigger preserves full grace","exit timers are independent across windows","expand and hide invalidate old exit timers","native event emission"],"geometry": *geometry.lock().unwrap(), "platform":std::env::consts::OS});
+        let payload = json!({"passed":passed,"error":result.err(),"checks":["native file drag does not clear modal busy", "core bootstrap","compact size cap and no maximize","pin/unpin","transparent animal anchor", "frameless Mac panel", "expanded panel hides animal and has no edge offset", "anchor file drop approval and forwarding", "drag to each edge then inactivity auto collapses while pinned", "resize/focus preserves dimensions", "restore uses saved bounds", "edge collapse/expand preserves dimensions", "dragging away disables automatic collapse", "animal restore preserves panel edge and dimensions", "all edge and free resizes preserve frame center anchors", "overshoot and corner restore fit actual OS outer frame", "repeated center resizing is stable", "hide/show","multiwindow","rapid exit retrigger preserves full grace","exit timers are independent across windows","expand and hide invalidate old exit timers","native event emission", "edge docking preference stays independent, persisted and per owner"],"geometry": *geometry.lock().unwrap(), "platform":std::env::consts::OS});
         let _ = std::fs::write(report, serde_json::to_vec_pretty(&payload).unwrap());
         app.exit(if passed { 0 } else { 1 });
     });
@@ -174,17 +175,32 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
 async fn verify_drag_busy_isolation(window: &tauri::WebviewWindow) -> Result<(), String> {
     super::docking::action(window, "dock-right", None)?;
     let cursor = window.cursor_position().map_err(|e| e.to_string())?;
-    let monitor = window.current_monitor().map_err(|e| e.to_string())?.ok_or("monitor absent")?;
+    let monitor = window
+        .current_monitor()
+        .map_err(|e| e.to_string())?
+        .ok_or("monitor absent")?;
     let area = monitor.work_area();
     let position = window.outer_position().map_err(|e| e.to_string())?;
-    window.set_cursor_position(tauri::PhysicalPosition::new(area.position.x + area.size.width as i32 / 2 - position.x, area.position.y + area.size.height as i32 - 4 - position.y)).map_err(|e| e.to_string())?;
+    window
+        .set_cursor_position(tauri::PhysicalPosition::new(
+            area.position.x + area.size.width as i32 / 2 - position.x,
+            area.position.y + area.size.height as i32 - 4 - position.y,
+        ))
+        .map_err(|e| e.to_string())?;
     super::docking::action(window, "busy", Some(true))?;
     super::docking::action(window, "file-drag-busy", Some(true))?;
     super::docking::action(window, "file-drag-busy", Some(false))?;
     tokio::time::sleep(std::time::Duration::from_millis(900)).await;
-    if !window.is_visible().map_err(|e| e.to_string())? { return Err("file drag completion cleared modal protection".into()); }
+    if !window.is_visible().map_err(|e| e.to_string())? {
+        return Err("file drag completion cleared modal protection".into());
+    }
     let position = window.outer_position().map_err(|e| e.to_string())?;
-    window.set_cursor_position(tauri::PhysicalPosition::new(cursor.x - position.x as f64, cursor.y - position.y as f64)).map_err(|e| e.to_string())?;
+    window
+        .set_cursor_position(tauri::PhysicalPosition::new(
+            cursor.x - position.x as f64,
+            cursor.y - position.y as f64,
+        ))
+        .map_err(|e| e.to_string())?;
     super::docking::action(window, "busy", Some(false))?;
     super::docking::expand(window)
 }
@@ -242,7 +258,9 @@ async fn verify_auto_edge(
                 .map_err(|e| e.to_string())?;
             // This case models an idle panel. A focused keyboard control now
             // deliberately protects active operations from pointer-only hiding.
-            window.eval("document.activeElement?.blur()").map_err(|e|e.to_string())?;
+            window
+                .eval("document.activeElement?.blur()")
+                .map_err(|e| e.to_string())?;
             tokio::time::sleep(Duration::from_millis(100)).await;
             super::docking::blurred(window.clone());
             tokio::time::sleep(Duration::from_millis(900)).await;
@@ -364,7 +382,11 @@ async fn verify_exit_timers(
         }
         super::docking::expand(main)?;
         super::docking::expand(other)?;
-        for window in [main,other] {window.eval("document.activeElement?.blur()").map_err(|e|e.to_string())?;}
+        for window in [main, other] {
+            window
+                .eval("document.activeElement?.blur()")
+                .map_err(|e| e.to_string())?;
+        }
         tokio::time::sleep(Duration::from_millis(100)).await;
         super::docking::blurred(main.clone());
         super::docking::blurred(other.clone());
@@ -538,4 +560,77 @@ fn assert_frame_fits(
     Ok(
         json!({"outer_position":p,"outer_size":s,"inner_size":inner,"work_area":area,"scale":window.scale_factor().map_err(|e| e.to_string())?}),
     )
+}
+
+async fn verify_docking_toggle(
+    main: &tauri::WebviewWindow,
+    other: &tauri::WebviewWindow,
+) -> Result<(), String> {
+    use std::{
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc, Mutex,
+        },
+        time::Duration,
+    };
+    let emitted = Arc::new(Mutex::new(serde_json::Value::Null));
+    let captured = emitted.clone();
+    let listener = main.listen("pickdrop:window", move |event| {
+        *captured.lock().unwrap() = serde_json::from_str(event.payload()).unwrap();
+    });
+    let leaked = Arc::new(AtomicUsize::new(0));
+    let observed = leaked.clone();
+    let owner=main.label().to_string();
+    let other_listener = other.listen("pickdrop:window", move |event| {
+        let payload:serde_json::Value=serde_json::from_str(event.payload()).unwrap_or_default();
+        if payload["owner"]==owner {observed.fetch_add(1, Ordering::SeqCst);}
+    });
+    super::docking::action(main, "dock-right", None)?;
+    super::docking::action(main, "pin", Some(true))?;
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    let size = main.outer_size().map_err(|e| e.to_string())?;
+    let position = main.outer_position().map_err(|e| e.to_string())?;
+    super::docking::action(main, "edge-docking", Some(false))?;
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    let state = emitted.lock().unwrap().clone();
+    if state["dockingEnabled"] != false
+        || !state["edge"].is_null()
+        || state["pinned"] != true
+        || !main.is_always_on_top().map_err(|e| e.to_string())?
+    {
+        return Err(format!("docking toggle changed pin or failed: {state}"));
+    }
+    if main.outer_size().map_err(|e| e.to_string())? != size
+        || main.outer_position().map_err(|e| e.to_string())? != position
+    {
+        return Err("docking toggle moved/resized free panel".into());
+    }
+    let saved: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(
+            main.app_handle()
+                .state::<super::Host>()
+                .data
+                .join("windows.json"),
+        )
+        .map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+    if saved[main.label()]["docking_disabled"] != true {
+        return Err("docking preference not saved".into());
+    }
+    super::docking::action(main, "edge-docking", Some(true))?;
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let state = emitted.lock().unwrap().clone();
+    if state["dockingEnabled"] != true
+        || state["edge"] != "right"
+        || leaked.load(Ordering::SeqCst) != 0
+    {
+        return Err(format!(
+            "docking enable leaked to other owner or failed: {state}"
+        ));
+    }
+    main.unlisten(listener);
+    other.unlisten(other_listener);
+    super::docking::action(main, "pin", Some(false))?;
+    Ok(())
 }

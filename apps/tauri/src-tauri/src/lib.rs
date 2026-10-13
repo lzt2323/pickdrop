@@ -593,12 +593,13 @@ async fn window_action(
     let window = docking::owner(&window)?;
     #[cfg(desktop)]
     match action.as_str() {
-        "file-hover" | "sync" | "pointer-leave"
-        | "anchor-drag-end" | "upload-busy" | "pin" | "dock-left" | "dock-right" | "dock-top"
-        | "dock-bottom" | "undock" | "collapse" | "expand" | "busy" => {
-            docking::action(&window, &action, value)
+        "edge-docking" | "file-hover" | "sync" | "pointer-leave" | "anchor-drag-end"
+        | "upload-busy" | "pin" | "dock-left" | "dock-right" | "dock-top" | "dock-bottom"
+        | "undock" | "collapse" | "expand" | "busy" => docking::action(&window, &action, value),
+        "drag" => {
+            docking::begin_drag(&window);
+            window.start_dragging().map_err(|e| e.to_string())
         }
-        "drag" => {docking::begin_drag(&window);window.start_dragging().map_err(|e|e.to_string())},
         "hide" => docking::hide(&window),
         "show" => {
             docking::expand(&window)?;
