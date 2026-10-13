@@ -18,7 +18,9 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
             super::docking::action(&window, "pin", Some(false))?;
             super::window_resize(window.clone(), 1400., 1000.).await?;
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-            let compact = window.inner_size().map_err(|e| e.to_string())?
+            let compact = window
+                .inner_size()
+                .map_err(|e| e.to_string())?
                 .to_logical::<f64>(window.scale_factor().map_err(|e| e.to_string())?);
             if (compact.width - 380.).abs() > 0.5 || (compact.height - 520.).abs() > 0.5 {
                 return Err("desktop resize exceeded compact limits".into());
@@ -43,6 +45,7 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
             if window.inner_size().map_err(|e| e.to_string())? != resized {
                 return Err("restore discarded saved bounds for startup defaults".into());
             }
+            verify_manual_collapse(&window, None).await?;
             super::docking::action(&window, "dock-right", None)?;
             tokio::time::sleep(std::time::Duration::from_millis(150)).await;
             super::docking::action(&window, "collapse", None)?;
@@ -154,6 +157,7 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
                 .find(|(label, _)| label.starts_with("group-"))
                 .map(|(_, window)| window)
                 .ok_or("second group window absent")?;
+            verify_manual_collapse(&window, Some(&other)).await?;
             verify_exit_timers(&window, &other).await?;
             let state = app
                 .state::<super::Host>()
@@ -170,10 +174,68 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
         }
         .await;
         let passed = result.is_ok();
-        let payload = json!({"passed":passed,"error":result.err(),"checks":["core bootstrap","compact size cap and no maximize","pin/unpin","transparent animal anchor", "frameless Mac panel", "expanded animal and panel with 8px gap", "anchor file drop approval and forwarding", "pointer over animal keeps panel expanded", "resize/focus preserves dimensions", "restore uses saved bounds", "edge collapse/expand preserves dimensions","hide/show","multiwindow","rapid exit retrigger preserves full grace","exit timers are independent across windows","expand and hide invalidate old exit timers","native event emission"],"platform":std::env::consts::OS});
+        let payload = json!({"passed":passed,"error":result.err(),"checks":["core bootstrap","compact size cap and no maximize","pin/unpin","transparent animal anchor", "frameless Mac panel", "expanded animal and panel with 8px gap", "anchor file drop approval and forwarding", "pointer over animal keeps panel expanded", "resize/focus preserves dimensions", "restore uses saved bounds", "edge collapse/expand preserves dimensions", "manual free-position collapse leaves visible on-screen animal", "animal restore preserves position size and pin", "manual collapse does not hide other group windows", "hide/show","multiwindow","rapid exit retrigger preserves full grace","exit timers are independent across windows","expand and hide invalidate old exit timers","native event emission"],"platform":std::env::consts::OS});
         let _ = std::fs::write(report, serde_json::to_vec_pretty(&payload).unwrap());
         app.exit(if passed { 0 } else { 1 });
     });
+}
+
+async fn verify_manual_collapse(
+    window: &tauri::WebviewWindow,
+    other: Option<&tauri::WebviewWindow>,
+) -> Result<(), String> {
+    use std::time::Duration;
+    super::docking::action(window, "undock", None)?;
+    super::docking::action(window, "busy", Some(false))?;
+    super::docking::action(window, "pin", Some(true))?;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let original_position = window.outer_position().map_err(|e| e.to_string())?;
+    let original_size = window.inner_size().map_err(|e| e.to_string())?;
+    let other_visible = other.map(|other| other.is_visible().unwrap_or(false));
+    super::window_action(window.clone(), "collapse".into(), None).await?;
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    let anchor = window
+        .app_handle()
+        .get_webview_window(&format!("anchor-{}", window.label()))
+        .ok_or("manual collapse did not create animal")?;
+    if window.is_visible().map_err(|e| e.to_string())?
+        || !anchor.is_visible().map_err(|e| e.to_string())?
+    {
+        return Err("manual free-position collapse lost restore target".into());
+    }
+    let position = anchor.outer_position().map_err(|e| e.to_string())?;
+    let size = anchor.inner_size().map_err(|e| e.to_string())?;
+    let monitor = anchor
+        .current_monitor()
+        .map_err(|e| e.to_string())?
+        .ok_or("manual animal monitor absent")?;
+    let area = monitor.work_area();
+    if position.x < area.position.x
+        || position.y < area.position.y
+        || position.x + size.width as i32 > area.position.x + area.size.width as i32
+        || position.y + size.height as i32 > area.position.y + area.size.height as i32
+    {
+        return Err("manual animal is outside monitor work area".into());
+    }
+    if position != original_position {
+        return Err("manual animal did not replace panel at its free position".into());
+    }
+    if other.map(|other| other.is_visible().unwrap_or(false)) != other_visible {
+        return Err("manual collapse changed other group visibility".into());
+    }
+    // Go through the same owner resolution used by clicking the animal.
+    super::window_action(anchor.clone(), "expand".into(), None).await?;
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    if !window.is_visible().map_err(|e| e.to_string())?
+        || anchor.is_visible().map_err(|e| e.to_string())?
+        || window.outer_position().map_err(|e| e.to_string())? != original_position
+        || window.inner_size().map_err(|e| e.to_string())? != original_size
+        || !window.is_always_on_top().map_err(|e| e.to_string())?
+    {
+        return Err("animal restore changed free position size or pin state".into());
+    }
+    super::docking::action(window, "pin", Some(false))?;
+    Ok(())
 }
 
 async fn verify_exit_timers(

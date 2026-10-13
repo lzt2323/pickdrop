@@ -75,7 +75,31 @@ $('panel').addEventListener('click', e => { if (e.target === $('panel')) {
 } });
 function asset(id) { return `/assets/group-animals/${animals.includes(id) ? id : 'cat'}.png`; }
 let windowAnimal;
-function updateHeader() {const revoked=!!app.state?.membershipRevoked;$('membership-notice').hidden=!revoked;for(const id of ['send-text','choose-file','invite-button'])$(id).disabled=revoked; const group = app.groups.find(g => g.id === app.groupId) || app.state; if (document.body.dataset.desktop === 'true' && windowAnimal !== (group?.animalId || 'cat')) { windowAnimal = group?.animalId || 'cat'; native('window_animal', { animalId: windowAnimal }).catch(error); } $('group-name').textContent = group?.name || '拾传'; $('group-animal').src = group ? asset(group.animalId) : '/assets/app-icon.svg'; $('composer').hidden = !app.groupId; document.body.dataset.hasGroup = String(!!app.groupId); const devices = app.state?.devices || []; $('device-summary').textContent = app.groupId ? `${devices.filter(d => d.online || d.id === app.device.id).length} 台设备在线` : '成员'; $('members-button').title = devices.map(d => d.id === app.device.id ? '我' : d.name || '设备').join('、') || '本群成员与设备'; const status = $('connection-status'); if (status) { const online = devices.filter(d => d.online || d.id === app.device.id).length; status.textContent = online > 1 ? '已连接' : '等待连接'; status.classList.toggle('offline', online === 0); } if ($('file-count')) $('file-count').textContent = app.messages.filter(m => m.type === 'file').length; }
+function updateHeader() {
+    const revoked = !!app.state?.membershipRevoked;
+    $('membership-notice').hidden = !revoked;
+    for (const id of ['send-text','choose-file','invite-button']) $(id).disabled = revoked;
+    const group = app.groups.find(g => g.id === app.groupId) || app.state;
+    if (document.body.dataset.desktop === 'true' && windowAnimal !== (group?.animalId || 'cat')) {
+        windowAnimal = group?.animalId || 'cat';
+        native('window_animal', { animalId: windowAnimal }).catch(error);
+    }
+    $('group-name').textContent = group?.name || '拾传';
+    $('group-animal').src = group ? asset(group.animalId) : '/assets/app-icon.svg';
+    $('composer').hidden = !app.groupId;
+    document.body.dataset.hasGroup = String(!!app.groupId);
+    const devices = app.state?.devices || [];
+    $('device-summary').textContent = app.groupId ? `${devices.filter(d => d.online || d.id === app.device.id).length} 台设备在线` : '成员';
+    $('members-button').title = devices.map(d => d.id === app.device.id ? '我' : d.name || '设备').join('、') || '本群成员与设备';
+    const status = $('connection-status');
+    if (status) {
+        const connected = !!app.groupId && !revoked && devices.some(d => d.id !== app.device.id && d.online);
+        status.hidden = !connected;
+        status.textContent = connected ? '已连接' : '';
+        status.classList.remove('offline');
+    }
+    if ($('file-count')) $('file-count').textContent = app.messages.filter(m => m.type === 'file').length;
+}
 function messageVersion(m) { return JSON.stringify([m.type, m.text, m.fileName, m.size, m.deleted, m.available, m.localPath, m.path]); }
 const thumbnails = new IntersectionObserver(entries => { for (const entry of entries)
     if (entry.isIntersecting) {
@@ -453,7 +477,7 @@ async function receive(message, groupId = app.groupId) {
 }
 let pinned = false;
 $('pin-window').onclick = () => run(async () => { const value = !pinned; await native('window_action', { action: 'pin', value }); pinned = value; $('pin-window').setAttribute('aria-pressed', String(pinned)); }, $('pin-window'));
-$('hide-window').onclick = () => run(() => native('window_action', { action: 'hide' }));
+$('hide-window').onclick = () => run(() => native('window_action', { action: 'collapse' }), $('hide-window'));
 $('groups-button').onclick = groupsPanel;
 $('settings-button').onclick = settingsPanel;
 $('invite-button').onclick = () => run(invitePanel);
@@ -544,7 +568,7 @@ else
 
 const queueParking = el('div'); queueParking.hidden = true; document.body.append(queueParking); queueParking.append($('queue'));
 function parkQueue() { if($('queue')) queueParking.append($('queue')); }
-for (const [id, name] of [['choose-file','plus'],['send-text','send'],['pin-window','pin'],['hide-window','dock'],['settings-button','settings'],['close-panel','close'],['chat-back','back']]) { const node = $(id); if(node) node.replaceChildren(icon(name)); }
+for (const [id, name] of [['choose-file','plus'],['send-text','send'],['pin-window','pin'],['hide-window','collapse'],['settings-button','settings'],['close-panel','close'],['chat-back','back']]) { const node = $(id); if(node) node.replaceChildren(icon(name)); }
 $('groups-button').querySelector('.group-chevron').append(icon('down'));
 $('members-button').append(icon('arrow'));
 for(const [id,name] of [['mobile-groups','people'],['mobile-transfers','transfer'],['mobile-profile','user']]) $(id)?.prepend(icon(name));

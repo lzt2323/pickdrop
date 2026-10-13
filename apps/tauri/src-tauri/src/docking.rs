@@ -457,11 +457,14 @@ pub fn anchor_moved(w: &WebviewWindow) -> Result<(), String> {
             b.y = p.y;
             r.expanded = Some(b);
         }
+        let was_collapsed = r.collapsed;
         if r.edge.is_none() {
             r.collapsed = true;
         }
         manager.put(w, r.clone());
-        if r.edge.is_none() || !r.collapsed {
+        // Dragging a collapsed animal moves its saved panel position; it must
+        // remain available as the restore target instead of opening mid-drag.
+        if !was_collapsed {
             expand(w)?;
         }
         manager.save();
@@ -469,54 +472,76 @@ pub fn anchor_moved(w: &WebviewWindow) -> Result<(), String> {
     Ok(())
 }
 pub fn collapse(w: &WebviewWindow) -> Result<(), String> {
+    collapse_for(w, true)
+}
+fn can_collapse(r: &Record, manual: bool) -> bool {
+    !r.collapsed
+        && !r.busy
+        && !r.upload_busy
+        && !r.file_hover
+        && (manual || (!r.pinned && r.edge.is_some()))
+}
+fn collapsed_bounds(panel: Bounds, area: Bounds, scale: f64, edge: Option<&str>) -> Bounds {
+    let depth = ((56. * scale).round() as u32)
+        .min(area.width)
+        .min(area.height);
+    let mut animal = Bounds {
+        width: depth,
+        height: depth,
+        ..panel
+    };
+    match edge {
+        Some("left") => animal.x = area.x,
+        Some("right") => animal.x = area.x + area.width as i32 - depth as i32,
+        Some("top") => animal.y = area.y,
+        _ => {}
+    }
+    animal.x = animal
+        .x
+        .clamp(area.x, area.x + area.width as i32 - depth as i32);
+    animal.y = animal
+        .y
+        .clamp(area.y, area.y + area.height as i32 - depth as i32);
+    animal
+}
+fn collapse_for(w: &WebviewWindow, manual: bool) -> Result<(), String> {
     let manager = w.state::<Docking>();
     let mut r = manager.get(w);
-    if r.collapsed || r.pinned || r.busy || r.upload_busy || r.file_hover || r.edge.is_none() {
+    if !can_collapse(&r, manual) {
         return Ok(());
     }
     let Some(m) = w.current_monitor().map_err(|e| e.to_string())? else {
         return Ok(());
     };
     let area = m.work_area();
-    let scale = m.scale_factor();
-    let depth = (56. * scale) as u32;
-    let span = depth;
-    let mut b = bounds(w)?;
-    r.expanded = Some(b);
-    match r.edge.as_deref() {
-        Some("left") => {
-            b.x = area.position.x;
-            b.width = depth;
-            b.height = span;
-        }
-        Some("right") => {
-            b.x = area.position.x + area.size.width as i32 - depth as i32;
-            b.width = depth;
-            b.height = span;
-        }
-        Some("top") => {
-            b.y = area.position.y;
-            b.width = span;
-            b.height = depth;
-        }
-        _ => return Ok(()),
-    }
-    b.x = b.x.clamp(
-        area.position.x,
-        area.position.x + area.size.width as i32 - b.width as i32,
+    let panel = bounds(w)?;
+    let b = collapsed_bounds(
+        panel,
+        Bounds {
+            x: area.position.x,
+            y: area.position.y,
+            width: area.size.width,
+            height: area.size.height,
+        },
+        m.scale_factor(),
+        r.edge.as_deref(),
     );
-    b.y = b.y.clamp(
-        area.position.y,
-        area.position.y + area.size.height as i32 - b.height as i32,
-    );
+    let previous = r.clone();
+    manager.next_exit_generation(w.label());
+    r.expanded = Some(panel);
     r.collapsed = true;
+    r.layout_until = Some(std::time::Instant::now() + std::time::Duration::from_millis(250));
     manager.put(w, r.clone());
-    if let Some(anchor) = w.app_handle().get_webview_window(&anchor_label(w)) {
-        anchor.show().map_err(|e| e.to_string())?;
-    } else {
-        show_anchor(w, b)?;
+    // Show and position the restore target before hiding the panel. A failed
+    // anchor creation leaves the original window available to the user.
+    if let Err(error) = show_anchor(w, b) {
+        manager.put(w, previous);
+        return Err(error);
     }
-    w.hide().map_err(|e| e.to_string())?;
+    if let Err(error) = w.hide() {
+        manager.put(w, previous);
+        return Err(error.to_string());
+    }
     emit(w, &r);
     manager.save();
     Ok(())
@@ -608,14 +633,64 @@ pub fn blurred(w: WebviewWindow) {
             && w.is_visible().unwrap_or(false)
             && !pointer_inside(&w)
         {
-            let _ = collapse(&w);
+            let _ = collapse_for(&w, false);
         }
     });
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{mini_bounds, Bounds, Docking};
+    use super::{can_collapse, collapsed_bounds, mini_bounds, Bounds, Docking, Record};
+
+    #[test]
+    fn manual_collapse_accepts_free_and_pinned_panels_without_changing_auto_rules() {
+        let mut record = Record::default();
+        assert!(can_collapse(&record, true));
+        assert!(!can_collapse(&record, false));
+        record.edge = Some("right".into());
+        assert!(can_collapse(&record, false));
+        record.pinned = true;
+        assert!(can_collapse(&record, true));
+        assert!(!can_collapse(&record, false));
+        record.collapsed = true;
+        assert!(!can_collapse(&record, true));
+        record.collapsed = false;
+        record.busy = true;
+        assert!(!can_collapse(&record, true));
+    }
+
+    #[test]
+    fn animal_remains_on_screen_for_free_position_edges_and_display_scales() {
+        for scale in [1_f64, 1.5, 2.] {
+            let area = Bounds {
+                x: -1920,
+                y: 24,
+                width: 1920,
+                height: 1080,
+            };
+            let panel = Bounds {
+                x: -700,
+                y: 300,
+                width: 640,
+                height: 840,
+            };
+            let depth = (56. * scale).round() as u32;
+            let free = collapsed_bounds(panel, area, scale, None);
+            assert_eq!((free.x, free.y), (panel.x, panel.y));
+            assert_eq!((free.width, free.height), (depth, depth));
+            for edge in [None, Some("left"), Some("right"), Some("top")] {
+                let outside = Bounds {
+                    x: 100,
+                    y: 1300,
+                    ..panel
+                };
+                let animal = collapsed_bounds(outside, area, scale, edge);
+                assert!(animal.x >= area.x && animal.y >= area.y);
+                assert!(animal.x + animal.width as i32 <= area.x + area.width as i32);
+                assert!(animal.y + animal.height as i32 <= area.y + area.height as i32);
+            }
+        }
+    }
 
     #[test]
     fn saved_panels_migrate_to_mini_at_each_display_scale() {

@@ -1,7 +1,7 @@
   const paths = {
     arrow: '<path d="M5 12h14m-6-6 6 6-6 6"/>', back: '<path d="m14 6-6 6 6 6"/>',
     clip: '<path d="m8 12 7-7a3 3 0 0 1 4 4L9 19a5 5 0 0 1-7-7L12 2"/><path d="m5 15 10-10"/>',
-    dock: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M15 5v14"/>',
+    collapse: '<path d="m4 4 6 6M4 10h6V4m10 16-6-6m0 6v-6h6"/>',
     grip: '<circle cx="8" cy="6" r="1"/><circle cx="16" cy="6" r="1"/><circle cx="8" cy="12" r="1"/><circle cx="16" cy="12" r="1"/><circle cx="8" cy="18" r="1"/><circle cx="16" cy="18" r="1"/>',
     down: '<path d="m6 9 6 6 6-6"/>', plus: '<path d="M12 5v14M5 12h14"/>', close: '<path d="m6 6 12 12M18 6 6 18"/>',
     file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6M8 14h8M8 17h5"/>',
@@ -11,7 +11,7 @@
     check: '<path d="m5 12 4 4L19 6"/>', download: '<path d="M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4"/>',
     share: '<path d="M12 16V3m-4 4 4-4 4 4M5 13v8h14v-8"/>', send: '<path d="M12 20V4m-6 6 6-6 6 6"/>',
     more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
-    settings: '<path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3h6l1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3Z"/><circle cx="12" cy="12" r="3"/>',
+    settings: '<path d="M10.44 4.66L10.61 2.1L13.39 2.1L13.56 4.66L16.08 5.71L18.02 4.01L19.99 5.98L18.29 7.92L19.34 10.44L21.9 10.61L21.9 13.39L19.34 13.56L18.29 16.08L19.99 18.02L18.02 19.99L16.08 18.29L13.56 19.34L13.39 21.9L10.61 21.9L10.44 19.34L7.92 18.29L5.98 19.99L4.01 18.02L5.71 16.08L4.66 13.56L2.1 13.39L2.1 10.61L4.66 10.44L5.71 7.92L4.01 5.98L5.98 4.01L7.92 5.71Z"/><circle cx="12" cy="12" r="3"/>',
     pin: '<path d="m8 3 8 0-1 6 3 4H6l3-4ZM12 13v8"/>', expand: '<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>',
     transfer: '<path d="M4 7h16m-5-4 5 4-5 4M20 17H4m5-4-5 4 5 4"/>', user: '<circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',
     people: '<circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 5v2"/>',

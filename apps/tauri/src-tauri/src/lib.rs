@@ -331,7 +331,10 @@ fn image_data_url(path: &Path, max_edge: u32) -> Result<String, String> {
     limits.max_alloc = Some(64 * 1024 * 1024);
     reader.limits(limits);
     let decoded = reader.decode().map_err(|e| e.to_string())?;
-    let preview = decoded.thumbnail(max_edge.min(decoded.width()), max_edge.min(decoded.height()));
+    let preview = decoded.thumbnail(
+        max_edge.min(decoded.width()),
+        max_edge.min(decoded.height()),
+    );
     let mut encoded = Cursor::new(Vec::new());
     preview
         .write_to(&mut encoded, image::ImageFormat::Png)
@@ -342,7 +345,11 @@ fn image_data_url(path: &Path, max_edge: u32) -> Result<String, String> {
     ))
 }
 
-async fn permitted_image(app: tauri::AppHandle, path: String, max_edge: u32) -> Result<String, String> {
+async fn permitted_image(
+    app: tauri::AppHandle,
+    path: String,
+    max_edge: u32,
+) -> Result<String, String> {
     let path = app.state::<Host>().permitted(&path)?;
     let permit = IMAGE_DECODERS.acquire().await.map_err(|e| e.to_string())?;
     tauri::async_runtime::spawn_blocking(move || {
@@ -758,10 +765,14 @@ mod tests {
         use base64::Engine;
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("landscape.png");
-        image::RgbImage::from_pixel(2000, 1000, image::Rgb([20, 40, 60])).save(&path).unwrap();
+        image::RgbImage::from_pixel(2000, 1000, image::Rgb([20, 40, 60]))
+            .save(&path)
+            .unwrap();
         for (edge, expected) in [(320, (320, 160)), (1600, (1600, 800))] {
             let url = super::image_data_url(&path, edge).unwrap();
-            let png = base64::engine::general_purpose::STANDARD.decode(url.strip_prefix("data:image/png;base64,").unwrap()).unwrap();
+            let png = base64::engine::general_purpose::STANDARD
+                .decode(url.strip_prefix("data:image/png;base64,").unwrap())
+                .unwrap();
             let decoded = image::load_from_memory(&png).unwrap();
             assert_eq!((decoded.width(), decoded.height()), expected);
         }
@@ -775,7 +786,9 @@ mod tests {
         image::RgbImage::new(32, 24).save(&path).unwrap();
         for edge in [320, 1600] {
             let url = super::image_data_url(&path, edge).unwrap();
-            let bytes = base64::engine::general_purpose::STANDARD.decode(url.split_once(',').unwrap().1).unwrap();
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(url.split_once(',').unwrap().1)
+                .unwrap();
             let image = image::load_from_memory(&bytes).unwrap();
             assert_eq!((image.width(), image.height()), (32, 24));
         }
@@ -787,8 +800,14 @@ mod tests {
         let path = directory.path().join("image.png");
         std::fs::write(&path, b"not an image").unwrap();
         assert!(super::image_data_url(&path, 1600).is_err());
-        std::fs::File::create(&path).unwrap().set_len(16 * 1024 * 1024 + 1).unwrap();
-        assert_eq!(super::image_data_url(&path, 1600).unwrap_err(), "图片过大，请打开原文件");
+        std::fs::File::create(&path)
+            .unwrap()
+            .set_len(16 * 1024 * 1024 + 1)
+            .unwrap();
+        assert_eq!(
+            super::image_data_url(&path, 1600).unwrap_err(),
+            "图片过大，请打开原文件"
+        );
         image::RgbImage::new(8193, 1).save(&path).unwrap();
         assert!(super::image_data_url(&path, 1600).is_err());
     }
