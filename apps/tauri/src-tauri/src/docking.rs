@@ -11,12 +11,26 @@ use std::{
 };
 use tauri::{Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+pub const PANEL_DEFAULT: (f64, f64) = (320., 420.);
+pub const PANEL_MIN: (f64, f64) = (300., 360.);
+pub const PANEL_MAX: (f64, f64) = (380., 520.);
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 struct Bounds {
     x: i32,
     y: i32,
     width: u32,
     height: u32,
+}
+// Saved bounds use physical pixels; preserve mini sizes across DPI scaling.
+fn mini_bounds(mut b: Bounds, scale: f64) -> Bounds {
+    if b.width as f64 > PANEL_MAX.0 * scale || b.height as f64 > PANEL_MAX.1 * scale {
+        b.width = (PANEL_DEFAULT.0 * scale).round() as u32;
+        b.height = (PANEL_DEFAULT.1 * scale).round() as u32;
+    }
+    b.width = b.width.max((PANEL_MIN.0 * scale).round() as u32);
+    b.height = b.height.max((PANEL_MIN.1 * scale).round() as u32);
+    b
 }
 #[derive(Clone, Default, Serialize, Deserialize)]
 struct Record {
@@ -201,15 +215,12 @@ fn show_anchor(w: &WebviewWindow, b: Bounds) -> Result<(), String> {
 pub fn restore(w: &WebviewWindow) -> Result<(), String> {
     let manager = w.state::<Docking>();
     let mut r = manager.get(w);
-    // Migrate old full-screen-sized records to the compact desktop panel.
+    // Migrate previous large panels without changing their saved position.
     let scale = w.scale_factor().map_err(|e| e.to_string())?;
-    if let Some(ref mut saved) = r.expanded {
-        if saved.width as f64 > 520. * scale || saved.height as f64 > 780. * scale {
-            saved.width = (440. * scale).round() as u32;
-            saved.height = (720. * scale).round() as u32;
-        }
-    }
-    w.set_max_size(Some(tauri::LogicalSize::new(520., 780.)))
+    r.expanded = r.expanded.map(|saved| mini_bounds(saved, scale));
+    w.set_min_size(Some(LogicalSize::new(PANEL_MIN.0, PANEL_MIN.1)))
+        .map_err(|e| e.to_string())?;
+    w.set_max_size(Some(LogicalSize::new(PANEL_MAX.0, PANEL_MAX.1)))
         .map_err(|e| e.to_string())?;
     w.set_maximizable(false).map_err(|e| e.to_string())?;
     // Native geometry setters can enqueue events. Keep saved bounds authoritative
@@ -312,6 +323,7 @@ pub fn expand(w: &WebviewWindow) -> Result<(), String> {
     } else {
         bounds(w)?
     };
+    b = mini_bounds(b, w.scale_factor().map_err(|e| e.to_string())?);
     let anchor = w.app_handle().get_webview_window(&anchor_label(w));
     let mut monitor = w.current_monitor().map_err(|e| e.to_string())?;
     if let Some(anchor) = &anchor {
@@ -398,7 +410,7 @@ pub fn expand(w: &WebviewWindow) -> Result<(), String> {
     r.expanded = Some(b);
     r.layout_until = Some(std::time::Instant::now() + std::time::Duration::from_millis(250));
     manager.put(w, r.clone());
-    w.set_min_size(Some(LogicalSize::new(360., 480.)))
+    w.set_min_size(Some(LogicalSize::new(PANEL_MIN.0, PANEL_MIN.1)))
         .map_err(|e| e.to_string())?;
     w.set_resizable(true).map_err(|e| e.to_string())?;
     apply(w, b)?;
@@ -603,7 +615,23 @@ pub fn blurred(w: WebviewWindow) {
 
 #[cfg(test)]
 mod tests {
-    use super::Docking;
+    use super::{mini_bounds, Bounds, Docking};
+
+    #[test]
+    fn saved_panels_migrate_to_mini_at_each_display_scale() {
+        for scale in [1., 1.5, 2.] {
+            let bounds = |width: f64, height: f64| Bounds {
+                x: 80,
+                y: 100,
+                width: (width * scale).round() as u32,
+                height: (height * scale).round() as u32,
+            };
+            assert_eq!(mini_bounds(bounds(440., 720.), scale), bounds(320., 420.));
+            assert_eq!(mini_bounds(bounds(2940., 1674.), scale), bounds(320., 420.));
+            assert_eq!(mini_bounds(bounds(350., 470.), scale), bounds(350., 470.));
+            assert_eq!(mini_bounds(bounds(280., 300.), scale), bounds(300., 360.));
+        }
+    }
 
     #[test]
     fn exit_generations_reject_old_timers_without_cancelling_other_windows() {

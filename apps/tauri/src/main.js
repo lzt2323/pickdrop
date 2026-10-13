@@ -61,7 +61,7 @@ new MutationObserver(() => {
 }).observe($('panel-body'), { childList:true });
 function panelActions(...actions) { $('panel-actions').append(...actions); $('panel-actions').hidden = false; }
 
-function panel(title) { panelGeneration++; if (!$('panel').open) panelReturnFocus = document.activeElement; $('panel').dataset.kind = title.includes('文件') ? 'files' : 'settings'; $('panel').setAttribute('aria-labelledby','panel-title'); if (document.body.dataset.desktop === 'true')
+function panel(title) { panelGeneration++; $('panel').removeAttribute('aria-describedby'); if (!$('panel').open) panelReturnFocus = document.activeElement; $('panel').dataset.kind = title.includes('文件') ? 'files' : 'settings'; $('panel').setAttribute('aria-labelledby','panel-title'); if (document.body.dataset.desktop === 'true')
     run(() => native('window_action', { action: 'busy', value: true })); $('panel-title').textContent = title; parkQueue(); $('panel-body').replaceChildren(); $('panel-actions').replaceChildren(); $('panel-actions').hidden = true; dialogMotion.open({animate: !['我的群组','传输'].includes(title)}); queueMicrotask(() => { if($('panel').open) ($('panel-body').querySelector('input,textarea,button') || $('close-panel')).focus(); }); return $('panel-body'); }
 let fieldSequence = 0;
 function field(body, title, value = '', type = 'text') { const label = el('label'), caption = el('span', 'field-label', title), input = el('input'); caption.id = `field-label-${++fieldSequence}`; input.setAttribute('aria-labelledby', caption.id); label.append(caption); input.type = type; input.value = value; input.addEventListener('input', () => { input.removeAttribute('aria-invalid'); input.removeAttribute('aria-describedby'); label.querySelector('.panel-error')?.remove(); }); label.append(input); body.append(label); return input; }
@@ -102,13 +102,27 @@ else {
     if (local) {
         if (document.body.dataset.desktop === 'true') {
             card.draggable = true;
-            card.addEventListener('dragstart', event => { event.preventDefault(); run(() => native('native_drag_file', { path: local, suggestedName: name })); });
+            card.dataset.draggable = 'true';
+            card.title = '拖出文件到桌面或其他应用';
+            let dragAllowed = true, dragged = false;
+            card.addEventListener('pointerdown', event => { dragged = false; dragAllowed = event.button === 0 && !event.target.closest('.file-actions'); });
+            card.addEventListener('dragstart', event => {
+                event.preventDefault();
+                if (!dragAllowed || event.target.closest('.file-actions')) return;
+                dragged = true;
+                run(() => native('native_drag_file', { path: local, suggestedName: name }));
+            });
+            // A native drag can end with a WebView click; do not open the preview.
+            card.addEventListener('click', event => {
+                if (event.detail && dragged) { dragged = false; event.preventDefault(); event.stopImmediatePropagation(); }
+            }, true);
 
         }
         actions.append(button('保存', () => native('native_save_file', { sourcePath: local, suggestedName: name })), button('更多', () => fileActionsPanel(local, name), 'file-more'));
         if (/\.(png|jpg|jpeg|webp|gif)$/i.test(name)) {
             const img = el('img', 'thumbnail');
             img.alt = name;
+            img.draggable = false;
             img.loading = 'lazy';
             img.dataset.path = local;
             card.append(img);
@@ -261,7 +275,15 @@ function connectPeerPanel() {
         }
     }, 'primary'));
 }
-async function confirmPanel(title, text, action, { confirmLabel = title, destructive = true } = {}) { const body = panel(title); note(body, text); panelActions(button('取消', closePanel), button(confirmLabel, action, destructive ? 'primary destructive' : 'primary')); }
+async function confirmPanel(title, text, action, { confirmLabel = title, destructive = true } = {}) {
+    const body = panel(title);
+    $('panel').dataset.kind = 'confirm';
+    const description = el('p', 'confirmation-copy', text); description.id = 'confirmation-description'; body.append(description);
+    $('panel').setAttribute('aria-describedby', description.id);
+    const cancel = button('取消', closePanel);
+    panelActions(cancel, button(confirmLabel, action, destructive ? 'primary destructive' : 'primary'));
+    queueMicrotask(() => { if (cancel.isConnected && $('panel').open) cancel.focus(); });
+}
 function isMobile() { return document.body.dataset.desktop !== 'true'; }
 function isOwner() { return app.groups.find(g => g.id === app.groupId)?.creatorDeviceId === app.device.id; }
 function settingsPanel() {
@@ -270,11 +292,6 @@ function settingsPanel() {
     const deviceName = field(body, '本机名称', app.device.name || '');
     body.append(button('保存设备名称', async () => { if (!deviceName.value.trim()) throw Error('请输入设备名称'); await call('rename_device', { name: deviceName.value.trim() }); await loadBootstrap(); updateHeader(); toast('已保存'); }, 'primary'));
     if (app.groupId) body.append(button('群组设置', groupSettingsPanel, 'setting-row'), button('成员', membersPanel, 'setting-row'));
-    if (!isMobile()) {
-        const dock = el('div', 'stack');
-        for (const [action, label] of [['dock-left', '贴到左侧'], ['dock-right', '贴到右侧'], ['dock-top', '贴到顶部'], ['undock', '取消贴边']]) dock.append(button(label, () => native('window_action', { action })));
-        body.append(el('h3', 'section-title', '窗口'), dock);
-    }
     body.append(el('p', 'version', `拾传 ${packageInfo.version}`));
 }
 function groupSettingsPanel() {
@@ -285,7 +302,7 @@ function groupSettingsPanel() {
     } else body.append(el('h3', null, app.state?.name || '群组'));
     body.append(button('退出群组', () => confirmPanel('退出群组', '退出后将停止接收这个群的消息。', async () => { await call('leave_group', { groupId: app.groupId }); await loadBootstrap(); await selectGroup(app.groups[0]?.id || null); }), 'danger'), button('移除本地群组记录', () => confirmPanel('移除记录', '将移除此设备上的群组记录。', async () => { await call('forget_group', { groupId: app.groupId }); await loadBootstrap(); await selectGroup(app.groups[0]?.id || null); }), 'danger')); const dangerZone = el('div','danger-zone'); for (const action of body.querySelectorAll(':scope > .danger')) dangerZone.append(action); body.append(dangerZone);
 }
-async function storagePanel() { const body = panel('存储与缓存'), generation = panelGeneration; const stats = await call('storage_stats'); if (generation !== panelGeneration || !$('panel').open || $('panel-title').textContent !== '存储与缓存') return; note(body, `文件缓存 ${formatBytes(stats.cacheBytes || stats.bytes || 0)} · ${stats.fileCount || stats.files || 0} 个文件`); body.append(button('清理缓存', () => confirmPanel('清理缓存', '已接收文件的本地缓存将被清理，聊天记录保留。', async () => { await call('clear_cache'); app.files.clear(); app.messages = app.messages.map(({localPath, path, ...message}) => message); renderMessages(); await refresh(); await storagePanel(); }))); }
+async function storagePanel() { const body = panel('存储与缓存'), generation = panelGeneration; const stats = await call('storage_stats'); if (generation !== panelGeneration || !$('panel').open || $('panel-title').textContent !== '存储与缓存') return; const summary = el('div', 'storage-summary'); summary.append(el('p', 'storage-value', formatBytes(stats.cacheBytes || stats.bytes || 0)), el('p', 'storage-detail', `本机文件缓存 · ${stats.fileCount || stats.files || 0} 个文件`)); body.append(summary); body.append(button('清理缓存', () => confirmPanel('清理缓存', '清理此设备的全部文件缓存。聊天记录和原始文件会保留。', async () => { await call('clear_cache'); app.files.clear(); app.messages = app.messages.map(({localPath, path, ...message}) => message); renderMessages(); await refresh(); await storagePanel(); }))); }
 function renderFileDrafts() { persistFiles(); const body = $('file-drafts'), files = app.fileDrafts.get(app.groupId) || []; body.hidden = !files.length; body.replaceChildren(); files.forEach((file, index) => { const row = el('div', 'file-draft'); row.append(el('span', null, file.name || file.path.split(/[\\/]/).at(-1)), button('移除', () => { files.splice(index, 1); renderFileDrafts(); })); body.append(row); });  }
 const progress = progressScheduler(renderQueue);
 const transferRows = new Map();
@@ -572,7 +589,7 @@ $('window-resize-handle').addEventListener('pointerdown', event => {
 });
 $('window-resize-handle').addEventListener('pointermove', event => {
     if(!resizing) return;
-    resizePending = {width:Math.max(360,resizing.width+event.screenX-resizing.x),height:Math.max(480,resizing.height+event.screenY-resizing.y)};
+    resizePending = {width:Math.min(380,Math.max(300,resizing.width+event.screenX-resizing.x)),height:Math.min(520,Math.max(360,resizing.height+event.screenY-resizing.y))};
     run(flushWindowResize);
 });
 function finishWindowResize(event) {

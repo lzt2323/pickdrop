@@ -483,8 +483,8 @@ async fn window_resize(
         }
         window
             .set_size(tauri::LogicalSize::new(
-                width.clamp(360., 520.),
-                height.clamp(480., 780.),
+                width.clamp(docking::PANEL_MIN.0, docking::PANEL_MAX.0),
+                height.clamp(docking::PANEL_MIN.1, docking::PANEL_MAX.1),
             ))
             .map_err(|e| e.to_string())
     }
@@ -548,9 +548,9 @@ async fn window_action(
                 tauri::WebviewUrl::App("index.html".into()),
             )
             .title("拾传 Preview")
-            .inner_size(440., 720.)
-            .min_inner_size(360., 480.)
-            .max_inner_size(520., 780.)
+            .inner_size(docking::PANEL_DEFAULT.0, docking::PANEL_DEFAULT.1)
+            .min_inner_size(docking::PANEL_MIN.0, docking::PANEL_MIN.1)
+            .max_inner_size(docking::PANEL_MAX.0, docking::PANEL_MAX.1)
             .maximizable(false);
             #[cfg(target_os = "macos")]
             let builder = builder.decorations(false).transparent(true);

@@ -20,13 +20,13 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
             let compact = window.inner_size().map_err(|e| e.to_string())?
                 .to_logical::<f64>(window.scale_factor().map_err(|e| e.to_string())?);
-            if compact.width > 520.5 || compact.height > 780.5 {
+            if (compact.width - 380.).abs() > 0.5 || (compact.height - 520.).abs() > 0.5 {
                 return Err("desktop resize exceeded compact limits".into());
             }
             if window.is_maximizable().map_err(|e| e.to_string())? {
                 return Err("compact desktop still allows maximize".into());
             }
-            super::window_resize(window.clone(), 510., 690.).await?;
+            super::window_resize(window.clone(), 350., 470.).await?;
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
             let resized = window.inner_size().map_err(|e| e.to_string())?;
             window.set_focus().map_err(|e| e.to_string())?;
@@ -36,7 +36,7 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
             }
             super::docking::resized(&window);
             super::docking::action(&window, "busy", Some(true))?;
-            super::window_resize(window.clone(), 440., 720.).await?;
+            super::window_resize(window.clone(), 320., 420.).await?;
             tokio::time::sleep(std::time::Duration::from_millis(150)).await;
             super::docking::restore(&window)?;
             tokio::time::sleep(std::time::Duration::from_millis(150)).await;
