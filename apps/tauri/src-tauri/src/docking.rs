@@ -44,6 +44,8 @@ pub struct Docking {
     path: PathBuf,
     writer: Arc<Mutex<()>>,
     generation: Arc<AtomicU64>,
+    // Separate per-owner interaction timers; never serialized with geometry.
+    exit_generations: Mutex<HashMap<String, u64>>,
 }
 impl Docking {
     pub fn new(path: PathBuf) -> Self {
@@ -56,7 +58,17 @@ impl Docking {
             path,
             writer: Arc::new(Mutex::new(())),
             generation: Arc::new(AtomicU64::new(0)),
+            exit_generations: Mutex::new(HashMap::new()),
         }
+    }
+    fn next_exit_generation(&self, label: &str) -> u64 {
+        let mut generations = self.exit_generations.lock().unwrap();
+        let generation = generations.entry(label.into()).or_default();
+        *generation = generation.wrapping_add(1);
+        *generation
+    }
+    fn is_current_exit(&self, label: &str, generation: u64) -> bool {
+        self.exit_generations.lock().unwrap().get(label) == Some(&generation)
     }
     fn get(&self, w: &WebviewWindow) -> Record {
         self.records
@@ -154,6 +166,7 @@ pub fn anchor_animal(w: &WebviewWindow) -> Result<String, String> {
     })
 }
 pub fn hide(w: &WebviewWindow) -> Result<(), String> {
+    w.state::<Docking>().next_exit_generation(w.label());
     if let Some(anchor) = w.app_handle().get_webview_window(&anchor_label(w)) {
         anchor.hide().map_err(|e| e.to_string())?;
     }
@@ -281,6 +294,7 @@ fn suppressed(r: &Record) -> bool {
 }
 pub fn expand(w: &WebviewWindow) -> Result<(), String> {
     let manager = w.state::<Docking>();
+    manager.next_exit_generation(w.label());
     let mut r = manager.get(w);
     let mut b = if r.collapsed {
         r.expanded.unwrap_or(bounds(w)?)
@@ -564,10 +578,37 @@ pub fn pointer_inside(w: &WebviewWindow) -> bool {
     })
 }
 pub fn blurred(w: WebviewWindow) {
+    let generation = w.state::<Docking>().next_exit_generation(w.label());
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_millis(800)).await;
-        if w.is_visible().unwrap_or(false) && !pointer_inside(&w) {
+        if w.state::<Docking>().is_current_exit(w.label(), generation)
+            && w.is_visible().unwrap_or(false)
+            && !pointer_inside(&w)
+        {
             let _ = collapse(&w);
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Docking;
+
+    #[test]
+    fn exit_generations_reject_old_timers_without_cancelling_other_windows() {
+        let dir = tempfile::tempdir().unwrap();
+        let docking = Docking::new(dir.path().join("windows.json"));
+        let main_first = docking.next_exit_generation("main");
+        let group_first = docking.next_exit_generation("group-other");
+        let main_latest = docking.next_exit_generation("main");
+        assert!(!docking.is_current_exit("main", main_first));
+        assert!(docking.is_current_exit("main", main_latest));
+        assert!(docking.is_current_exit("group-other", group_first));
+        for _ in 0..32 {
+            docking.next_exit_generation("main");
+        }
+        assert!(!docking.is_current_exit("main", main_latest));
+        assert!(docking.is_current_exit("group-other", group_first));
+        assert!(!docking.is_current_exit("unknown-window", 0));
+    }
 }

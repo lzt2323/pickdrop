@@ -138,6 +138,13 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
             {
                 return Err("new window failed".into());
             }
+            let other = app
+                .webview_windows()
+                .into_iter()
+                .find(|(label, _)| label.starts_with("group-"))
+                .map(|(_, window)| window)
+                .ok_or("second group window absent")?;
+            verify_exit_timers(&window, &other).await?;
             let state = app
                 .state::<super::Host>()
                 .core
@@ -153,8 +160,82 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
         }
         .await;
         let passed = result.is_ok();
-        let payload = json!({"passed":passed,"error":result.err(),"checks":["core bootstrap","pin/unpin","transparent animal anchor", "frameless Mac panel", "expanded animal and panel with 8px gap", "anchor file drop approval and forwarding", "pointer over animal keeps panel expanded", "resize/focus preserves dimensions", "restore uses saved bounds", "edge collapse/expand preserves dimensions","hide/show","multiwindow","native event emission"],"platform":std::env::consts::OS});
+        let payload = json!({"passed":passed,"error":result.err(),"checks":["core bootstrap","pin/unpin","transparent animal anchor", "frameless Mac panel", "expanded animal and panel with 8px gap", "anchor file drop approval and forwarding", "pointer over animal keeps panel expanded", "resize/focus preserves dimensions", "restore uses saved bounds", "edge collapse/expand preserves dimensions","hide/show","multiwindow","rapid exit retrigger preserves full grace","exit timers are independent across windows","expand and hide invalidate old exit timers","native event emission"],"platform":std::env::consts::OS});
         let _ = std::fs::write(report, serde_json::to_vec_pretty(&payload).unwrap());
         app.exit(if passed { 0 } else { 1 });
     });
+}
+
+async fn verify_exit_timers(
+    main: &tauri::WebviewWindow,
+    other: &tauri::WebviewWindow,
+) -> Result<(), String> {
+    use std::time::Duration;
+    let original = main.cursor_position().map_err(|e| e.to_string())?;
+    let result = async {
+        for window in [main, other] {
+            super::docking::action(window, "pin", Some(false))?;
+            super::docking::action(window, "busy", Some(false))?;
+        }
+        super::docking::action(main, "dock-right", None)?;
+        super::docking::action(other, "dock-left", None)?;
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        let monitor = main
+            .current_monitor()
+            .map_err(|e| e.to_string())?
+            .ok_or("monitor absent")?;
+        let area = monitor.work_area();
+        let position = main.outer_position().map_err(|e| e.to_string())?;
+        main.set_cursor_position(tauri::PhysicalPosition::new(
+            area.position.x + area.size.width as i32 / 2 - position.x,
+            area.position.y + area.size.height as i32 - 4 - position.y,
+        ))
+        .map_err(|e| e.to_string())?;
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        if super::docking::pointer_inside(main) || super::docking::pointer_inside(other) {
+            return Err("timer smoke requires cursor outside both window pairs".into());
+        }
+        super::docking::expand(main)?;
+        super::docking::expand(other)?;
+        super::docking::blurred(main.clone());
+        super::docking::blurred(other.clone());
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        super::docking::blurred(main.clone());
+        tokio::time::sleep(Duration::from_millis(400)).await;
+        if !main.is_visible().map_err(|e| e.to_string())? {
+            return Err("old exit timer shortened latest main-window grace".into());
+        }
+        if other.is_visible().map_err(|e| e.to_string())? {
+            return Err("main-window timer reset also reset independent group window".into());
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        if main.is_visible().map_err(|e| e.to_string())? {
+            return Err("latest main exit timer did not collapse after full grace".into());
+        }
+        super::docking::expand(main)?;
+        super::docking::blurred(main.clone());
+        tokio::time::sleep(Duration::from_millis(400)).await;
+        super::docking::expand(main)?;
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        if !main.is_visible().map_err(|e| e.to_string())? {
+            return Err("expand did not invalidate pending exit timer".into());
+        }
+        super::docking::blurred(main.clone());
+        tokio::time::sleep(Duration::from_millis(400)).await;
+        super::docking::hide(main)?;
+        main.show().map_err(|e| e.to_string())?;
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        if !main.is_visible().map_err(|e| e.to_string())? {
+            return Err("hide did not invalidate pending exit timer".into());
+        }
+        Ok(())
+    }
+    .await;
+    if let Ok(position) = main.outer_position() {
+        let _ = main.set_cursor_position(tauri::PhysicalPosition::new(
+            original.x - position.x as f64,
+            original.y - position.y as f64,
+        ));
+    }
+    result
 }
