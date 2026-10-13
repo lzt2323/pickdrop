@@ -1,0 +1,2680 @@
+{
+  "baseline": "859c4c5",
+  "scale": "0–10; five categories each 0–2",
+  "limitations": [
+    "Static gallery cannot establish timing, frame-rate, jank, easing feel or actual native IME.",
+    "Absence of animation on high-frequency actions is positive, not a deduction.",
+    "Full score means no verified motion issue under this evidence; it is not a whole-UI/accessibility certification.",
+    "Dialog mechanical checks are Chromium; native WebKit/Android animation feel and FPS are not established."
+  ],
+  "pages": [
+    {
+      "profile": "desktop",
+      "page": "chat-content",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-chat-content.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "files",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-files.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "image-preview",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-image-preview.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "file-actions",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-file-actions.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "file-draft",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-file-draft.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "groups-picker",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-groups-picker.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "create-animal",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-create-animal.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "create-validation",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-create-validation.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "join",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-join.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "join-nearby",
+      "before": 8.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "异步控件焦点恢复；最终 gallery 无失焦发现。",
+      "source": [
+        "apps/tauri/src/main.js:40"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-join-nearby.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "join-waiting",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-join-waiting.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "invite",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-invite.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "connect-device",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-connect-device.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "connect-error",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-connect-error.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "members-approval",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-members-approval.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "remove-member-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-remove-member-confirm.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "settings",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-settings.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "group-settings",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-group-settings.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "leave-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-leave-confirm.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "forget-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-forget-confirm.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "storage",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-storage.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "clear-cache-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-clear-cache-confirm.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "transfers-mixed",
+      "before": 7.0,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "稳定传输行与按钮；进度焦点探针通过；终态只迁移本行被隐藏的当前焦点。",
+      "source": [
+        "apps/tauri/src/main.js:291",
+        "apps/tauri/src/main.js:313"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-transfers-mixed.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "transfers-progress-focus",
+      "before": 7.0,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "稳定传输行与按钮；进度焦点探针通过；终态只迁移本行被隐藏的当前焦点。",
+      "source": [
+        "apps/tauri/src/main.js:291",
+        "apps/tauri/src/main.js:313"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-transfers-progress-focus.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "membership-revoked",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-membership-revoked.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "chat-empty-long-title",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-chat-empty-long-title.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "files-empty",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-files-empty.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "group-settings-member",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-group-settings-member.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "incoming-share",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-incoming-share.png"
+    },
+    {
+      "profile": "desktop",
+      "page": "no-groups",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/desktop-no-groups.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "home-groups",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-home-groups.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "transfers-empty",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-transfers-empty.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "profile",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-profile.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "chat-content",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-chat-content.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "keyboard-viewport-simulation",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-keyboard-viewport-simulation.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "files",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-files.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "image-preview",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-image-preview.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "file-actions",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-file-actions.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "file-draft",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-file-draft.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "groups-picker",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-groups-picker.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "create-animal",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-create-animal.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "create-validation",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-create-validation.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "join",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-join.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "join-nearby",
+      "before": 8.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "异步控件焦点恢复；最终 gallery 无失焦发现。",
+      "source": [
+        "apps/tauri/src/main.js:40"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-join-nearby.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "join-waiting",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-join-waiting.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "invite",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-invite.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "connect-device",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-connect-device.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "connect-error",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-connect-error.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "members-approval",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-members-approval.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "remove-member-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-remove-member-confirm.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "settings",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-settings.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "group-settings",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-group-settings.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "leave-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-leave-confirm.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "forget-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-forget-confirm.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "storage",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-storage.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "clear-cache-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-clear-cache-confirm.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "transfers-mixed",
+      "before": 7.0,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "稳定传输行与按钮；进度焦点探针通过；终态只迁移本行被隐藏的当前焦点。",
+      "source": [
+        "apps/tauri/src/main.js:291",
+        "apps/tauri/src/main.js:313"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-transfers-mixed.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "transfers-progress-focus",
+      "before": 7.0,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "稳定传输行与按钮；进度焦点探针通过；终态只迁移本行被隐藏的当前焦点。",
+      "source": [
+        "apps/tauri/src/main.js:291",
+        "apps/tauri/src/main.js:313"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-transfers-progress-focus.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "membership-revoked",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-membership-revoked.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "chat-empty-long-title",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-chat-empty-long-title.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "files-empty",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-files-empty.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "group-settings-member",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-group-settings-member.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "transfers-page",
+      "before": 7.0,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "稳定传输行与按钮；进度焦点探针通过；终态只迁移本行被隐藏的当前焦点。",
+      "source": [
+        "apps/tauri/src/main.js:291",
+        "apps/tauri/src/main.js:313"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-transfers-page.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "profile-with-groups",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-profile-with-groups.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "incoming-share",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-incoming-share.png"
+    },
+    {
+      "profile": "mobile",
+      "page": "no-groups",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/mobile-no-groups.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "home-groups",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-home-groups.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "transfers-empty",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-transfers-empty.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "profile",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-profile.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "chat-content",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-chat-content.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "files",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-files.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "image-preview",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-image-preview.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "file-actions",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-file-actions.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "file-draft",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-file-draft.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "groups-picker",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-groups-picker.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "create-animal",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-create-animal.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "create-validation",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-create-validation.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "join",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-join.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "join-nearby",
+      "before": 8.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "异步控件焦点恢复；最终 gallery 无失焦发现。",
+      "source": [
+        "apps/tauri/src/main.js:40"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-join-nearby.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "join-waiting",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-join-waiting.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "invite",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-invite.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "connect-device",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-connect-device.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "connect-error",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-connect-error.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "members-approval",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-members-approval.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "remove-member-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-remove-member-confirm.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "settings",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-settings.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "group-settings",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-group-settings.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "leave-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-leave-confirm.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "forget-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-forget-confirm.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "storage",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-storage.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "clear-cache-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-clear-cache-confirm.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "transfers-mixed",
+      "before": 7.0,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "稳定传输行与按钮；进度焦点探针通过；终态只迁移本行被隐藏的当前焦点。",
+      "source": [
+        "apps/tauri/src/main.js:291",
+        "apps/tauri/src/main.js:313"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-transfers-mixed.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "transfers-progress-focus",
+      "before": 7.0,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "稳定传输行与按钮；进度焦点探针通过；终态只迁移本行被隐藏的当前焦点。",
+      "source": [
+        "apps/tauri/src/main.js:291",
+        "apps/tauri/src/main.js:313"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-transfers-progress-focus.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "membership-revoked",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-membership-revoked.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "chat-empty-long-title",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-chat-empty-long-title.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "files-empty",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-files-empty.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "group-settings-member",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-group-settings-member.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "transfers-page",
+      "before": 7.0,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "稳定传输行与按钮；进度焦点探针通过；终态只迁移本行被隐藏的当前焦点。",
+      "source": [
+        "apps/tauri/src/main.js:291",
+        "apps/tauri/src/main.js:313"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-transfers-page.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "profile-with-groups",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-profile-with-groups.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "incoming-share",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-incoming-share.png"
+    },
+    {
+      "profile": "narrow",
+      "page": "no-groups",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/narrow-no-groups.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "home-groups",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-home-groups.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "transfers-empty",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-transfers-empty.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "profile",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-profile.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "chat-content",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-chat-content.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "files",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-files.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "image-preview",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-image-preview.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "file-actions",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-file-actions.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "file-draft",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-file-draft.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "groups-picker",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-groups-picker.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "create-animal",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-create-animal.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "create-validation",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-create-validation.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "join",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-join.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "join-nearby",
+      "before": 8.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "异步控件焦点恢复；最终 gallery 无失焦发现。",
+      "source": [
+        "apps/tauri/src/main.js:40"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-join-nearby.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "join-waiting",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-join-waiting.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "invite",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-invite.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "connect-device",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-connect-device.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "connect-error",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-connect-error.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "members-approval",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-members-approval.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "remove-member-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-remove-member-confirm.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "settings",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-settings.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "group-settings",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-group-settings.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "leave-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-leave-confirm.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "forget-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-forget-confirm.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "storage",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-storage.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "clear-cache-confirm",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-clear-cache-confirm.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "transfers-mixed",
+      "before": 7.0,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "稳定传输行与按钮；进度焦点探针通过；终态只迁移本行被隐藏的当前焦点。",
+      "source": [
+        "apps/tauri/src/main.js:291",
+        "apps/tauri/src/main.js:313"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-transfers-mixed.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "transfers-progress-focus",
+      "before": 7.0,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "稳定传输行与按钮；进度焦点探针通过；终态只迁移本行被隐藏的当前焦点。",
+      "source": [
+        "apps/tauri/src/main.js:291",
+        "apps/tauri/src/main.js:313"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-transfers-progress-focus.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "membership-revoked",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-membership-revoked.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "chat-empty-long-title",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-chat-empty-long-title.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "files-empty",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-files-empty.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "group-settings-member",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-group-settings-member.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "transfers-page",
+      "before": 7.0,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "稳定传输行与按钮；进度焦点探针通过；终态只迁移本行被隐藏的当前焦点。",
+      "source": [
+        "apps/tauri/src/main.js:291",
+        "apps/tauri/src/main.js:313"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-transfers-page.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "profile-with-groups",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-profile-with-groups.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "incoming-share",
+      "before": 9.5,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "共享弹层：偶发可信指针首开 160ms；键盘/程序打开与换页即时；机械测试覆盖取消及减弱动效。",
+      "source": [
+        "apps/tauri/src/dialog-motion.js:11",
+        "apps/tauri/src/dialog-motion.js:29",
+        "apps/tauri/src/main.js:64"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-incoming-share.png"
+    },
+    {
+      "profile": "landscape",
+      "page": "no-groups",
+      "before": 10,
+      "score": 10,
+      "breakdown": {
+        "purpose_frequency": 2,
+        "timing_spatial": 2,
+        "interruptibility": 2,
+        "performance": 2,
+        "reduced_motion_keyboard": 2
+      },
+      "evidence": "高频导航/内容更新保持即时；无新增装饰动画；静态检查无动效回归证据。",
+      "source": [
+        "apps/tauri/src/main.js",
+        "apps/tauri/src/style.css"
+      ],
+      "screenshot": "artifacts/ui-review/after/landscape-no-groups.png"
+    }
+  ],
+  "native": {
+    "before": 9,
+    "score": 10,
+    "breakdown": {
+      "purpose_frequency": 2,
+      "timing_spatial": 2,
+      "interruptibility": 2,
+      "performance": 2,
+      "reduced_motion_keyboard": 2
+    },
+    "evidence": "artifacts/ui-review/native/debounce-smoke.json"
+  }
+}
