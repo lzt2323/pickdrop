@@ -84,6 +84,8 @@ pub struct Replica {
     pub revision: u64,
     pub validations: u64,
     pub replays: HashMap<String, i64>,
+    /// Creator-signed removal receipts received without disclosing missing history.
+    pub revocations: BTreeMap<String, Value>,
 }
 impl Replica {
     pub fn new(genesis: Value, events: Vec<Value>) -> Result<Self> {
@@ -105,10 +107,88 @@ impl Replica {
             revision: 0,
             validations: 0,
             replays: HashMap::new(),
+            revocations: BTreeMap::new(),
         };
         r.state = r.project(None);
         r.merge(events)?;
         Ok(r)
+    }
+    pub fn from_snapshot(saved: &Value) -> Result<Self> {
+        let mut replica = Self::new(
+            saved["genesis"].clone(),
+            saved["events"].as_array().cloned().unwrap_or_default(),
+        )?;
+        // Persisted receipts are still independently authenticated, never trusted as flags.
+        for receipt in saved["revocations"].as_array().into_iter().flatten() {
+            replica.accept_revocation(receipt.clone(), s(&receipt["payload"], "deviceId"))?;
+        }
+        Ok(replica)
+    }
+    /// Authenticate a targeted removal without needing its (possibly private) parent events.
+    /// Creator removal authority is unconditional; the full DAG remains the authority for rejoining.
+    pub fn verify_revocation(&self, receipt: &Value, target_id: &str) -> Result<()> {
+        ensure!(
+            receipt["groupId"] == self.genesis["groupId"]
+                && receipt["authorDeviceId"] == self.genesis["creatorDeviceId"]
+                && receipt["authorPublicKey"] == self.genesis["creatorPublicKey"]
+                && s(&receipt, "type") == "member.remove"
+                && s(&receipt["payload"], "deviceId") == target_id
+                && uuid(&receipt["payload"]["deviceId"])
+                && receipt["payload"]["deviceId"] != self.genesis["creatorDeviceId"]
+                && receipt["clock"]
+                    .as_u64()
+                    .is_some_and(|clock| clock > 0 && clock <= 9007199254740991)
+                && receipt["parents"]
+                    .as_array()
+                    .is_some_and(|parents| parents.len() <= 256 && parents.iter().all(validhex)),
+            "Invalid targeted revocation"
+        );
+        let mut signed = receipt.clone();
+        signed.as_object_mut().unwrap().remove("eventId");
+        ensure!(
+            hash(&signed) == s(&receipt, "eventId"),
+            "Invalid revocation digest"
+        );
+        verify(&receipt, s(&self.genesis, "creatorPublicKey"))?;
+        Ok(())
+    }
+    pub fn accept_revocation(&mut self, receipt: Value, target_id: &str) -> Result<usize> {
+        self.verify_revocation(&receipt, target_id)?;
+        let id = s(&receipt, "eventId").to_string();
+        if let Some(event) = self.events.get(&id) {
+            ensure!(event == &receipt, "Conflicting revocation");
+            // Already reflected in the DAG, possibly superseded by a creator-approved rejoin.
+            return Ok(0);
+        }
+        if let Some(previous) = self.revocations.get(&id) {
+            ensure!(previous == &receipt, "Conflicting revocation");
+            return Ok(0);
+        }
+        self.revocations.insert(id, receipt);
+        self.state = self.project(None);
+        self.revision += 1;
+        Ok(1)
+    }
+    /// Only an identity previously admitted to this group can receive its own removal receipt.
+    pub fn revocation_for(&self, id: &str, key: &str) -> Option<Value> {
+        if self.member(id, key)
+            || !self.events.values().any(|event| {
+                s(event, "type") == "member.add"
+                    && s(&event["payload"], "id") == id
+                    && s(&event["payload"], "publicKey") == key
+            })
+        {
+            return None;
+        }
+        self.ordered(None)
+            .into_iter()
+            .rev()
+            .find(|event| {
+                s(event, "type") == "member.remove"
+                    && s(&event["payload"], "deviceId") == id
+                    && event["authorPublicKey"] == self.genesis["creatorPublicKey"]
+            })
+            .cloned()
     }
     pub fn ordered(&self, subset: Option<&HashSet<String>>) -> Vec<&Value> {
         let mut e: Vec<_> = self
@@ -355,6 +435,11 @@ impl Replica {
                 members.remove(&id);
             }
         }
+        for (id, receipt) in &self.revocations {
+            if subset.is_none() && !self.events.contains_key(id) {
+                members.remove(s(&receipt["payload"], "deviceId"));
+            }
+        }
         let messages: Vec<_> = ordered
             .iter()
             .filter(|e| s(e, "type") == "message")
@@ -383,7 +468,7 @@ impl Replica {
         ensure!(hash(&signed) == s(e, "eventId"), "Invalid event digest");
         verify(e, s(e, "authorPublicKey"))?;
         let past = self.past(e);
-        let state = if past.len() == self.events.len() {
+        let state = if past.len() == self.events.len() && self.revocations.is_empty() {
             self.state.clone()
         } else {
             self.project(Some(&past))
@@ -553,6 +638,9 @@ impl Replica {
             self.state = original_state;
             return Err(err);
         }
+        // Full authenticated ancestry supersedes a limited receipt, including approved rejoins.
+        self.revocations
+            .retain(|id, _| !self.events.contains_key(id));
         self.revision += 1;
         Ok(added.len())
     }
@@ -563,6 +651,13 @@ impl Replica {
         device: &Value,
         key: &SigningKey,
     ) -> Result<Value> {
+        ensure!(
+            self.member(
+                s(device, "id"),
+                &hex::encode(key.verifying_key().to_bytes())
+            ),
+            "Inactive event author"
+        );
         let parents: Vec<_> = self.heads.iter().cloned().collect();
         let clock = parents
             .iter()
@@ -618,6 +713,10 @@ impl Replica {
             .any(|m| s(m, "id") == id && s(m, "publicKey") == key)
     }
     pub fn snapshot(&self) -> Value {
-        json!({"genesis":self.genesis,"events":self.ordered(None)})
+        let mut snapshot = json!({"genesis":self.genesis,"events":self.ordered(None)});
+        if !self.revocations.is_empty() {
+            snapshot["revocations"] = json!(self.revocations.values().collect::<Vec<_>>());
+        }
+        snapshot
     }
 }

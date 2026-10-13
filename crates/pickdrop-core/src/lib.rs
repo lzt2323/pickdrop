@@ -188,17 +188,14 @@ impl Core {
         let ip = preferred_lan_ip().unwrap_or("127.0.0.1".parse().unwrap());
         let endpoint =
             json!({"baseUrl":format!("http://{ip}:{port}"),"port":port,"deviceId":device["id"]});
-        let mut groups = BTreeMap::new();
+        let mut groups: BTreeMap<String, Group> = BTreeMap::new();
         let mut entries = tokio::fs::read_dir(&dir).await?;
         while let Some(entry) = entries.next_entry().await? {
             let name = entry.file_name().to_string_lossy().to_string();
             if name.starts_with("group_") && name.ends_with(".json") {
                 let saved: Value = serde_json::from_slice(&tokio::fs::read(entry.path()).await?)?;
-                let replica = Replica::new(
-                    saved["genesis"].clone(),
-                    saved["events"].as_array().cloned().unwrap_or_default(),
-                )
-                .with_context(|| format!("Invalid persisted group {name}"))?;
+                let replica = Replica::from_snapshot(&saved)
+                    .with_context(|| format!("Invalid persisted group {name}"))?;
                 let peers = saved["peers"]
                     .as_array()
                     .into_iter()
@@ -231,7 +228,18 @@ impl Core {
         let active = saved_settings["activeGroupId"]
             .as_str()
             .map(str::to_owned)
-            .filter(|id| groups.contains_key(id));
+            .filter(|id| groups.get(id).is_some_and(|group| !group.hidden))
+            .or_else(|| {
+                groups
+                    .iter()
+                    .find(|(_, group)| !group.hidden)
+                    .map(|(id, _)| id.clone())
+            });
+        if saved_settings["activeGroupId"] != json!(active) {
+            let mut settings = saved_settings.clone();
+            settings["activeGroupId"] = json!(active);
+            atomic(&dir.join("settings.json"), &settings).await?;
+        }
         atomic(&dir.join("network.json"), &json!({"listenerPort":port})).await?;
         let (events, _) = broadcast::channel(128);
         let core = Self(Arc::new(Inner {
@@ -480,19 +488,21 @@ impl Core {
                     && hash.bytes().all(|c| c.is_ascii_hexdigit())
                 {
                     let path = self.0.dir.join("files").join(hash);
-                    if std::fs::metadata(&path).is_ok_and(|meta| {
-                        meta.is_file() && Some(meta.len()) == m["size"].as_u64()
-                    }) {
+                    if std::fs::metadata(&path)
+                        .is_ok_and(|meta| meta.is_file() && Some(meta.len()) == m["size"].as_u64())
+                    {
                         m["localPath"] = json!(path);
                     }
                 }
                 m
             })
             .collect();
-        state["cacheRevision"] = json!(messages.iter()
+        state["cacheRevision"] = json!(messages
+            .iter()
             .filter(|m| m["localPath"].is_string())
             .map(|m| s(m, "id"))
-            .collect::<Vec<_>>().join(","));
+            .collect::<Vec<_>>()
+            .join(","));
         state["messages"] = json!(messages);
         state["devices"] = json!(g.replica.state["members"]
             .as_array()
@@ -533,6 +543,26 @@ impl Core {
             .collect::<Vec<_>>());
         atomic(&self.0.dir.join(format!("group_{id}.json")), &value).await
     }
+    async fn repair_active_selection(&self, data: &mut Data) -> Result<()> {
+        if data
+            .active
+            .as_ref()
+            .is_some_and(|id| data.groups.get(id).is_none_or(|group| group.hidden))
+        {
+            let next = data
+                .groups
+                .iter()
+                .find(|(_, group)| !group.hidden)
+                .map(|(id, _)| id.clone());
+            atomic(
+                &self.0.dir.join("settings.json"),
+                &json!({"activeGroupId":next}),
+            )
+            .await?;
+            data.active = next;
+        }
+        Ok(())
+    }
     async fn changed(&self, id: &str, data: &mut Data) -> Result<()> {
         let g = &data.groups[id];
         if let Err(error) = self.persist(id, g).await {
@@ -540,10 +570,7 @@ impl Core {
             let path = self.0.dir.join(format!("group_{id}.json"));
             if let Ok(bytes) = tokio::fs::read(path).await {
                 if let Ok(saved) = serde_json::from_slice::<Value>(&bytes) {
-                    if let Ok(mut replica) = Replica::new(
-                        saved["genesis"].clone(),
-                        saved["events"].as_array().cloned().unwrap_or_default(),
-                    ) {
+                    if let Ok(mut replica) = Replica::from_snapshot(&saved) {
                         replica.revision = g.replica.revision.saturating_sub(1);
                         let g = data.groups.get_mut(id).unwrap();
                         g.replica = replica;
@@ -733,7 +760,7 @@ impl Core {
         let device = data.device.clone();
         match method {
             "bootstrap" => Ok(
-                json!({"device":device,"groups":Self::group_list(&data,&self.endpoint()),"activeGroupId":data.active,"endpoint":self.endpoint()}),
+                json!({"device":device,"groups":Self::group_list(&data,&self.endpoint()),"activeGroupId":data.active.as_ref().filter(|id| data.groups.get(*id).is_some_and(|group| !group.hidden)),"endpoint":self.endpoint()}),
             ),
             "list_groups" => Ok(json!(Self::group_list(&data, &self.endpoint()))),
             "create_group" => {
@@ -784,7 +811,10 @@ impl Core {
             }
             "select_group" => {
                 let id = s(&p, "id");
-                ensure!(data.groups.contains_key(id), "群不存在");
+                ensure!(
+                    data.groups.get(id).is_some_and(|group| !group.hidden),
+                    "群不存在或已移除"
+                );
                 data.active = Some(id.into());
                 atomic(
                     &self.0.dir.join("settings.json"),
@@ -929,15 +959,24 @@ impl Core {
                             g.hidden = true
                         }
                         self.changed(&id, &mut data).await?;
+                        if method == "leave_group" {
+                            self.repair_active_selection(&mut data).await?;
+                        }
                         Ok(json!({"ok":true}))
                     }
                     "forget_group" => {
                         ensure!(
-                            g.hidden || g.replica.state["dissolved"].as_bool().unwrap_or(false),
+                            g.hidden
+                                || g.replica.state["dissolved"].as_bool().unwrap_or(false)
+                                || !g.replica.member(
+                                    s(&device, "id"),
+                                    &hex::encode(self.0.key.verifying_key().to_bytes())
+                                ),
                             "先退出群再移除"
                         );
                         g.hidden = true;
                         self.changed(&id, &mut data).await?;
+                        self.repair_active_selection(&mut data).await?;
                         Ok(json!({"ok":true}))
                     }
                     _ => bail!("Unsupported core method: {method}"),
@@ -1178,12 +1217,30 @@ impl Core {
                 payload["genesis"] == g.replica.genesis,
                 "Wrong group genesis"
             );
-            let count = g.replica.merge_authorized(
+            let receipts = payload["revocations"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default();
+            ensure!(receipts.len() <= 1, "Too many targeted revocations");
+            for receipt in &receipts {
+                g.replica
+                    .verify_revocation(receipt, s(&self.endpoint(), "deviceId"))?;
+            }
+            let mut count = g.replica.merge_authorized(
                 payload["events"].as_array().cloned().unwrap_or_default(),
                 s(&response, "senderDeviceId"),
                 s(&response, "senderPublicKey"),
                 false,
             )?;
+            for receipt in receipts {
+                count += g
+                    .replica
+                    .accept_revocation(receipt, s(&self.endpoint(), "deviceId"))?;
+            }
+            let locally_revoked = !g.replica.member(
+                s(&self.endpoint(), "deviceId"),
+                &hex::encode(self.0.key.verifying_key().to_bytes()),
+            );
             let newly_verified = !g.route_seen.contains_key(url);
             g.route_seen
                 .insert(url.into(), chrono::Utc::now().timestamp_millis());
@@ -1205,10 +1262,11 @@ impl Core {
                         .collect(),
                 );
             }
-            let done = !payload["hasMore"].as_bool().unwrap_or(false)
-                && g.remote_known
-                    .get(url)
-                    .is_some_and(|known| g.replica.events.keys().all(|id| known.contains(id)));
+            let done = locally_revoked
+                || !payload["hasMore"].as_bool().unwrap_or(false)
+                    && g.remote_known
+                        .get(url)
+                        .is_some_and(|known| g.replica.events.keys().all(|id| known.contains(id)));
             if count > 0 || route_changed || old_peers != g.peers {
                 self.changed(id, &mut data).await?
             } else if presence_changed {
@@ -1278,6 +1336,13 @@ impl Core {
         let (m, peers, device) = {
             let data = self.0.data.lock().await;
             let g = data.groups.get(group).context("Unknown group")?;
+            ensure!(
+                g.replica.member(
+                    s(&data.device, "id"),
+                    &hex::encode(self.0.key.verifying_key().to_bytes())
+                ),
+                "Not an active member"
+            );
             let m = g.replica.state["messages"]
                 .as_array()
                 .unwrap()
@@ -1582,7 +1647,48 @@ async fn discovery(State(core): State<Core>) -> Json<Value> {
     )
 }
 async fn sync_handler(State(core): State<Core>, Json(proof): Json<Value>) -> WebResult {
-    async{ensure!(core.0.active.load(Ordering::Relaxed),"Node paused");let mut d=core.0.data.lock().await;let device=d.device.clone();let id=s(&proof,"groupId");let g=d.groups.get_mut(id).context("Unknown group")?;let p=g.replica.verify_proof(&proof,"sync",true)?;ensure!(p["genesis"]==g.replica.genesis,"Wrong genesis");let was=g.replica.member(s(&proof,"senderDeviceId"),s(&proof,"senderPublicKey"));let count=g.replica.merge_authorized(p["events"].as_array().cloned().unwrap_or_default(),s(&proof,"senderDeviceId"),s(&proof,"senderPublicKey"),was)?;let member=g.replica.member(s(&proof,"senderDeviceId"),s(&proof,"senderPublicKey"));let known:HashSet<_>=p["known"].as_array().into_iter().flatten().filter_map(|v|v.as_str()).collect();let missing:Vec<_>=g.replica.ordered(None).into_iter().filter(|e|!known.contains(s(e,"eventId"))).cloned().collect();let presence_changed=if member{presence(g,Some(s(&proof,"senderDeviceId")))}else{false};let old_peers=g.peers.clone();if member{learn(g,&p,s(&core.endpoint(),"deviceId"))}let response=g.replica.proof("sync-result",json!({"genesis":g.replica.genesis,"events":if member{missing.iter().take(128).cloned().collect::<Vec<_>>()}else{vec![]},"known":g.replica.events.keys().collect::<Vec<_>>(),"hasMore":member&&missing.len()>128,"revoked":was&&!member,"accepted":p["events"].as_array().into_iter().flatten().map(|e|e["eventId"].clone()).collect::<Vec<_>>(),"endpoint":core.endpoint(),"peers":g.peers.iter().map(|(url,id)|json!({"baseUrl":url,"deviceId":id})).collect::<Vec<_>>()}),&device,&core.0.key);if count>0||old_peers!=g.peers{core.changed(id,&mut d).await?}else if presence_changed{core.emit(json!({"type":"state","groupId":id,"state":core.state(&d.groups[id],None,60)}));}Ok(Json(response).into_response())}.await.map_err(web_error)
+    async {
+        ensure!(core.0.active.load(Ordering::Relaxed), "Node paused");
+        let mut data = core.0.data.lock().await;
+        let device = data.device.clone();
+        let id = s(&proof, "groupId");
+        let g = data.groups.get_mut(id).context("Unknown group")?;
+        let payload = g.replica.verify_proof(&proof, "sync", true)?;
+        ensure!(payload["genesis"] == g.replica.genesis, "Wrong genesis");
+        let sender = s(&proof, "senderDeviceId");
+        let key = s(&proof, "senderPublicKey");
+        let was_member = g.replica.member(sender, key);
+        let count = match g.replica.merge_authorized(
+            payload["events"].as_array().cloned().unwrap_or_default(), sender, key, was_member,
+        ) {
+            Ok(count) => count,
+            // A stale removed peer receives its receipt after the rejected batch is rolled back.
+            // New identities may still forward an authorized admission from another member.
+            Err(_) if !was_member && g.replica.revocation_for(sender, key).is_some() => 0,
+            Err(error) => return Err(error),
+        };
+        let member = g.replica.member(sender, key);
+        let known: HashSet<_> = payload["known"].as_array().into_iter().flatten().filter_map(|v| v.as_str()).collect();
+        let missing: Vec<_> = if member { g.replica.ordered(None).into_iter().filter(|event| !known.contains(s(event, "eventId"))).cloned().collect() } else { vec![] };
+        let presence_changed = member && presence(g, Some(sender));
+        let old_peers = g.peers.clone();
+        if member { learn(g, &payload, s(&core.endpoint(), "deviceId")); }
+        let receipt = if member { None } else { g.replica.revocation_for(sender, key) };
+        let response = g.replica.proof("sync-result", json!({
+            "genesis":g.replica.genesis,
+            "events":missing.iter().take(128).cloned().collect::<Vec<_>>(),
+            "revocations":receipt.into_iter().collect::<Vec<_>>(),
+            "known":if member {g.replica.events.keys().cloned().collect::<Vec<_>>()} else {vec![]},
+            "hasMore":member && missing.len()>128,
+            "revoked":!member,
+            "accepted":if member {payload["events"].as_array().into_iter().flatten().map(|event| event["eventId"].clone()).collect::<Vec<_>>()} else {vec![]},
+            "endpoint":core.endpoint(),
+            "peers":if member {g.peers.iter().map(|(url,id)|json!({"baseUrl":url,"deviceId":id})).collect::<Vec<_>>()} else {vec![]}
+        }), &device, &core.0.key);
+        if count>0 || old_peers!=g.peers { core.changed(id, &mut data).await?; }
+        else if presence_changed { core.emit(json!({"type":"state","groupId":id,"state":core.state(&data.groups[id],None,60)})); }
+        Ok(Json(response).into_response())
+    }.await.map_err(web_error)
 }
 async fn pair_request(State(core): State<Core>, Json(proof): Json<Value>) -> WebResult {
     async{ensure!(core.0.active.load(Ordering::Relaxed),"Node paused");ensure!(s(&proof,"protocol")==PROTOCOL&&s(&proof,"operation")=="join"&&uuid::Uuid::parse_str(s(&proof["device"],"id")).is_ok()&&!s(&proof["device"],"name").is_empty(),"Invalid join");verify(&proof,s(&proof,"publicKey"))?;let mut d=core.0.data.lock().await;let host=d.device["id"].clone();let now=chrono::Utc::now().timestamp_millis();for(id,g)in &mut d.groups{if g.invites.get(s(&proof,"code")).is_some_and(|expires|*expires>now){g.invites.remove(s(&proof,"code"));g.tickets.retain(|_,t|t["expiresAt"].as_i64().unwrap_or(0)+3600000>now);ensure!(g.tickets.len()<100,"Too many requests");let request=random(16);let token=random(32);let ticket=json!({"requestId":request,"pollToken":token,"device":proof["device"],"publicKey":proof["publicKey"],"status":"pending","expiresAt":now+300000});g.tickets.insert(request.clone(),ticket);core.emit(json!({"type":"join_request","groupId":id}));return Ok(Json(json!({"requestId":request,"pollToken":token,"expiresAt":now+300000,"groupId":id,"groupName":g.replica.state["name"],"hostDeviceId":host,"peerProtocol":PROTOCOL})).into_response())}}bail!("邀请码无效或已过期")}.await.map_err(web_error)
