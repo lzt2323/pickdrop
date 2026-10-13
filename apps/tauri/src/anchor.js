@@ -1,21 +1,21 @@
 import './anchor.css';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+const current=getCurrentWindow(),owner=current.label.replace(/^anchor-/,'');
 const button = document.querySelector('#animal');
 const animals = new Set(['cat','sheep','monkey','dog','chick','lizard','alpaca','rabbit','otter','capybara']);
 const showAnimal = animal => { button.querySelector('img').src = `/assets/group-animals/${animals.has(animal) ? animal : 'cat'}.png`; };
 async function initialize() {
-  await listen('pickdrop:animal', event => showAnimal(event.payload));
+  await current.listen('pickdrop:animal', event => {if(event.payload.owner===owner)showAnimal(event.payload.animal);});
   showAnimal(await invoke('window_animal'));
-  await listen('pickdrop:window', event => button.setAttribute('aria-expanded', String(!event.payload.collapsed)));
+  await current.listen('pickdrop:window', event => {if(event.payload.owner===owner)button.setAttribute('aria-expanded', String(!event.payload.collapsed));});
   await invoke('window_action', { action: 'sync' });
   await getCurrentWebview().onDragDropEvent(event => {
     const type = event.payload.type;
     button.dataset.accepting = String(type === 'enter' || type === 'over');
     if(type === 'enter') invoke('window_action', {action:'file-hover',value:true}).catch(console.error);
-    if(type === 'leave') invoke('window_action', {action:'file-hover',value:false}).catch(console.error);
+    if(type === 'leave' || type === 'drop') invoke('window_action', {action:'file-hover',value:false}).catch(console.error);
   });
 }
 initialize().catch(console.error);
@@ -34,5 +34,5 @@ button.addEventListener('pointerup', () => { down = null; if(dragging) invoke('w
 button.addEventListener('click', () => { if (!dragging) expand(); dragging = false; });
 button.addEventListener('keydown', event => { if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); expand(); } });
 
-button.addEventListener('pointercancel', () => { down = null; clearTimeout(timer); });
+button.addEventListener('pointercancel', () => { down = null; clearTimeout(timer); invoke('window_action',{action:'file-hover',value:false}).catch(console.error); });
 window.addEventListener('blur', () => { down = null; clearTimeout(timer); });

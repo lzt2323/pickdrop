@@ -10,7 +10,8 @@
     "test:browser": "node tests/browser-smoke.mjs",
     "test:gallery": "node tests/ui-gallery.mjs",
     "test:motion": "node tests/dialog-motion.mjs",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test:regression": "node tests/file-window-regression.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",

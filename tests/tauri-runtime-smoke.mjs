@@ -36,7 +36,7 @@ async function attach(page,rpc) {
   await page.exposeFunction('__rustCall',rpc);
   await page.addInitScript(()=>{
     window.__PICKDROP_TEST_BRIDGE__={call:(method,params)=>window.__rustCall(method,params),native:async command=>{
-      if(command==='window_action'||command==='window_animal')return{};if(command==='native_consume_incoming')return{items:[]};
+      if(['window_action','window_animal','window_context','window_protection'].includes(command))return{};if(command==='native_consume_incoming')return{items:[]};
       if(command==='native_pick_files')return window.__nativePicked||[];
       throw Error(`OS capability ${command} is not mocked by the runtime test`);
     },subscribe:async handler=>{window.__rustEvent=handler;return()=>{};}};
@@ -121,7 +121,35 @@ try {
   await desktop.screenshot({path:'artifacts/tauri-runtime/desktop.png',fullPage:true});
   await phone.screenshot({path:'artifacts/tauri-runtime/phone.png',fullPage:true});
   assert.deepEqual(pageErrors,[]);for(const page of [desktop,phone])assert.equal(await page.locator('#toast').isVisible(),false,'caught UI errors must not be hidden in toast');assert.equal(await phone.locator(`[data-message-id="${fileMessage.id}"]`).getByRole('button',{name:'保存',exact:true}).count(),1,'received file row must finish rendering');
-  const report={version,realRustNodes:2,joinApproval:true,bidirectionalText:true,fileBytes:saved.length,fileSha256:createHash('sha256').update(saved).digest('hex'),typingPreservesRows:true,receiveRowRendered:true,uiErrorToasts:[],desktopResizeWidths:[300,380,320],phoneViewport:390,pageErrors};
+  const click = (page, name) => page.locator('#panel').getByRole('button',{name,exact:true}).click();
+  const settings = async page => { if(await page.locator('#panel').evaluate(n=>n.open))await page.keyboard.press('Escape');await page.locator('#settings-button').click(); };
+  await settings(desktop);await click(desktop,'本机名称');
+  assert.equal(await desktop.getByRole('button',{name:'保存设备名称',exact:true}).isDisabled(),true);
+  await desktop.getByLabel('本机名称',{exact:true}).fill('桌面验收设备');await click(desktop,'保存设备名称');
+  await waitFor(async()=>(await first('bootstrap')).device.name==='桌面验收设备','Device name was not persisted');
+  await desktop.getByRole('heading',{name:'设置',exact:true}).waitFor();await click(desktop,'群组设置');
+  assert.equal(await desktop.getByRole('button',{name:'保存群组名称',exact:true}).isDisabled(),true);
+  assert.equal(await desktop.getByRole('button',{name:'移除本地群组记录',exact:true}).count(),0);
+  await desktop.getByLabel('群组名称',{exact:true}).fill('全页面交互验收');await click(desktop,'保存群组名称');
+  await waitFor(async()=>(await first('get_state',{groupId})).name==='全页面交互验收','Group name was not persisted');
+  const cacheBytes = stats => stats.cacheBytes ?? stats.bytes ?? 0;
+  const originalCache=cacheBytes(await second('storage_stats'));assert.ok(originalCache>0,'received file populates cache');
+  await settings(phone);await click(phone,'存储与缓存');await click(phone,'清理缓存');await click(phone,'取消');
+  assert.equal(cacheBytes(await second('storage_stats')),originalCache,'cancel does not clear cache');
+  await settings(phone);await click(phone,'存储与缓存');await click(phone,'清理缓存');await click(phone,'清理缓存');
+  await waitFor(async()=>cacheBytes(await second('storage_stats'))===0,'Cache clear did not finish');
+  await phone.keyboard.press('Escape');await settings(desktop);await desktop.keyboard.press('Escape');
+  await desktop.locator('#members-button').click();await click(desktop,'移除');await click(desktop,'取消');
+  assert.equal((await first('get_state',{groupId})).devices.length,2,'cancel preserves membership');
+  await desktop.locator('#members-button').click();await click(desktop,'移除');await click(desktop,'移除成员');
+  await waitFor(async()=>(await second('get_state',{groupId})).membershipRevoked,'Member removal did not revoke remote membership');
+  await phone.locator('#membership-notice').waitFor({state:'visible'});await settings(phone);await click(phone,'群组设置');
+  await click(phone,'移除本地群组记录');await click(phone,'移除记录');
+  await waitFor(async()=>(await second('bootstrap')).groups.length===0,'Exited group record was not removed');
+  await settings(desktop);await click(desktop,'群组设置');await click(desktop,'退出群组');await click(desktop,'退出群组');
+  await waitFor(async()=>(await first('bootstrap')).groups.length===0,'Owner leave did not finish');
+  assert.deepEqual(pageErrors,[]);
+  const report={version,realRustNodes:2,joinApproval:true,bidirectionalText:true,fileBytes:saved.length,fileSha256:createHash('sha256').update(saved).digest('hex'),typingPreservesRows:true,receiveRowRendered:true,deviceNamePersisted:true,groupNamePersisted:true,clearCacheCancelAndCommit:true,memberRemovalCancelAndCommit:true,revokedGroupForget:true,ownerLeave:true,uiErrorToasts:[],desktopResizeWidths:[300,380,320],phoneViewport:390,pageErrors};
   await writeFile('artifacts/tauri-runtime/report.json',JSON.stringify(report,null,2)+'\n');
   console.log(JSON.stringify(report));
 } finally {

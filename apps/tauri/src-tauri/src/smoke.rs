@@ -5,6 +5,7 @@ use tauri::{Emitter, Listener, Manager};
 pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+        let geometry = std::sync::Arc::new(std::sync::Mutex::new(Vec::<serde_json::Value>::new()));
         let result: Result<(), String> = async {
             let window = app.get_webview_window("main").ok_or("main window absent")?;
             #[cfg(target_os = "macos")]
@@ -49,6 +50,7 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
                 return Err("restore discarded saved bounds for startup defaults".into());
             }
             verify_auto_edge(&window, None).await?;
+            verify_drag_busy_isolation(&window).await?;
             super::docking::action(&window, "dock-right", None)?;
             tokio::time::sleep(std::time::Duration::from_millis(150)).await;
             super::docking::action(&window, "collapse", None)?;
@@ -89,7 +91,8 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
                 .ok_or("monitor absent")?;
             let area = monitor.work_area();
             let position = window.outer_position().map_err(|e| e.to_string())?;
-            if position.x + size.width as i32 != area.position.x + area.size.width as i32 {
+            let outer = window.outer_size().map_err(|e| e.to_string())?;
+            if position.x + outer.width as i32 != area.position.x + area.size.width as i32 {
                 return Err("expanded panel has animal-sized edge offset".into());
             }
             if let Ok(delay) = std::env::var("PICKDROP_NATIVE_SMOKE_PANEL_PAUSE_MS") {
@@ -146,6 +149,7 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
                 .ok_or("second group window absent")?;
             verify_auto_edge(&window, Some(&other)).await?;
             verify_exit_timers(&window, &other).await?;
+            verify_frame_fit(&window, &geometry).await?;
             let state = app
                 .state::<super::Host>()
                 .core
@@ -161,10 +165,28 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
         }
         .await;
         let passed = result.is_ok();
-        let payload = json!({"passed":passed,"error":result.err(),"checks":["core bootstrap","compact size cap and no maximize","pin/unpin","transparent animal anchor", "frameless Mac panel", "expanded panel hides animal and has no edge offset", "anchor file drop approval and forwarding", "drag to each edge then inactivity auto collapses while pinned", "resize/focus preserves dimensions", "restore uses saved bounds", "edge collapse/expand preserves dimensions", "dragging away disables automatic collapse", "animal restore preserves panel edge and dimensions", "all edge and free resizes preserve geometry anchors", "hide/show","multiwindow","rapid exit retrigger preserves full grace","exit timers are independent across windows","expand and hide invalidate old exit timers","native event emission"],"platform":std::env::consts::OS});
+        let payload = json!({"passed":passed,"error":result.err(),"checks":["native file drag does not clear modal busy", "core bootstrap","compact size cap and no maximize","pin/unpin","transparent animal anchor", "frameless Mac panel", "expanded panel hides animal and has no edge offset", "anchor file drop approval and forwarding", "drag to each edge then inactivity auto collapses while pinned", "resize/focus preserves dimensions", "restore uses saved bounds", "edge collapse/expand preserves dimensions", "dragging away disables automatic collapse", "animal restore preserves panel edge and dimensions", "all edge and free resizes preserve frame center anchors", "overshoot and corner restore fit actual OS outer frame", "repeated center resizing is stable", "hide/show","multiwindow","rapid exit retrigger preserves full grace","exit timers are independent across windows","expand and hide invalidate old exit timers","native event emission"],"geometry": *geometry.lock().unwrap(), "platform":std::env::consts::OS});
         let _ = std::fs::write(report, serde_json::to_vec_pretty(&payload).unwrap());
         app.exit(if passed { 0 } else { 1 });
     });
+}
+
+async fn verify_drag_busy_isolation(window: &tauri::WebviewWindow) -> Result<(), String> {
+    super::docking::action(window, "dock-right", None)?;
+    let cursor = window.cursor_position().map_err(|e| e.to_string())?;
+    let monitor = window.current_monitor().map_err(|e| e.to_string())?.ok_or("monitor absent")?;
+    let area = monitor.work_area();
+    let position = window.outer_position().map_err(|e| e.to_string())?;
+    window.set_cursor_position(tauri::PhysicalPosition::new(area.position.x + area.size.width as i32 / 2 - position.x, area.position.y + area.size.height as i32 - 4 - position.y)).map_err(|e| e.to_string())?;
+    super::docking::action(window, "busy", Some(true))?;
+    super::docking::action(window, "file-drag-busy", Some(true))?;
+    super::docking::action(window, "file-drag-busy", Some(false))?;
+    tokio::time::sleep(std::time::Duration::from_millis(900)).await;
+    if !window.is_visible().map_err(|e| e.to_string())? { return Err("file drag completion cleared modal protection".into()); }
+    let position = window.outer_position().map_err(|e| e.to_string())?;
+    window.set_cursor_position(tauri::PhysicalPosition::new(cursor.x - position.x as f64, cursor.y - position.y as f64)).map_err(|e| e.to_string())?;
+    super::docking::action(window, "busy", Some(false))?;
+    super::docking::expand(window)
 }
 
 async fn verify_auto_edge(
@@ -183,7 +205,7 @@ async fn verify_auto_edge(
         .map_err(|e| e.to_string())?
         .ok_or("monitor absent")?;
     let area = monitor.work_area();
-    let original_size = window.inner_size().map_err(|e| e.to_string())?;
+    let original_size = window.outer_size().map_err(|e| e.to_string())?;
     let other_visible = other.map(|other| other.is_visible().unwrap_or(false));
     let result = async {
         for edge in ["left", "right", "top", "bottom"] {
@@ -218,6 +240,10 @@ async fn verify_auto_edge(
                     }) - position.y,
                 ))
                 .map_err(|e| e.to_string())?;
+            // This case models an idle panel. A focused keyboard control now
+            // deliberately protects active operations from pointer-only hiding.
+            window.eval("document.activeElement?.blur()").map_err(|e|e.to_string())?;
+            tokio::time::sleep(Duration::from_millis(100)).await;
             super::docking::blurred(window.clone());
             tokio::time::sleep(Duration::from_millis(900)).await;
             let anchor = window
@@ -243,19 +269,27 @@ async fn verify_auto_edge(
                     "{edge} animal restore shifted panel or left animal visible"
                 ));
             }
+            let center = (
+                x * 2 + original_size.width as i32,
+                y * 2 + original_size.height as i32,
+            );
             for (width, height) in [(320., 420.), (350., 470.)] {
                 super::window_resize(window.clone(), width, height).await?;
                 tokio::time::sleep(Duration::from_millis(300)).await;
                 let p = window.outer_position().map_err(|e| e.to_string())?;
-                let size = window.inner_size().map_err(|e| e.to_string())?;
-                if (edge == "left" && (p.x != area.position.x || p.y != y))
+                let size = window.outer_size().map_err(|e| e.to_string())?;
+                if (edge == "left"
+                    && (p.x != area.position.x
+                        || (p.y * 2 + size.height as i32 - center.1).abs() > 1))
                     || (edge == "right"
                         && (p.x + size.width as i32 != area.position.x + area.size.width as i32
-                            || p.y != y))
-                    || (edge == "top" && (p.y != area.position.y || p.x != x))
+                            || (p.y * 2 + size.height as i32 - center.1).abs() > 1))
+                    || (edge == "top"
+                        && (p.y != area.position.y
+                            || (p.x * 2 + size.width as i32 - center.0).abs() > 1))
                     || (edge == "bottom"
                         && (p.y + size.height as i32 != area.position.y + area.size.height as i32
-                            || p.x != x))
+                            || (p.x * 2 + size.width as i32 - center.0).abs() > 1))
                 {
                     return Err(format!("{edge} resize moved panel off its geometry anchor"));
                 }
@@ -278,9 +312,12 @@ async fn verify_auto_edge(
         }
         super::window_resize(window.clone(), 320., 420.).await?;
         tokio::time::sleep(Duration::from_millis(300)).await;
-        if window.outer_position().map_err(|e| e.to_string())? != tauri::PhysicalPosition::new(x, y)
+        let p = window.outer_position().map_err(|e| e.to_string())?;
+        let size = window.outer_size().map_err(|e| e.to_string())?;
+        if (p.x * 2 + size.width as i32 - x * 2 - original_size.width as i32).abs() > 1
+            || (p.y * 2 + size.height as i32 - y * 2 - original_size.height as i32).abs() > 1
         {
-            return Err("free resize moved top-left".into());
+            return Err("free resize moved center".into());
         }
         window.set_size(original_size).map_err(|e| e.to_string())?;
         Ok(())
@@ -327,6 +364,8 @@ async fn verify_exit_timers(
         }
         super::docking::expand(main)?;
         super::docking::expand(other)?;
+        for window in [main,other] {window.eval("document.activeElement?.blur()").map_err(|e|e.to_string())?;}
+        tokio::time::sleep(Duration::from_millis(100)).await;
         super::docking::blurred(main.clone());
         super::docking::blurred(other.clone());
         tokio::time::sleep(Duration::from_millis(500)).await;
@@ -368,4 +407,135 @@ async fn verify_exit_timers(
         ));
     }
     result
+}
+
+async fn verify_frame_fit(
+    window: &tauri::WebviewWindow,
+    geometry: &std::sync::Mutex<Vec<serde_json::Value>>,
+) -> Result<(), String> {
+    use std::time::Duration;
+    use tauri::PhysicalPosition;
+    super::docking::action(window, "busy", Some(false))?;
+    super::docking::action(window, "undock", None)?;
+    let monitor = window
+        .current_monitor()
+        .map_err(|e| e.to_string())?
+        .ok_or("monitor absent")?;
+    let area = monitor.work_area();
+    let scale = monitor.scale_factor();
+    let before = window.outer_size().map_err(|e| e.to_string())?;
+    let overshoot = (120. * scale) as i32;
+    for (edge, x, y) in [
+        ("left", area.position.x - overshoot, area.position.y + 120),
+        (
+            "right",
+            area.position.x + area.size.width as i32 - before.width as i32 + overshoot,
+            area.position.y + 120,
+        ),
+        ("top", area.position.x + 120, area.position.y - overshoot),
+        (
+            "bottom",
+            area.position.x + 120,
+            area.position.y + area.size.height as i32 - before.height as i32 + overshoot,
+        ),
+        (
+            "left",
+            area.position.x - overshoot,
+            area.position.y + area.size.height as i32 - before.height as i32 + overshoot,
+        ),
+        (
+            "right",
+            area.position.x + area.size.width as i32 - before.width as i32 + overshoot,
+            area.position.y + area.size.height as i32 - before.height as i32 + overshoot,
+        ),
+    ] {
+        super::docking::action(window, "undock", None)?;
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        window
+            .set_position(PhysicalPosition::new(x, y))
+            .map_err(|e| e.to_string())?;
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        super::docking::moved(window);
+        // Exercise automatic collapse policy even after a large overshoot.
+        // Move the pointer to screen center, away from this edge/frame.
+        let p = window.outer_position().map_err(|e| e.to_string())?;
+        window
+            .set_cursor_position(PhysicalPosition::new(
+                area.position.x + area.size.width as i32 / 2 - p.x,
+                area.position.y + 4 - p.y,
+            ))
+            .map_err(|e| e.to_string())?;
+        super::docking::blurred(window.clone());
+        tokio::time::sleep(Duration::from_millis(950)).await;
+        if window.is_visible().map_err(|e| e.to_string())? {
+            return Err(format!("{edge} overshoot did not collapse: {x},{y}"));
+        }
+        super::docking::expand(window)?;
+        tokio::time::sleep(Duration::from_millis(350)).await;
+        geometry
+            .lock()
+            .unwrap()
+            .push(assert_frame_fits(window, &area)?);
+        for (width, height) in [(380., 520.), (300., 360.), (320., 420.)] {
+            super::window_resize(window.clone(), width, height).await?;
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            geometry
+                .lock()
+                .unwrap()
+                .push(assert_frame_fits(window, &area)?);
+        }
+    }
+    super::docking::action(window, "undock", None)?;
+    super::window_resize(window.clone(), 320., 420.).await?;
+    tokio::time::sleep(Duration::from_millis(350)).await;
+    let size = window.outer_size().map_err(|e| e.to_string())?;
+    window
+        .set_position(PhysicalPosition::new(
+            area.position.x + (area.size.width as i32 - size.width as i32) / 2,
+            area.position.y + (area.size.height as i32 - size.height as i32) / 2,
+        ))
+        .map_err(|e| e.to_string())?;
+    tokio::time::sleep(Duration::from_millis(350)).await;
+    let p = window.outer_position().map_err(|e| e.to_string())?;
+    let center = (p.x * 2 + size.width as i32, p.y * 2 + size.height as i32);
+    for _ in 0..3 {
+        for (width, height) in [(380., 520.), (300., 360.), (350., 470.), (320., 420.)] {
+            super::window_resize(window.clone(), width, height).await?;
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            let p = window.outer_position().map_err(|e| e.to_string())?;
+            let s = window.outer_size().map_err(|e| e.to_string())?;
+            if (p.x * 2 + s.width as i32 - center.0).abs() > 1
+                || (p.y * 2 + s.height as i32 - center.1).abs() > 1
+            {
+                return Err(format!(
+                    "repeated resize shifted center: {center:?} => {p:?} {s:?}"
+                ));
+            }
+            geometry
+                .lock()
+                .unwrap()
+                .push(assert_frame_fits(window, &area)?);
+        }
+    }
+    Ok(())
+}
+fn assert_frame_fits(
+    window: &tauri::WebviewWindow,
+    area: &tauri::PhysicalRect<i32, u32>,
+) -> Result<serde_json::Value, String> {
+    let p = window.outer_position().map_err(|e| e.to_string())?;
+    let s = window.outer_size().map_err(|e| e.to_string())?;
+    if p.x < area.position.x
+        || p.y < area.position.y
+        || p.x + s.width as i32 > area.position.x + area.size.width as i32
+        || p.y + s.height as i32 > area.position.y + area.size.height as i32
+    {
+        return Err(format!(
+            "OS frame outside work area: {p:?} {s:?} area={area:?}"
+        ));
+    }
+    let inner = window.inner_size().map_err(|e| e.to_string())?;
+    Ok(
+        json!({"outer_position":p,"outer_size":s,"inner_size":inner,"work_area":area,"scale":window.scale_factor().map_err(|e| e.to_string())?}),
+    )
 }

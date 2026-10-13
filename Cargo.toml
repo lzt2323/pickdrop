@@ -7,3 +7,6 @@ opt-level = "s"
 lto = "thin"
 codegen-units = 1
 strip = "symbols"
+
+[patch.crates-io]
+tauri-plugin-barcode-scanner = { path = "vendor/tauri-plugin-barcode-scanner" }

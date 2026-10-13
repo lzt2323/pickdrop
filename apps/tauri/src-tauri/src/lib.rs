@@ -27,10 +27,13 @@ struct Host {
 impl Host {
     fn allow(&self, path: &Path) -> Result<PathBuf, String> {
         let path = path.canonicalize().map_err(|e| e.to_string())?;
-        self.files
-            .lock()
-            .map_err(|e| e.to_string())?
-            .insert(path.clone());
+        let mut files = self.files.lock().map_err(|e| e.to_string())?;
+        files.insert(path.clone());
+        let data = serde_json::to_vec(&*files).map_err(|e| e.to_string())?;
+        let temporary = self.data.join("approved-files.tmp");
+        std::fs::write(&temporary, data).map_err(|e| e.to_string())?;
+        std::fs::rename(temporary, self.data.join("approved-files.json"))
+            .map_err(|e| e.to_string())?;
         Ok(path)
     }
     fn permitted(&self, path: &str) -> Result<PathBuf, String> {
@@ -51,6 +54,7 @@ fn permitted_path(data: &Path, approved: &HashSet<PathBuf>, path: &str) -> Resul
 #[tauri::command]
 async fn core_call(
     host: tauri::State<'_, Host>,
+    window: tauri::WebviewWindow,
     method: String,
     params: Option<Value>,
 ) -> Result<Value, String> {
@@ -62,15 +66,57 @@ async fn core_call(
             .ok_or("缺少文件路径")?;
         host.permitted(path)?;
     }
+    #[cfg(desktop)]
+    let _protection = if matches!(method.as_str(), "send_file" | "receive_file") {
+        static SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        Some(NativeProtection::new(
+            docking::owner(&window)?,
+            format!(
+                "native-transfer:{}",
+                SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            ),
+        ))
+    } else {
+        None
+    };
+    #[cfg(mobile)]
+    let _ = window;
     host.core
         .dispatch(&method, params)
         .await
         .map_err(|e| e.to_string())
 }
 
+#[cfg(desktop)]
+struct NativeProtection {
+    window: tauri::WebviewWindow,
+    reason: String,
+}
+#[cfg(desktop)]
+impl NativeProtection {
+    fn new(window: tauri::WebviewWindow, reason: impl Into<String>) -> Self {
+        let reason = reason.into();
+        docking::protection(&window, &reason, true);
+        Self { window, reason }
+    }
+}
+#[cfg(desktop)]
+impl Drop for NativeProtection {
+    fn drop(&mut self) {
+        docking::protection(&self.window, &self.reason, false);
+    }
+}
+
 // File dialogs are asynchronous; the actual stream copy runs off the UI thread.
 #[tauri::command]
-async fn native_pick_files(app: tauri::AppHandle) -> Result<Value, String> {
+async fn native_pick_files(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+) -> Result<Value, String> {
+    #[cfg(desktop)]
+    let _protection = NativeProtection::new(docking::owner(&window)?, "native-file-picker");
+    #[cfg(mobile)]
+    let _ = window;
     let (tx, rx) = tokio::sync::oneshot::channel();
     app.dialog().file().pick_files(move |files| {
         let _ = tx.send(files);
@@ -140,9 +186,14 @@ async fn native_pick_files(app: tauri::AppHandle) -> Result<Value, String> {
 #[tauri::command]
 async fn native_save_file(
     app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
     source_path: String,
     suggested_name: String,
 ) -> Result<Option<String>, String> {
+    #[cfg(desktop)]
+    let _protection = NativeProtection::new(docking::owner(&window)?, "native-save-dialog");
+    #[cfg(mobile)]
+    let _ = window;
     let source = app.state::<Host>().permitted(&source_path)?;
     let name = Path::new(&suggested_name)
         .file_name()
@@ -462,7 +513,7 @@ async fn native_drag_file(
     let path = prepare_export(window.app_handle(), &path, suggested_name).await?;
     #[cfg(desktop)]
     {
-        docking::action(&window, "busy", Some(true))?;
+        docking::action(&window, "file-drag-busy", Some(true))?;
         let (tx, rx) = tokio::sync::oneshot::channel();
         let app = window.app_handle().clone();
         app.run_on_main_thread(move || {
@@ -480,7 +531,7 @@ async fn native_drag_file(
                 )
                 .map_err(|e| e.to_string())
             });
-            let _ = docking::action(&window, "busy", Some(false));
+            let _ = docking::action(&window, "file-drag-busy", Some(false));
             let _ = tx.send(result);
         })
         .map_err(|e| e.to_string())?;
@@ -542,11 +593,12 @@ async fn window_action(
     let window = docking::owner(&window)?;
     #[cfg(desktop)]
     match action.as_str() {
-        "file-hover" | "sync" | "pointer-leave" | "anchor-drag-end" | "upload-busy" | "pin"
-        | "dock-left" | "dock-right" | "dock-top" | "dock-bottom" | "undock" | "collapse" | "expand" | "busy" => {
+        "file-hover" | "sync" | "pointer-leave"
+        | "anchor-drag-end" | "upload-busy" | "pin" | "dock-left" | "dock-right" | "dock-top"
+        | "dock-bottom" | "undock" | "collapse" | "expand" | "busy" => {
             docking::action(&window, &action, value)
         }
-        "drag" => window.start_dragging().map_err(|e| e.to_string()),
+        "drag" => {docking::begin_drag(&window);window.start_dragging().map_err(|e|e.to_string())},
         "hide" => docking::hide(&window),
         "show" => {
             docking::expand(&window)?;
@@ -560,10 +612,15 @@ async fn window_action(
                     .map_err(|e| e.to_string())?
                     .as_millis()
             );
+            let group = docking::context(&window, None)
+                .get("groupId")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_owned();
             let builder = tauri::WebviewWindowBuilder::new(
                 window.app_handle(),
                 label,
-                tauri::WebviewUrl::App("index.html".into()),
+                tauri::WebviewUrl::App(format!("index.html?group={group}").into()),
             )
             .title("拾传 Preview")
             .inner_size(docking::PANEL_DEFAULT.0, docking::PANEL_DEFAULT.1)
@@ -584,24 +641,69 @@ async fn window_action(
     }
 }
 
+#[tauri::command]
+fn window_context(window: tauri::WebviewWindow, context: Option<Value>) -> Result<Value, String> {
+    #[cfg(desktop)]
+    {
+        let main = docking::owner(&window)?;
+        if docking::is_anchor(&window) {
+            return Ok(docking::context(&main, None));
+        }
+        Ok(docking::context(&main, context))
+    }
+    #[cfg(mobile)]
+    {
+        let _ = (window, context);
+        Ok(Value::Null)
+    }
+}
+#[tauri::command]
+fn window_protection(
+    window: tauri::WebviewWindow,
+    reason: String,
+    value: bool,
+) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        let owner = docking::owner(&window)?;
+        if reason == "file-hover" {
+            docking::file_hover(&owner, value);
+        } else {
+            docking::protection(&owner, &reason, value);
+        }
+    }
+    #[cfg(mobile)]
+    {
+        let _ = (window, reason, value);
+    }
+    Ok(())
+}
 #[cfg(desktop)]
 fn forward_anchor_drop(anchor: &tauri::WebviewWindow, paths: &[PathBuf]) -> Result<(), String> {
     let owner = docking::owner(anchor)?;
     let host = anchor.state::<Host>();
-    let paths: Vec<_> = paths
+    let group_id = docking::drop_group(&owner);
+    let approved: Vec<_> = paths
         .iter()
         .take(100)
-        .filter(|path| path.is_file())
-        .filter_map(|path| host.allow(path).ok())
+        .filter(|p| p.is_file())
+        .filter_map(|p| host.allow(p).ok())
         .collect();
-    if paths.is_empty() {
-        return Err("请拖入可读取的文件".into());
-    }
-    docking::action(&owner, "upload-busy", Some(true))?;
-    if let Err(error) = owner.emit("pickdrop:anchor-drop", paths) {
-        let _ = docking::action(&owner, "upload-busy", Some(false));
-        return Err(error.to_string());
-    }
+    docking::file_hover(&owner, false); // Native finally: also covers unreadable and empty drops.
+    static DROP_SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let drop_id = format!(
+        "{}-{}-{}",
+        owner.label(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos(),
+        DROP_SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    );
+    let payload = json!({"owner":owner.label(),"groupId":group_id,"dropId":drop_id,"paths":approved,"rejected":paths.len().saturating_sub(approved.len())});
+    owner
+        .emit_to(owner.label(), "pickdrop:anchor-drop", payload)
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -630,7 +732,9 @@ pub fn run() {
             native_drag_file,
             window_action,
             window_animal,
-            window_resize
+            window_resize,
+            window_context,
+            window_protection
         ])
         .setup(|app| {
             let data = app.path().app_data_dir()?;
@@ -647,7 +751,12 @@ pub fn run() {
             let mut events = core.subscribe();
             app.manage(Host {
                 core,
-                files: Mutex::new(HashSet::new()),
+                files: Mutex::new(
+                    std::fs::read(data.join("approved-files.json"))
+                        .ok()
+                        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+                        .unwrap_or_default(),
+                ),
                 data,
             });
             let handle = app.handle().clone();
@@ -694,13 +803,28 @@ pub fn run() {
                             }) => {
                                 let _ = forward_anchor_drop(&w, paths);
                             }
-                            tauri::WindowEvent::Focused(false) => docking::blurred(owner),
+                            tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Enter {
+                                ..
+                            }) => docking::file_hover(&owner, true),
+                            tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Leave) => {
+                                docking::file_hover(&owner, false)
+                            }
+                            tauri::WindowEvent::Focused(false) => {
+                                docking::file_hover(&owner, false);
+                                docking::blurred(owner);
+                            }
                             _ => {}
                         }
                     }
                     return;
                 }
                 match event {
+                    tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Enter { .. }) => {
+                        docking::file_hover(&w, true)
+                    }
+                    tauri::WindowEvent::DragDrop(
+                        tauri::DragDropEvent::Leave | tauri::DragDropEvent::Drop { .. },
+                    ) => docking::file_hover(&w, false),
                     tauri::WindowEvent::CloseRequested { api, .. } => {
                         api.prevent_close();
                         let _ = docking::hide(&w);

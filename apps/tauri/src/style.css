@@ -322,6 +322,10 @@ body[data-macos=true] header button { cursor: pointer; }
 #window-resize-handle { display: none; position: absolute; right: 1px; bottom: 1px; width: 14px; height: 14px; cursor: nwse-resize; touch-action: none; z-index: 30; }
 body[data-macos=true] #window-resize-handle { display: block; }
 #window-resize-handle:after { content: ''; position: absolute; right: 3px; bottom: 3px; width: 5px; height: 5px; border-right: 1px solid #b8c2d0; border-bottom: 1px solid #b8c2d0; border-bottom-right-radius: 1px; opacity: .7; }
+body[data-dock-edge=right] #window-resize-handle { left: 1px; right: auto; cursor: nesw-resize; }
+body[data-dock-edge=right] #window-resize-handle:after { left: 3px; right: auto; border-right: 0; border-left: 1px solid #b8c2d0; }
+body[data-dock-edge=bottom] #window-resize-handle { top: 1px; bottom: auto; cursor: nesw-resize; }
+body[data-dock-edge=bottom] #window-resize-handle:after { top: 3px; bottom: auto; border-bottom: 0; border-top: 1px solid #b8c2d0; }
 
 /* Constrained viewports and user preferences. */
 @media(max-width:360px) {
@@ -340,4 +344,14 @@ body[data-macos=true] #window-resize-handle { display: block; }
   #empty { margin-top: 8vh; }
 
 }
+/* Landscape IME: keep one complete field and full touch-sized actions visible. */
+@media(max-height:300px) {
+  body[data-desktop=false] dialog:not([data-kind=confirm]) { padding: 2px 8px; max-height: calc(100dvh - 8px); }
+  body[data-desktop=false] dialog:not([data-kind=confirm]) .panel-heading { min-height: 44px; margin-bottom: 4px; }
+  body[data-desktop=false] dialog:not([data-kind=confirm]) .panel-heading h2 { font-size: 15px; }
+  body[data-desktop=false] dialog:not([data-kind=confirm]) .panel-heading button { min-height: 44px; width: 44px; height: 44px; }
+  body[data-desktop=false] dialog:not([data-kind=confirm]) .panel-actions { padding-top: 0; margin-top: 4px; border-top: 0; }
+  body[data-desktop=false] dialog:not([data-kind=confirm]) #panel-body { gap: 6px; }
+}
 @media(prefers-reduced-motion:reduce) { * { scroll-behavior: auto !important; } }
+.draft-target {font-size:11px;color:var(--muted);margin:4px 0;}

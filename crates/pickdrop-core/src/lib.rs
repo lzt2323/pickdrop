@@ -27,6 +27,23 @@ use tokio::{
     sync::{broadcast, Mutex, Semaphore},
 };
 use tokio_util::sync::CancellationToken;
+// Local paths are privileged projection fields, never authority granted by a peer.
+fn project_cached_message(directory: &std::path::Path, message: &Value) -> Value {
+    let mut projected = message.clone();
+    if let Some(fields) = projected.as_object_mut() {
+        fields.remove("localPath");
+        fields.remove("path");
+    }
+    let hash = s(&projected, "sha256");
+    if s(&projected, "type") == "file" && hash.len() == 64 && hash.bytes().all(|c| c.is_ascii_hexdigit()) {
+        let path = directory.join("files").join(hash);
+        if std::fs::metadata(&path).is_ok_and(|metadata| metadata.is_file() && Some(metadata.len()) == projected["size"].as_u64()) {
+            projected["localPath"] = json!(path);
+        }
+    }
+    projected
+}
+
 #[derive(Clone)]
 pub struct Core(Arc<Inner>);
 struct Inner {
@@ -479,21 +496,8 @@ impl Core {
             .iter()
             .enumerate()
             .map(|(i, m)| {
-                let mut m = m.clone();
+                let mut m = project_cached_message(&self.0.dir, m);
                 m["sequence"] = json!(start + i + 1);
-                // Cache paths are local projection data, never signed or synced.
-                let hash = s(&m, "sha256");
-                if s(&m, "type") == "file"
-                    && hash.len() == 64
-                    && hash.bytes().all(|c| c.is_ascii_hexdigit())
-                {
-                    let path = self.0.dir.join("files").join(hash);
-                    if std::fs::metadata(&path)
-                        .is_ok_and(|meta| meta.is_file() && Some(meta.len()) == m["size"].as_u64())
-                    {
-                        m["localPath"] = json!(path);
-                    }
-                }
                 m
             })
             .collect();
@@ -1825,5 +1829,28 @@ mod network_tests {
             format_peer_url("172.29.16.145".parse().unwrap(), 39607),
             "http://172.29.16.145:39607"
         );
+    }
+}
+
+#[cfg(test)]
+mod cache_projection_tests {
+    use super::*;
+    #[test]
+    fn peer_paths_cannot_turn_an_unreceived_message_into_a_local_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let hash = "a".repeat(64);
+        let message = json!({"type":"file","fileName":"photo.png","sha256":hash,"size":3,"localPath":directory.path().join("identity.json"),"path":"/private/file"});
+        let missing = project_cached_message(directory.path(), &message);
+        assert!(missing.get("localPath").is_none() && missing.get("path").is_none());
+        std::fs::create_dir(directory.path().join("files")).unwrap();
+        let cache = directory.path().join("files").join(hash);
+        std::fs::write(&cache, b"png").unwrap();
+        let received = project_cached_message(directory.path(), &message);
+        assert_eq!(received["localPath"], json!(cache));
+        assert!(received.get("path").is_none());
+        assert_eq!(received["fileName"], message["fileName"]);
+        assert!(message.get("path").is_some(), "signed event payload is preserved");
+        std::fs::write(&cache, b"wrong length").unwrap();
+        assert!(project_cached_message(directory.path(), &message).get("localPath").is_none());
     }
 }
