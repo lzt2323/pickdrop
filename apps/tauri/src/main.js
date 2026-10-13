@@ -1,5 +1,7 @@
 import { icon } from './icons.js';
 import './style.css';
+import packageInfo from '../package.json';
+import { createDialogMotion } from './dialog-motion.js';
 import { call, native, subscribe, subscribeWindow, subscribeBack, subscribeIncoming, copyText, scanInvite } from './bridge.js';
 import { PAGE_SIZE, MAX_VISIBLE, mergeMessages, formatBytes, progressScheduler, parseInvite } from './model.js';
 import QRCode from 'qrcode';
@@ -10,7 +12,7 @@ const app = { groups: [], device: {}, groupId: null, state: null, messages: [], 
 const el = (tag, className, text) => { const node = document.createElement(tag); if (className)
     node.className = className; if (text != null)
     node.textContent = text; return node; };
-function button(text, action, className) { const node = el('button', className, text); node.type = 'button'; node.addEventListener('click', () => run(action, node)); return node; }
+function button(text, action, className) { const node = el('button', className, text); node.type = 'button'; if (text) node.setAttribute('aria-label', text); node.addEventListener('click', () => run(action, node)); return node; }
 try {
     for (const [id, text] of Object.entries(JSON.parse(localStorage.getItem('pickdrop.drafts.v1') || '{}')))
         app.drafts.set(id, text);
@@ -35,25 +37,36 @@ catch { } }
 let toastTimer;
 function toast(text) { $('toast').textContent = text; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 4000); }
 function error(error) { toast(typeof error === 'string' ? error : error?.message || String(error)); }
-async function run(action, control) { if (control)
+async function run(action, control) { const restoreFocus = control === document.activeElement; if (control)
     control.disabled = true; try {
     return await action();
 }
 catch (e) {
-    if ($('panel').open) { let problem = $('panel-body').querySelector('.panel-error'); if (!problem) { problem = el('p', 'panel-error'); problem.setAttribute('role','alert'); $('panel-body').append(problem); } problem.textContent = e?.message || String(e); }
+    if ($('panel').open) { const invalid = $('panel-body').querySelector('[aria-invalid=true]'); const host = invalid?.closest('label') || $('panel-body'); let problem = host.querySelector('.panel-error'); if (!problem) { problem = el('p', invalid ? 'panel-error field-error' : 'panel-error'); problem.id = `panel-error-${panelGeneration}`; problem.setAttribute('role','alert'); host.append(problem); } problem.textContent = e?.message || String(e); if (invalid) invalid.setAttribute('aria-describedby', problem.id); }
     else error(e);
 }
 finally {
     if (control)
         control.disabled = !!app.state?.membershipRevoked&&['send-text','choose-file','invite-button'].includes(control.id);
+    if (restoreFocus && control?.isConnected && !control.disabled && document.activeElement === document.body && (!$('panel').open || $('panel').contains(control))) control.focus();
 } }
 let panelReturnFocus, panelGeneration = 0;
+const dialogMotion = createDialogMotion($('panel'));
+// Primary actions stay outside the scrolling content, including async QR content.
+new MutationObserver(() => {
+    const focused = document.activeElement;
+    for (const action of $('panel-body').querySelectorAll(':scope > button.primary')) $('panel-actions').append(action);
+    $('panel-actions').hidden = !$('panel-actions').childElementCount;
+    if ($('panel').open && focused?.isConnected && $('panel-actions').contains(focused) && document.activeElement === document.body) focused.focus();
+}).observe($('panel-body'), { childList:true });
+function panelActions(...actions) { $('panel-actions').append(...actions); $('panel-actions').hidden = false; }
+
 function panel(title) { panelGeneration++; if (!$('panel').open) panelReturnFocus = document.activeElement; $('panel').dataset.kind = title.includes('文件') ? 'files' : 'settings'; $('panel').setAttribute('aria-labelledby','panel-title'); if (document.body.dataset.desktop === 'true')
-    run(() => native('window_action', { action: 'busy', value: true })); $('panel-title').textContent = title; parkQueue(); $('panel-body').replaceChildren(); if (!$('panel').open)
-    $('panel').showModal(); queueMicrotask(() => { if($('panel').open) ($('panel-body').querySelector('input,textarea,button') || $('close-panel')).focus(); }); return $('panel-body'); }
-function field(body, title, value = '', type = 'text') { const label = el('label', null, title), input = el('input'); input.type = type; input.value = value; input.addEventListener('input', () => { input.removeAttribute('aria-invalid'); $('panel-body').querySelector('.panel-error')?.remove(); }); label.append(input); body.append(label); return input; }
+    run(() => native('window_action', { action: 'busy', value: true })); $('panel-title').textContent = title; parkQueue(); $('panel-body').replaceChildren(); $('panel-actions').replaceChildren(); $('panel-actions').hidden = true; dialogMotion.open({animate: !['我的群组','传输'].includes(title)}); queueMicrotask(() => { if($('panel').open) ($('panel-body').querySelector('input,textarea,button') || $('close-panel')).focus(); }); return $('panel-body'); }
+let fieldSequence = 0;
+function field(body, title, value = '', type = 'text') { const label = el('label'), caption = el('span', 'field-label', title), input = el('input'); caption.id = `field-label-${++fieldSequence}`; input.setAttribute('aria-labelledby', caption.id); label.append(caption); input.type = type; input.value = value; input.addEventListener('input', () => { input.removeAttribute('aria-invalid'); input.removeAttribute('aria-describedby'); label.querySelector('.panel-error')?.remove(); }); label.append(input); body.append(label); return input; }
 function note(body, text) { body.append(el('p', 'muted', text)); }
-function closePanel() { clearTimeout(joinTimer); $('panel').close(); }
+function closePanel() { clearTimeout(joinTimer); dialogMotion.close(); }
 $('close-panel').onclick = closePanel;
 $('panel').addEventListener('click', e => { if (e.target === $('panel')) {
     const r = $('panel').getBoundingClientRect();
@@ -108,7 +121,7 @@ else {
     card.append(actions);
     row.append(card);
 } return row; }
-function imagePanel(path, name, source) { const body = panel(name); $('panel').dataset.kind = 'image'; const image = el('img', 'image-preview'); image.alt = name; image.src = source; body.append(image, button('打开原图', () => native('native_open_file', { path, suggestedName: name })), button('保存', () => native('native_save_file', { sourcePath: path, suggestedName: name })), button('更多', () => fileActionsPanel(path,name))); }
+function imagePanel(path, name, source) { const body = panel(name); $('panel').dataset.kind = 'image'; const image = el('img', 'image-preview'); image.alt = name; image.src = source; body.append(image); panelActions(button('打开原图', () => native('native_open_file', { path, suggestedName: name })), button('保存', () => native('native_save_file', { sourcePath: path, suggestedName: name })), button('更多', () => fileActionsPanel(path,name))); }
 function fileActionsPanel(path, name) { const body = panel(name); body.append(button('打开', () => native('native_open_file', { path, suggestedName: name })), button('另存为', () => native('native_save_file', { sourcePath: path, suggestedName: name })), button('分享', () => native('native_share_file', { path, suggestedName: name }))); if (!isMobile()) body.append(button('拖出文件', () => native('native_drag_file', { path, suggestedName: name }))); if (isMobile() && /\.(png|jpg|jpeg|webp|gif)$/i.test(name)) body.append(button('保存到相册', () => native('native_save_gallery', { path, suggestedName: name }))); }
 function renderMessages() { const timeline = $('timeline'), nearBottom = timeline.scrollHeight - timeline.scrollTop - timeline.clientHeight < 100; const visible = app.messages.filter(m => app.filter !== 'files' || m.type === 'file'); const keep = new Set(visible.map(m => m.id)); for (const [id, record] of app.rows) {
     if (!keep.has(id)) {
@@ -158,7 +171,7 @@ else if (!latest && app.historical) {
 } app.currentBefore = params.before ?? null; app.historical = params.before != null; app.state = state; app.messages = (older || newer || latest) ? mergeMessages([], state.messages || []) : mergeMessages(app.messages, state.messages || []); renderMessages(); updateHeader(); }
 async function loadBootstrap() { const boot = await call('bootstrap'); app.device = boot.device || {}; app.groups = boot.groups || []; app.endpoint = boot.endpoint; return boot; }
 async function selectGroup(id) { document.body.dataset.view = 'chat'; if ($('mobile-home')) $('mobile-home').hidden = true; if (app.groupId)
-    app.drafts.set(app.groupId, $('message-input').value); app.generation++; app.groupId = id; app.state = null; app.historyCursors = []; app.currentBefore = null; app.historical = false; app.messages = []; for(const record of app.rows.values()) record.node.querySelectorAll('img').forEach(img => thumbnails.unobserve(img)); app.rows.clear(); $('messages').replaceChildren(); $('message-input').value = app.drafts.get(id) || ''; updateHeader(); renderMessages(); renderFileDrafts(); if (id) {
+    app.drafts.set(app.groupId, $('message-input').value); app.generation++; app.groupId = id; app.state = null; app.historyCursors = []; app.currentBefore = null; app.historical = false; app.messages = []; for(const record of app.rows.values()) record.node.querySelectorAll('img').forEach(img => thumbnails.unobserve(img)); app.rows.clear(); $('messages').replaceChildren(); $('message-input').value = app.drafts.get(id) || ''; updateHeader(); renderMessages(); renderFileDrafts(); syncComposerHeight(); if (id) {
     await call('select_group', { id });
     await refresh();
 } closePanel(); if (app.pendingIncoming?.length)
@@ -213,11 +226,11 @@ catch (e) {
 async function invitePanel() { if (!app.groupId)
     return groupsPanel(); const body = panel('邀请设备'), generation = panelGeneration; note(body, '正在生成邀请…'); const invitation = await call('create_invite', { groupId: app.groupId }); if(generation !== panelGeneration || !$('panel').open) return; body.replaceChildren(); const link = invitation.url || invitation.link || `pickdrop://join?address=${encodeURIComponent(invitation.address || invitation.baseUrl || app.endpoint?.baseUrl || '')}&code=${encodeURIComponent(invitation.code || '')}`; if (!$('panel').open || $('panel-body') !== body || $('panel-title').textContent !== '邀请设备') return; const img = el('img', 'qr'); img.alt = '加入群组二维码'; img.src = await QRCode.toDataURL(link, { width: 440, margin: 2 }); if(generation !== panelGeneration || !$('panel').open) return; body.append(img); field(body, '设备地址', invitation.address || invitation.baseUrl || app.endpoint?.baseUrl || '').readOnly = true; field(body, '邀请码', invitation.code || '').readOnly = true; body.append(button('复制邀请链接', async () => { await copyText(link); toast('邀请链接已复制'); }, 'primary'));  }
 async function membersPanel() { if (!app.groupId)
-    return groupsPanel(); const body = panel('成员与加入申请'), generation = panelGeneration; const requests = await call('list_join_requests', { groupId: app.groupId }); if (generation !== panelGeneration || !$('panel').open || $('panel-title').textContent !== '成员与加入申请') return; for (const request of (Array.isArray(requests) ? requests : requests.requests || [])) {
-    const row = el('div', 'member');
-    row.append(el('span', null, request.device?.name || request.deviceName || request.name || '新设备'), button('允许', async () => { await call('respond_join', { groupId: app.groupId, id: request.id, allow: true }); await membersPanel(); }), button('拒绝', async () => { await call('respond_join', { groupId: app.groupId, id: request.id, allow: false }); await membersPanel(); }));
+    return groupsPanel(); const body = panel('成员与加入申请'), generation = panelGeneration; const requests = await call('list_join_requests', { groupId: app.groupId }); if (generation !== panelGeneration || !$('panel').open || $('panel-title').textContent !== '成员与加入申请') return; const pending = Array.isArray(requests) ? requests : requests.requests || []; if (pending.length) body.append(el('h3','member-heading','加入申请')); for (const request of pending) {
+    const row = el('div', 'member member-request'), actions = el('div','member-actions');
+    row.append(el('span', null, request.device?.name || request.deviceName || request.name || '新设备')); actions.append(button('允许', async () => { await call('respond_join', { groupId: app.groupId, id: request.id, allow: true }); await membersPanel(); }, 'primary'), button('拒绝', async () => { await call('respond_join', { groupId: app.groupId, id: request.id, allow: false }); await membersPanel(); }, 'danger')); row.append(actions);
     body.append(row);
-} for (const device of app.state?.devices || []) {
+} body.append(el('h3','member-heading','群内设备')); for (const device of app.state?.devices || []) {
     const row = el('div', 'member');
     row.append(el('span', null, `${device.name || device.id}${device.id === app.device.id ? '（本机）' : device.online ? '（在线）' : '（离线）'}`));
     if (isOwner() && device.id !== app.device.id)
@@ -236,7 +249,7 @@ function connectPeerPanel() {
     address.autocapitalize = 'off'; address.spellcheck = false;
     const status = el('p', 'muted'); status.setAttribute('role', 'status');
     body.append(status, button('连接设备', async () => {
-        status.setAttribute('role', 'status'); status.textContent = '正在连接并验证设备…';
+        status.classList.remove('panel-error','field-error'); address.removeAttribute('aria-describedby'); status.setAttribute('role', 'status'); status.textContent = '正在连接并验证设备…';
         address.removeAttribute('aria-invalid');
         try {
             await call('connect_peer', { groupId, address: address.value.trim() });
@@ -248,21 +261,21 @@ function connectPeerPanel() {
         }
     }, 'primary'));
 }
-async function confirmPanel(title, text, action) { const body = panel(title); note(body, text); body.append(button('确认', action, 'primary'), button('取消', closePanel)); }
+async function confirmPanel(title, text, action, { confirmLabel = title, destructive = true } = {}) { const body = panel(title); note(body, text); panelActions(button('取消', closePanel), button(confirmLabel, action, destructive ? 'primary destructive' : 'primary')); }
 function isMobile() { return document.body.dataset.desktop !== 'true'; }
 function isOwner() { return app.groups.find(g => g.id === app.groupId)?.creatorDeviceId === app.device.id; }
 function settingsPanel() {
     const body = panel('设置');
     body.append(button('存储与缓存', storagePanel, 'setting-row'));
     const deviceName = field(body, '本机名称', app.device.name || '');
-    body.append(button('保存设备名称', async () => { if (!deviceName.value.trim()) throw Error('请输入设备名称'); await call('rename_device', { name: deviceName.value.trim() }); await loadBootstrap(); updateHeader(); toast('已保存'); }));
+    body.append(button('保存设备名称', async () => { if (!deviceName.value.trim()) throw Error('请输入设备名称'); await call('rename_device', { name: deviceName.value.trim() }); await loadBootstrap(); updateHeader(); toast('已保存'); }, 'primary'));
     if (app.groupId) body.append(button('群组设置', groupSettingsPanel, 'setting-row'), button('成员', membersPanel, 'setting-row'));
     if (!isMobile()) {
         const dock = el('div', 'stack');
         for (const [action, label] of [['dock-left', '贴到左侧'], ['dock-right', '贴到右侧'], ['dock-top', '贴到顶部'], ['undock', '取消贴边']]) dock.append(button(label, () => native('window_action', { action })));
         body.append(el('h3', 'section-title', '窗口'), dock);
     }
-    body.append(el('p', 'version', '拾传 0.6.0-alpha.1'));
+    body.append(el('p', 'version', `拾传 ${packageInfo.version}`));
 }
 function groupSettingsPanel() {
     const body = panel('群组设置');
@@ -270,25 +283,36 @@ function groupSettingsPanel() {
         const groupName = field(body, '群组名称', app.state?.name || '');
         body.append(button('保存群组名称', async () => { if (!groupName.value.trim()) throw Error('请输入群组名称'); await call('rename_group', { groupId: app.groupId, name: groupName.value.trim() }); await loadBootstrap(); await refresh(); toast('已保存'); }, 'primary'));
     } else body.append(el('h3', null, app.state?.name || '群组'));
-    body.append(button('退出群组', () => confirmPanel('退出群组', '退出后将停止接收这个群的消息。', async () => { await call('leave_group', { groupId: app.groupId }); await loadBootstrap(); await selectGroup(app.groups[0]?.id || null); }), 'danger'), button('移除本地群组记录', () => confirmPanel('移除记录', '将移除此设备上的群组记录。', async () => { await call('forget_group', { groupId: app.groupId }); await loadBootstrap(); await selectGroup(app.groups[0]?.id || null); }), 'danger'));
+    body.append(button('退出群组', () => confirmPanel('退出群组', '退出后将停止接收这个群的消息。', async () => { await call('leave_group', { groupId: app.groupId }); await loadBootstrap(); await selectGroup(app.groups[0]?.id || null); }), 'danger'), button('移除本地群组记录', () => confirmPanel('移除记录', '将移除此设备上的群组记录。', async () => { await call('forget_group', { groupId: app.groupId }); await loadBootstrap(); await selectGroup(app.groups[0]?.id || null); }), 'danger')); const dangerZone = el('div','danger-zone'); for (const action of body.querySelectorAll(':scope > .danger')) dangerZone.append(action); body.append(dangerZone);
 }
 async function storagePanel() { const body = panel('存储与缓存'), generation = panelGeneration; const stats = await call('storage_stats'); if (generation !== panelGeneration || !$('panel').open || $('panel-title').textContent !== '存储与缓存') return; note(body, `文件缓存 ${formatBytes(stats.cacheBytes || stats.bytes || 0)} · ${stats.fileCount || stats.files || 0} 个文件`); body.append(button('清理缓存', () => confirmPanel('清理缓存', '已接收文件的本地缓存将被清理，聊天记录保留。', async () => { await call('clear_cache'); app.files.clear(); app.messages = app.messages.map(({localPath, path, ...message}) => message); renderMessages(); await refresh(); await storagePanel(); }))); }
 function renderFileDrafts() { persistFiles(); const body = $('file-drafts'), files = app.fileDrafts.get(app.groupId) || []; body.hidden = !files.length; body.replaceChildren(); files.forEach((file, index) => { const row = el('div', 'file-draft'); row.append(el('span', null, file.name || file.path.split(/[\\/]/).at(-1)), button('移除', () => { files.splice(index, 1); renderFileDrafts(); })); body.append(row); });  }
 const progress = progressScheduler(renderQueue);
+const transferRows = new Map();
 function renderQueue() {
-    const queue = $('queue'); queue.hidden = !app.transfers.size; queue.replaceChildren(); const active = [...app.transfers.values()].filter(t => !['完成', '失败', '已取消'].includes(t.status)); const summary = $('transfer-summary'); if(summary) { summary.hidden = !app.transfers.size; summary.textContent = active.length ? `${active.length} 传输中` : '传输记录'; } if($('transfer-empty')) $('transfer-empty').hidden = !!app.transfers.size;
+    const queue = $('queue'); queue.hidden = !app.transfers.size;
+    const active = [...app.transfers.values()].filter(t => !['完成','失败','已取消'].includes(t.status));
+    const summary = $('transfer-summary'); summary.hidden = !app.transfers.size; summary.textContent = active.length ? `${active.length} 传输中` : '传输记录';
+    if ($('transfer-empty')) $('transfer-empty').hidden = !!app.transfers.size;
+    for (const [id, record] of transferRows) if (!app.transfers.has(id)) { record.row.remove(); transferRows.delete(id); }
     for (const task of app.transfers.values()) {
-        const row = el('div', 'transfer', `${task.name || '文件'} · ${task.status || '传输中'}${task.error ? ' · ' + task.error : ''}`);
-        row.dataset.transferId = task.id;
-        const bar = el('progress'); bar.max = 1; bar.value = task.progress || 0; row.append(bar);
-        const terminal = ['完成', '失败', '已取消'].includes(task.status);
-        if (!terminal) row.append(button('取消传输', async () => { const result=await call('cancel_transfer', { transferId: task.id }); if(result?.ok!==false&&task.status!=='完成')task.status = '已取消'; progress.flush(); }));
-        if (['失败', '已取消'].includes(task.status)) {
-            if (task.path) row.append(button('重试', () => sendFiles([{ path: task.path, name: task.name, transferId: task.id }], task.groupId)));
-            else if (task.message) row.append(button('重试', () => receive(task.message, task.groupId)));
+        let record = transferRows.get(task.id);
+        if (!record) {
+            const row = el('div','transfer'), name = el('span','transfer-name'), status = el('span','transfer-status'), problem = el('p','transfer-error'), bar = el('progress'), actions = el('div','transfer-actions');
+            row.dataset.transferId = task.id; bar.max = 1;
+            const cancel = button('取消传输', async () => { const current = app.transfers.get(task.id); if(!current)return; const result = await call('cancel_transfer',{transferId:current.id}); if(result?.ok!==false && current.status!=='完成')current.status='已取消'; progress.flush(); });
+            const retry = button('重试', () => { const current = app.transfers.get(task.id); if(current?.path)return sendFiles([{path:current.path,name:current.name,transferId:current.id}],current.groupId); if(current?.message)return receive(current.message,current.groupId); });
+            const clear = button('清除', () => { app.transfers.delete(task.id); renderQueue(); });
+            actions.append(cancel,retry,clear); row.append(name,status,problem,bar,actions); queue.append(row);
+            record = {row,name,status,problem,bar,cancel,retry,clear}; transferRows.set(task.id,record);
         }
-        if (terminal) row.append(button('清除', () => { app.transfers.delete(task.id); renderQueue(); }));
-        queue.append(row);
+        record.name.textContent = task.name || '文件'; record.status.textContent = task.status || '传输中'; record.problem.textContent = task.error || ''; record.problem.hidden = !task.error;
+        record.row.dataset.status = ({'发送中':'sending','接收中':'receiving','完成':'completed','失败':'failed','已取消':'cancelled'})[task.status] || 'sending';
+        record.bar.value = task.progress || 0; record.bar.setAttribute('aria-label',`${task.name || '文件'}传输进度`);
+        const terminal = ['完成','失败','已取消'].includes(task.status);
+        const focusedAction = [record.cancel,record.retry,record.clear].find(control => control === document.activeElement);
+        record.cancel.hidden = terminal; record.retry.hidden = !(['失败','已取消'].includes(task.status) && (task.path || task.message)); record.clear.hidden = !terminal;
+        if (focusedAction?.hidden) [record.retry,record.clear,record.cancel].find(control => !control.hidden && !control.disabled)?.focus({preventScroll:true});
     }
 }
 async function sendFiles(paths, groupId = app.groupId) {
@@ -341,7 +365,22 @@ $('latest-history').onclick = () => run(() => refresh({ latest: true }), $('late
 function filter(value) { app.filter = value; $('all-tab').setAttribute('aria-pressed', String(value === 'all')); $('files-tab').setAttribute('aria-pressed', String(value === 'files')); renderMessages(); }
 $('all-tab').onclick = () => filter('all');
 $('files-tab').onclick = () => filter('files');
-$('message-input').addEventListener('input', () => { if (app.groupId)
+// Grow by complete text lines, reserving conversation space on short screens.
+function syncComposerHeight() {
+    const input = $('message-input'); if (!input.getClientRects().length) return;
+    const style = getComputedStyle(input), line = parseFloat(style.lineHeight), padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    const minimum = parseFloat(style.minHeight), maxLines = window.innerHeight <= 500 ? 2 : 3;
+    input.style.height = '0px';
+    const natural = input.scrollHeight, maximum = Math.max(minimum, padding + line * maxLines);
+    const height = Math.max(minimum, Math.min(natural, maximum));
+    input.style.height = `${height}px`; input.style.overflowY = natural > height ? 'auto' : 'hidden';
+    if (natural <= height) input.scrollTop = 0;
+}
+let composerWidth = 0;
+const composerSize = new ResizeObserver(entries => { const width = entries[0].contentRect.width; if (width !== composerWidth) { composerWidth = width; syncComposerHeight(); } });
+composerSize.observe($('message-input'));
+window.addEventListener('resize', syncComposerHeight);
+$('message-input').addEventListener('input', () => { syncComposerHeight(); if (app.groupId)
     app.drafts.set(app.groupId, $('message-input').value); $('draft-note').textContent = $('message-input').value ? '草稿' : ''; clearTimeout(draftTimer); draftTimer = setTimeout(persistDrafts, 500); });
 $('rejoin-button').onclick=()=>joinPanel();
 $('composer').addEventListener('submit', e => { e.preventDefault();if(app.state?.membershipRevoked){toast('请重新加入群组后发送');return;} run(async () => { const input = $('message-input'), text = input.value.trim(), groupId = app.groupId, files = app.fileDrafts.get(groupId) || []; if ((!text && !files.length) || !groupId)
@@ -354,7 +393,7 @@ $('composer').addEventListener('submit', e => { e.preventDefault();if(app.state?
         app.fileDrafts.delete(groupId);
     renderFileDrafts();
 } if (app.groupId === groupId && input.value.trim() === text) {
-    input.value = '';
+    input.value = ''; syncComposerHeight();
     app.drafts.delete(groupId);
     persistDrafts();
     $('draft-note').textContent = '';
@@ -407,14 +446,8 @@ else
 const queueParking = el('div'); queueParking.hidden = true; document.body.append(queueParking); queueParking.append($('queue'));
 function parkQueue() { if($('queue')) queueParking.append($('queue')); }
 for (const [id, name] of [['choose-file','plus'],['send-text','send'],['pin-window','pin'],['hide-window','dock'],['settings-button','settings'],['close-panel','close'],['chat-back','back']]) { const node = $(id); if(node) node.replaceChildren(icon(name)); }
-// Restore the pre-migration shell while retaining the Rust-backed actions.
-$('app').querySelector('header').classList.add('titlebar');
-const chevron = icon('down'); chevron.classList.add('group-chevron'); $('groups-button').append(chevron);
-const memberStrip = $('members-button'); $('viewbar').before(memberStrip);
-const connection = el('span', 'connection-state'); connection.id = 'connection-status'; memberStrip.append(connection, icon('arrow'));
-const fileCount = el('span', 'file-count', '0'); fileCount.id = 'file-count'; $('files-tab').append(fileCount);
-$('invite-button').textContent = '邀请 +';
-$('message-input').placeholder = '传点什么…'; $('send-text').setAttribute('aria-label', '发送消息');
+$('groups-button').querySelector('.group-chevron').append(icon('down'));
+$('members-button').append(icon('arrow'));
 for(const [id,name] of [['mobile-groups','people'],['mobile-transfers','transfer'],['mobile-profile','user']]) $(id)?.prepend(icon(name));
 const mobileHome = el('section', 'mobile-home'); mobileHome.id = 'mobile-home'; mobileHome.hidden = true; $('app').append(mobileHome);
 function homeView(view) {
@@ -429,7 +462,7 @@ function homeView(view) {
     } else if (view === 'transfers') {
         mobileHome.append(el('h1',null,'传输')); attachQueue(mobileHome);
     } else {
-        mobileHome.append(el('h1',null,'我的'), el('h2','profile-card',app.device.name || '此设备'), button('存储与缓存', storagePanel,'setting-row'), button('设备设置',settingsPanel,'setting-row'), el('p','version','拾传 0.6.0-alpha.1'));
+        mobileHome.append(el('h1',null,'我的'), el('h2','profile-card',app.device.name || '此设备'), button('存储与缓存', storagePanel,'setting-row'), button('设备设置',settingsPanel,'setting-row'), el('p','version',`拾传 ${packageInfo.version}`));
     }
 }
 function attachQueue(body) { const empty = el('p','empty-state','没有传输任务'); empty.id = 'transfer-empty'; body.append(empty, $('queue')); renderQueue(); }
@@ -489,7 +522,7 @@ async function start() { try {
     const boot = await loadBootstrap();
     await selectGroup(boot.activeGroupId || app.groups[0]?.id || null); if(isMobile() && !app.pendingIncoming?.length)homeView('groups');
     app.unlisten = await subscribe(onEvent);if(/Android/i.test(navigator.userAgent)){app.unlistenBack=await subscribeBack(()=>onEvent({type:'back'}));app.unlistenIncoming=await subscribeIncoming(()=>run(consumeIncoming));}
-    app.unlistenWindow = await subscribeWindow(state => { document.body.dataset.collapsed = String(state.collapsed); app.dockEdge = state.edge; pinned = state.pinned; $('pin-window').setAttribute('aria-pressed', String(pinned)); $('collapsed-tab').hidden = !state.collapsed; });
+    app.unlistenWindow = await subscribeWindow(state => { document.body.dataset.collapsed = String(state.collapsed); app.dockEdge = state.edge; pinned = state.pinned; $('pin-window').setAttribute('aria-pressed', String(pinned)); });
     await consumeIncoming();
     if (!window.__PICKDROP_TEST_BRIDGE__) {
         const { getCurrentWebview } = await import('@tauri-apps/api/webview');
@@ -551,11 +584,9 @@ function finishWindowResize(event) {
 $('window-resize-handle').addEventListener('pointerup', finishWindowResize);
 $('window-resize-handle').addEventListener('pointercancel', finishWindowResize);
 window.addEventListener('blur', finishWindowResize);
-$('collapsed-tab').onclick = () => run(() => native('window_action', { action: 'expand' }));
-$('collapsed-tab').onpointerenter = () => run(() => native('window_action', { action: 'expand' }));
 document.documentElement.addEventListener('pointerleave', () => { if (app.dockEdge && !pinned && !$('panel').open)
     run(() => native('window_action', { action: 'pointer-leave' })); });
-$('panel').addEventListener('close', () => { clearTimeout(joinTimer); if(isMobile() && document.body.dataset.view === 'transfers' && !$('panel').open) { mobileHome.append($('queue')); renderQueue(); } if(panelReturnFocus?.isConnected)panelReturnFocus.focus(); if (document.body.dataset.desktop === 'true')
+$('panel').addEventListener('close', () => { if ($('panel').open) return; clearTimeout(joinTimer); if(isMobile() && document.body.dataset.view === 'transfers' && !$('panel').open) { mobileHome.append($('queue')); renderQueue(); } if(panelReturnFocus?.isConnected)panelReturnFocus.focus(); if (document.body.dataset.desktop === 'true')
     run(() => native('window_action', { action: 'busy', value: false })); });
-window.addEventListener('pagehide', () => { app.disposed = true; clearTimeout(draftTimer); persistDrafts(); persistFiles(); clearTimeout(app.refreshTimer); clearTimeout(joinTimer); progress.dispose(); app.unlisten?.(); app.unlistenDrop?.(); app.unlistenAnchorDrop?.(); app.unlistenWindow?.();app.unlistenBack?.();app.unlistenIncoming?.(); thumbnails.disconnect(); });
+window.addEventListener('pagehide', () => { dialogMotion.dispose(); composerSize.disconnect(); window.removeEventListener('resize', syncComposerHeight); app.disposed = true; clearTimeout(draftTimer); persistDrafts(); persistFiles(); clearTimeout(app.refreshTimer); clearTimeout(joinTimer); progress.dispose(); app.unlisten?.(); app.unlistenDrop?.(); app.unlistenAnchorDrop?.(); app.unlistenWindow?.();app.unlistenBack?.();app.unlistenIncoming?.(); thumbnails.disconnect(); });
 start();

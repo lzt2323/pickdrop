@@ -56,6 +56,25 @@ try {
         await page.keyboard.press('Escape');
         await page.waitForFunction(() => !document.querySelector('#panel').open);
         assert.equal(await page.locator('#groups-button').evaluate(node=>node===document.activeElement), true, 'Escape restores original trigger focus');
+        // Multiline drafts grow in whole lines, restore across groups, and shrink after send.
+        const input = page.locator('#message-input');
+        const singleHeight = await input.evaluate(node => node.clientHeight);
+        const longDraft = '第一行草稿\n第二行草稿\n第三行草稿\n第四行草稿\n第五行草稿';
+        await input.fill(longDraft);
+        const checkDraftHeight = async maxLines => {
+            const box = await input.evaluate(node => { const s=getComputedStyle(node); return {height:node.clientHeight,line:parseFloat(s.lineHeight),padding:parseFloat(s.paddingTop)+parseFloat(s.paddingBottom),scroll:node.scrollHeight}; });
+            assert.ok(box.height > singleHeight, 'multiline draft grows');
+            assert.equal((box.height-box.padding)/box.line,maxLines,'height ends on complete lines');
+            assert.ok(box.scroll>box.height,'long draft scrolls within capped composer');
+        };
+        await checkDraftHeight(3);
+        await page.locator('#groups-button').click();await page.getByRole('button',{name:'另一个群',exact:true}).click();
+        await page.locator('#groups-button').click();await page.getByRole('button',{name:'我的文件',exact:true}).click();
+        assert.equal(await input.inputValue(),longDraft,'switching groups restores multiline draft');await checkDraftHeight(3);
+        await page.setViewportSize({width:viewport.width,height:390});await page.waitForTimeout(30);await checkDraftHeight(2);
+        assert.ok(await page.locator('#timeline').evaluate(node=>node.clientHeight)>40,'short viewport retains conversation space');
+        await page.setViewportSize(viewport);await page.waitForTimeout(30);await checkDraftHeight(3);
+        await input.fill('');assert.equal(await input.evaluate(node=>node.clientHeight),singleHeight,'cleared draft shrinks');
         await page.evaluate(() => { window.__first = document.querySelector('.message'); });
         await page.locator('#message-input').fill('测试草稿');
         const composer = await page.locator('#composer').evaluate(form => {
@@ -70,7 +89,7 @@ try {
         await page.waitForTimeout(250);
         assert.equal(await page.evaluate(() => window.__first === document.querySelector('.message')), true, 'unchanged state preserves row identity');
         await page.locator('#send-text').click();
-        await page.waitForFunction(() => document.querySelector('#message-input').value === '');
+        await page.waitForFunction(() => document.querySelector('#message-input').value === '');assert.equal(await input.evaluate(node=>node.clientHeight),singleHeight,'sent draft shrinks');
         assert.equal(await page.locator('.message').count(), 61);
         await page.locator('#load-history').click();
         await page.waitForFunction(() => document.querySelector('.message').dataset.messageId === '181');
@@ -91,7 +110,7 @@ try {
         await page.locator('#groups-button').click();
         await page.getByRole('button', { name: '另一个群', exact: true }).click();
         await page.waitForTimeout(750);
-        assert.deepEqual(await page.evaluate(() => window.__calls.filter(c => c.method === 'send_file').map(c => c.params.groupId)), ['g1', 'g1'], 'file batch destination survives group switch');await page.locator('#choose-file').click();await page.locator('.file-draft').first().waitFor();await page.locator('#send-text').click();await page.locator('#transfer-summary').click();const cancel=page.getByRole('button',{name:'取消传输'}).first();await cancel.waitFor();const cancelledId=await cancel.locator('..').getAttribute('data-transfer-id');await cancel.click();await page.waitForTimeout(750);const cancelledRow=page.locator(`[data-transfer-id="${cancelledId}"]`);await cancelledRow.getByRole('button',{name:'重试'}).click();await page.waitForTimeout(350);assert.equal(await page.locator(`[data-transfer-id="${cancelledId}"]`).count(),1,'retry reuses transfer queue id');assert.deepEqual(await page.evaluate(id=>window.__calls.filter(c=>c.method==='send_file'&&c.params.transferId===id).map(c=>c.params.groupId),cancelledId),['g2','g2'],'cancelled retry retains target');await page.locator('#close-panel').click();await page.locator('#message-input').fill('保留草稿');await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:888,membershipRevoked:true,messages:[],devices:[]}}));assert.equal(await page.locator('#send-text').isDisabled(),true);assert.equal(await page.locator('#message-input').inputValue(),'保留草稿');assert.equal(await page.locator('#membership-notice').isVisible(),true);await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:889,membershipRevoked:false,messages:[],devices:[]}}));
+        assert.deepEqual(await page.evaluate(() => window.__calls.filter(c => c.method === 'send_file').map(c => c.params.groupId)), ['g1', 'g1'], 'file batch destination survives group switch');await page.locator('#choose-file').click();await page.locator('.file-draft').first().waitFor();await page.locator('#send-text').click();await page.locator('#transfer-summary').click();const cancel=page.getByRole('button',{name:'取消传输'}).first();await cancel.waitFor();const cancelledId=await cancel.locator('xpath=ancestor::*[@data-transfer-id]').getAttribute('data-transfer-id');await cancel.click();await page.waitForTimeout(750);const cancelledRow=page.locator(`[data-transfer-id="${cancelledId}"]`);await cancelledRow.getByRole('button',{name:'重试'}).click();await page.waitForTimeout(350);assert.equal(await page.locator(`[data-transfer-id="${cancelledId}"]`).count(),1,'retry reuses transfer queue id');assert.deepEqual(await page.evaluate(id=>window.__calls.filter(c=>c.method==='send_file'&&c.params.transferId===id).map(c=>c.params.groupId),cancelledId),['g2','g2'],'cancelled retry retains target');await page.locator('#close-panel').click();await page.locator('#message-input').fill('保留草稿');await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:888,membershipRevoked:true,messages:[],devices:[]}}));assert.equal(await page.locator('#send-text').isDisabled(),true);assert.equal(await page.locator('#message-input').inputValue(),'保留草稿');assert.equal(await page.locator('#membership-notice').isVisible(),true);await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:889,membershipRevoked:false,messages:[],devices:[]}}));
         await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});await page.waitForTimeout(20);const paused=await page.evaluate(()=>window.__calls.filter(c=>c.method==='set_active'&&c.params.active===false).length);assert.equal(paused,viewport.width<600?1:0,'only mobile visibility pauses service');await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});document.dispatchEvent(new Event('visibilitychange'));});await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:950,messages:[{id:'file-first',type:'file',fileName:'first.png',size:1,sequence:1000},{id:'file-middle',type:'file',fileName:'middle.png',size:1,sequence:1001},{id:'file-last',type:'file',fileName:'last.png',size:1,sequence:1002}],devices:[],history:{hasMore:false}}}));await page.locator('#files-tab').click();for(const id of ['file-first','file-middle','file-last']){const row=page.locator(`[data-message-id="${id}"]`);await row.getByRole('button',{name:'接收文件',exact:true}).click();await row.getByRole('button',{name:'保存',exact:true}).waitFor();await row.getByRole('button',{name:'更多',exact:true}).click();await page.getByRole('button',{name:'另存为',exact:true}).waitFor();await page.locator('#close-panel').click();assert.equal(await row.locator('.thumbnail').count(),1);assert.equal(await row.count(),1);}assert.equal(await page.locator('.message').count(),3,'receiving replaces first/middle/last rows without duplicating');assert.equal(await page.locator('#toast').isVisible(),false,'caught UI errors must not be hidden in toast: '+await page.locator('#toast').innerText());await page.locator('#all-tab').click();await page.locator('#invite-button').click();
         await page.locator('.qr').waitFor();
         assert.match(await page.locator('.qr').getAttribute('src'), /^data:image\/png/);
