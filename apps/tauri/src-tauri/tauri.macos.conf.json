@@ -1,0 +1,17 @@
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "拾传 Preview",
+        "width": 440,
+        "height": 720,
+        "minWidth": 360,
+        "minHeight": 480,
+        "dragDropEnabled": true,
+        "decorations": false,
+        "transparent": true
+      }
+    ]
+  }
+}

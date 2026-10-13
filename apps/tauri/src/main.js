@@ -61,7 +61,8 @@ $('panel').addEventListener('click', e => { if (e.target === $('panel')) {
         closePanel();
 } });
 function asset(id) { return `/assets/group-animals/${animals.includes(id) ? id : 'cat'}.png`; }
-function updateHeader() {const revoked=!!app.state?.membershipRevoked;$('membership-notice').hidden=!revoked;for(const id of ['send-text','choose-file','invite-button'])$(id).disabled=revoked; const group = app.groups.find(g => g.id === app.groupId) || app.state; $('group-name').textContent = group?.name || '拾传'; $('group-animal').src = group ? asset(group.animalId) : '/assets/app-icon.svg'; $('composer').hidden = !app.groupId; document.body.dataset.hasGroup = String(!!app.groupId); const devices = app.state?.devices || []; $('device-summary').textContent = app.groupId ? `${devices.filter(d => d.online).length} 在线` : '成员'; }
+let windowAnimal;
+function updateHeader() {const revoked=!!app.state?.membershipRevoked;$('membership-notice').hidden=!revoked;for(const id of ['send-text','choose-file','invite-button'])$(id).disabled=revoked; const group = app.groups.find(g => g.id === app.groupId) || app.state; if (document.body.dataset.desktop === 'true' && windowAnimal !== (group?.animalId || 'cat')) { windowAnimal = group?.animalId || 'cat'; native('window_animal', { animalId: windowAnimal }).catch(error); } $('group-name').textContent = group?.name || '拾传'; $('group-animal').src = group ? asset(group.animalId) : '/assets/app-icon.svg'; $('composer').hidden = !app.groupId; document.body.dataset.hasGroup = String(!!app.groupId); const devices = app.state?.devices || []; $('device-summary').textContent = app.groupId ? `${devices.filter(d => d.online || d.id === app.device.id).length} 台设备在线` : '成员'; $('members-button').title = devices.map(d => d.id === app.device.id ? '我' : d.name || '设备').join('、') || '本群成员与设备'; const status = $('connection-status'); if (status) { const online = devices.filter(d => d.online || d.id === app.device.id).length; status.textContent = online > 1 ? '已连接' : '等待连接'; status.classList.toggle('offline', online === 0); } if ($('file-count')) $('file-count').textContent = app.messages.filter(m => m.type === 'file').length; }
 function messageVersion(m) { return JSON.stringify([m.type, m.text, m.fileName, m.size, m.deleted, m.available, m.localPath, m.path]); }
 const thumbnails = new IntersectionObserver(entries => { for (const entry of entries)
     if (entry.isIntersecting) {
@@ -328,7 +329,7 @@ async function receive(message, groupId = app.groupId) {
     } finally { progress.flush(); }
 }
 let pinned = false;
-$('pin-window').onclick = () => run(async () => { await native('window_action', { action: 'pin', value: !pinned }); pinned = !pinned; $('pin-window').setAttribute('aria-pressed', String(pinned)); });
+$('pin-window').onclick = () => run(async () => { const value = !pinned; await native('window_action', { action: 'pin', value }); pinned = value; $('pin-window').setAttribute('aria-pressed', String(pinned)); }, $('pin-window'));
 $('hide-window').onclick = () => run(() => native('window_action', { action: 'hide' }));
 $('groups-button').onclick = groupsPanel;
 $('settings-button').onclick = settingsPanel;
@@ -405,18 +406,26 @@ else
 
 const queueParking = el('div'); queueParking.hidden = true; document.body.append(queueParking); queueParking.append($('queue'));
 function parkQueue() { if($('queue')) queueParking.append($('queue')); }
-for (const [id, name] of [['choose-file','clip'],['pin-window','pin'],['hide-window','dock'],['settings-button','settings'],['close-panel','close'],['chat-back','back']]) { const node = $(id); if(node) node.replaceChildren(icon(name)); }
+for (const [id, name] of [['choose-file','plus'],['send-text','send'],['pin-window','pin'],['hide-window','dock'],['settings-button','settings'],['close-panel','close'],['chat-back','back']]) { const node = $(id); if(node) node.replaceChildren(icon(name)); }
+// Restore the pre-migration shell while retaining the Rust-backed actions.
+$('app').querySelector('header').classList.add('titlebar');
+const chevron = icon('down'); chevron.classList.add('group-chevron'); $('groups-button').append(chevron);
+const memberStrip = $('members-button'); $('viewbar').before(memberStrip);
+const connection = el('span', 'connection-state'); connection.id = 'connection-status'; memberStrip.append(connection, icon('arrow'));
+const fileCount = el('span', 'file-count', '0'); fileCount.id = 'file-count'; $('files-tab').append(fileCount);
+$('invite-button').textContent = '邀请 +';
+$('message-input').placeholder = '传点什么…'; $('send-text').setAttribute('aria-label', '发送消息');
 for(const [id,name] of [['mobile-groups','people'],['mobile-transfers','transfer'],['mobile-profile','user']]) $(id)?.prepend(icon(name));
 const mobileHome = el('section', 'mobile-home'); mobileHome.id = 'mobile-home'; mobileHome.hidden = true; $('app').append(mobileHome);
 function homeView(view) {
     closePanel(); document.body.dataset.view = view; mobileHome.hidden = false; parkQueue(); mobileHome.replaceChildren();
     for (const name of ['groups','transfers','profile']) $('mobile-' + name)?.setAttribute('aria-current', name === view ? 'page' : 'false');
     if (view === 'groups') {
-        const heading = el('div','home-heading'); heading.append(el('h1',null,'群组'), button('加入', joinPanel)); mobileHome.append(heading);
+        const heading = el('div','home-heading'); const brand = el('div','home-brand'); const mark = el('img'); mark.src = '/assets/app-icon.svg'; mark.alt = ''; brand.append(mark, el('h1',null,'拾传')); heading.append(brand, button('＋ 新建', createPanel, 'primary')); mobileHome.append(heading, el('p','section-title','我的群组'));
         const list = el('div','group-list');
-        for (const group of app.groups) { const row = button(group.name, () => selectGroup(group.id), 'group-option'); const img = el('img'); img.src = asset(group.animalId); img.alt = ''; row.prepend(img); list.append(row); }
+        for (const group of app.groups) { const row = button(group.name, () => selectGroup(group.id), 'group-option'); row.setAttribute('aria-label', group.name); const img = el('img'); img.src = asset(group.animalId); img.alt = ''; row.prepend(img); list.append(row); }
         if (!app.groups.length) list.append(el('p','empty-state','还没有群组'));
-        mobileHome.append(list, button('创建群组', createPanel,'primary'));
+        mobileHome.append(list, button('加入群组', joinPanel,'join-group-link'));
     } else if (view === 'transfers') {
         mobileHome.append(el('h1',null,'传输')); attachQueue(mobileHome);
     } else {
@@ -475,6 +484,7 @@ document.addEventListener('visibilitychange', () => { if(document.body.dataset.d
     setTimeout(() => run(consumeIncoming), 800);
 } });
 async function start() { try {
+    document.body.dataset.macos = String(/Macintosh|Mac OS X/.test(navigator.userAgent) && !/iPhone|iPad/.test(navigator.userAgent));
     document.body.dataset.desktop = String(!/Android|iPhone|iPad/i.test(navigator.userAgent));if(document.body.dataset.desktop==='true')await call('set_active',{active:true});
     const boot = await loadBootstrap();
     await selectGroup(boot.activeGroupId || app.groups[0]?.id || null); if(isMobile() && !app.pendingIncoming?.length)homeView('groups');
@@ -483,6 +493,13 @@ async function start() { try {
     await consumeIncoming();
     if (!window.__PICKDROP_TEST_BRIDGE__) {
         const { getCurrentWebview } = await import('@tauri-apps/api/webview');
+        const { listen } = await import('@tauri-apps/api/event');
+        app.unlistenAnchorDrop = await listen('pickdrop:anchor-drop', event => run(async () => {
+            try {
+                const failed = await sendFiles(event.payload, app.groupId);
+                if (failed.length) { await native('window_action', { action: 'expand' }); toast('部分文件发送失败，请在传输任务中重试'); }
+            } catch (e) { await native('window_action', { action: 'expand' }); throw e; } finally { await native('window_action', { action: 'upload-busy', value: false }); }
+        }));
         app.unlistenDrop = await getCurrentWebview().onDragDropEvent(e => { if (e.payload.type === 'drop' && app.groupId)
             run(() => sendFiles(e.payload.paths)); });
     }
@@ -491,11 +508,54 @@ catch (e) {
     $('empty').textContent = '无法打开收件箱，请确认应用服务已启动。';
     error(e);
 } }
+let headerDrag = null, suppressGroupClick = false;
+document.querySelector('header').addEventListener('pointerdown', event => {
+    if (document.body.dataset.macos !== 'true' || event.button !== 0 || event.target.closest('.header-actions')) return;
+    suppressGroupClick = false; headerDrag = { x:event.clientX, y:event.clientY };
+});
+document.querySelector('header').addEventListener('pointermove', event => {
+    if (!headerDrag || !event.buttons || Math.hypot(event.clientX-headerDrag.x,event.clientY-headerDrag.y)<4) return;
+    headerDrag = null; suppressGroupClick = true;
+    run(() => native('window_action', { action:'drag' }));
+});
+document.querySelector('header').addEventListener('click', event => {
+    if (suppressGroupClick) { event.preventDefault(); event.stopImmediatePropagation(); suppressGroupClick = false; }
+}, true);
+window.addEventListener('pointerup', () => { headerDrag = null; });
+window.addEventListener('blur', () => { headerDrag = null; });
+let resizing = null, resizePending = null, resizeSending = false;
+async function flushWindowResize() {
+    if(resizeSending) return;
+    resizeSending = true;
+    try { while(resizePending) { const size = resizePending; resizePending = null; await native('window_resize', size); } }
+    finally { resizeSending = false; if(!resizing) await native('window_action', {action:'busy',value:false}); }
+}
+$('window-resize-handle').addEventListener('pointerdown', event => {
+    if(event.button !== 0) return;
+    event.preventDefault();
+    resizing = { pointer:event.pointerId, x:event.screenX, y:event.screenY, width:window.innerWidth, height:window.innerHeight };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    run(() => native('window_action', {action:'busy',value:true}));
+});
+$('window-resize-handle').addEventListener('pointermove', event => {
+    if(!resizing) return;
+    resizePending = {width:Math.max(360,resizing.width+event.screenX-resizing.x),height:Math.max(480,resizing.height+event.screenY-resizing.y)};
+    run(flushWindowResize);
+});
+function finishWindowResize(event) {
+    if(!resizing) return;
+    const id = resizing.pointer; resizing = null;
+    if($('window-resize-handle').hasPointerCapture(id)) $('window-resize-handle').releasePointerCapture(id);
+    run(flushWindowResize);
+}
+$('window-resize-handle').addEventListener('pointerup', finishWindowResize);
+$('window-resize-handle').addEventListener('pointercancel', finishWindowResize);
+window.addEventListener('blur', finishWindowResize);
 $('collapsed-tab').onclick = () => run(() => native('window_action', { action: 'expand' }));
 $('collapsed-tab').onpointerenter = () => run(() => native('window_action', { action: 'expand' }));
 document.documentElement.addEventListener('pointerleave', () => { if (app.dockEdge && !pinned && !$('panel').open)
-    run(() => native('window_action', { action: 'collapse' })); });
+    run(() => native('window_action', { action: 'pointer-leave' })); });
 $('panel').addEventListener('close', () => { clearTimeout(joinTimer); if(isMobile() && document.body.dataset.view === 'transfers' && !$('panel').open) { mobileHome.append($('queue')); renderQueue(); } if(panelReturnFocus?.isConnected)panelReturnFocus.focus(); if (document.body.dataset.desktop === 'true')
     run(() => native('window_action', { action: 'busy', value: false })); });
-window.addEventListener('pagehide', () => { app.disposed = true; clearTimeout(draftTimer); persistDrafts(); persistFiles(); clearTimeout(app.refreshTimer); clearTimeout(joinTimer); progress.dispose(); app.unlisten?.(); app.unlistenDrop?.(); app.unlistenWindow?.();app.unlistenBack?.();app.unlistenIncoming?.(); thumbnails.disconnect(); });
+window.addEventListener('pagehide', () => { app.disposed = true; clearTimeout(draftTimer); persistDrafts(); persistFiles(); clearTimeout(app.refreshTimer); clearTimeout(joinTimer); progress.dispose(); app.unlisten?.(); app.unlistenDrop?.(); app.unlistenAnchorDrop?.(); app.unlistenWindow?.();app.unlistenBack?.();app.unlistenIncoming?.(); thumbnails.disconnect(); });
 start();

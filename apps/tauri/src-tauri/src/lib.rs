@@ -471,18 +471,67 @@ async fn native_drag_file(
 }
 
 #[tauri::command]
+async fn window_resize(
+    window: tauri::WebviewWindow,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        if !width.is_finite() || !height.is_finite() {
+            return Err("无效窗口尺寸".into());
+        }
+        window
+            .set_size(tauri::LogicalSize::new(
+                width.clamp(360., 10000.),
+                height.clamp(480., 10000.),
+            ))
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(mobile)]
+    {
+        let _ = (window, width, height);
+        Err("手机端不支持窗口缩放".into())
+    }
+}
+
+#[tauri::command]
+async fn window_animal(
+    window: tauri::WebviewWindow,
+    animal_id: Option<String>,
+) -> Result<String, String> {
+    #[cfg(desktop)]
+    {
+        if let Some(animal) = animal_id {
+            docking::animal(&docking::owner(&window)?, &animal)?;
+        }
+        docking::anchor_animal(&window)
+    }
+    #[cfg(mobile)]
+    {
+        let _ = (window, animal_id);
+        Ok("cat".into())
+    }
+}
+
+#[tauri::command]
 async fn window_action(
     window: tauri::WebviewWindow,
     action: String,
     value: Option<bool>,
 ) -> Result<(), String> {
     #[cfg(desktop)]
+    let window = docking::owner(&window)?;
+    #[cfg(desktop)]
     match action.as_str() {
-        "pin" | "dock-left" | "dock-right" | "dock-top" | "undock" | "collapse" | "expand"
-        | "busy" => docking::action(&window, &action, value),
-        "hide" => window.hide().map_err(|e| e.to_string()),
+        "file-hover" | "sync" | "pointer-leave" | "anchor-drag-end" | "upload-busy" | "pin"
+        | "dock-left" | "dock-right" | "dock-top" | "undock" | "collapse" | "expand" | "busy" => {
+            docking::action(&window, &action, value)
+        }
+        "drag" => window.start_dragging().map_err(|e| e.to_string()),
+        "hide" => docking::hide(&window),
         "show" => {
-            window.show().map_err(|e| e.to_string())?;
+            docking::expand(&window)?;
             window.set_focus().map_err(|e| e.to_string())
         }
         "new" => {
@@ -493,16 +542,17 @@ async fn window_action(
                     .map_err(|e| e.to_string())?
                     .as_millis()
             );
-            tauri::WebviewWindowBuilder::new(
+            let builder = tauri::WebviewWindowBuilder::new(
                 window.app_handle(),
                 label,
                 tauri::WebviewUrl::App("index.html".into()),
             )
             .title("拾传 Preview")
             .inner_size(440., 720.)
-            .min_inner_size(360., 480.)
-            .build()
-            .map_err(|e| e.to_string())?;
+            .min_inner_size(360., 480.);
+            #[cfg(target_os = "macos")]
+            let builder = builder.decorations(false).transparent(true);
+            builder.build().map_err(|e| e.to_string())?;
             Ok(())
         }
         _ => Err("未知窗口操作".into()),
@@ -512,6 +562,27 @@ async fn window_action(
         let _ = (window, action, value);
         Err("手机端不支持桌面窗口操作".into())
     }
+}
+
+#[cfg(desktop)]
+fn forward_anchor_drop(anchor: &tauri::WebviewWindow, paths: &[PathBuf]) -> Result<(), String> {
+    let owner = docking::owner(anchor)?;
+    let host = anchor.state::<Host>();
+    let paths: Vec<_> = paths
+        .iter()
+        .take(100)
+        .filter(|path| path.is_file())
+        .filter_map(|path| host.allow(path).ok())
+        .collect();
+    if paths.is_empty() {
+        return Err("请拖入可读取的文件".into());
+    }
+    docking::action(&owner, "upload-busy", Some(true))?;
+    if let Err(error) = owner.emit("pickdrop:anchor-drop", paths) {
+        let _ = docking::action(&owner, "upload-busy", Some(false));
+        return Err(error.to_string());
+    }
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -536,7 +607,9 @@ pub fn run() {
             native_consume_incoming,
             native_back_default,
             native_drag_file,
-            window_action
+            window_action,
+            window_animal,
+            window_resize
         ])
         .setup(|app| {
             let data = app.path().app_data_dir()?;
@@ -591,16 +664,30 @@ pub fn run() {
         .on_window_event(|window, event| {
             #[cfg(desktop)]
             if let Some(w) = window.app_handle().get_webview_window(window.label()) {
+                if docking::is_anchor(&w) {
+                    if let Ok(owner) = docking::owner(&w) {
+                        match event {
+                            tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop {
+                                paths,
+                                ..
+                            }) => {
+                                let _ = forward_anchor_drop(&w, paths);
+                            }
+                            tauri::WindowEvent::Focused(false) => docking::blurred(owner),
+                            _ => {}
+                        }
+                    }
+                    return;
+                }
                 match event {
                     tauri::WindowEvent::CloseRequested { api, .. } => {
                         api.prevent_close();
-                        let _ = w.hide();
+                        let _ = docking::hide(&w);
                     }
                     tauri::WindowEvent::Moved(_) => docking::moved(&w),
+                    tauri::WindowEvent::Resized(_) => docking::resized(&w),
                     tauri::WindowEvent::Focused(false) => docking::blurred(w),
-                    tauri::WindowEvent::Focused(true) => {
-                        let _ = docking::expand(&w);
-                    }
+
                     _ => {}
                 }
             }
@@ -630,7 +717,7 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .on_menu_event(|app, event| match event.id.as_ref() {
             "show" => {
                 if let Some(w) = app.get_webview_window("main") {
-                    let _ = w.show();
+                    let _ = docking::expand(&w);
                     let _ = w.set_focus();
                 }
             }

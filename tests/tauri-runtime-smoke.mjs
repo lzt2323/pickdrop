@@ -36,7 +36,7 @@ async function attach(page,rpc) {
   await page.exposeFunction('__rustCall',rpc);
   await page.addInitScript(()=>{
     window.__PICKDROP_TEST_BRIDGE__={call:(method,params)=>window.__rustCall(method,params),native:async command=>{
-      if(command==='window_action')return{};if(command==='native_consume_incoming')return{items:[]};
+      if(command==='window_action'||command==='window_animal')return{};if(command==='native_consume_incoming')return{items:[]};
       if(command==='native_pick_files')return window.__nativePicked||[];
       throw Error(`OS capability ${command} is not mocked by the runtime test`);
     },subscribe:async handler=>{window.__rustEvent=handler;return()=>{};}};
@@ -62,7 +62,7 @@ try {
     await waitFor(async()=>{try{return(await fetch(ui)).ok;}catch{return false;}},'Vite did not start');
   }
   browser=await chromium.launch({headless:true});
-  const desktop=await browser.newPage({viewport:{width:1024,height:768}}),phone=await browser.newPage({viewport:{width:390,height:844},userAgent:'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36'});
+  const desktop=await browser.newPage({viewport:{width:440,height:720}}),phone=await browser.newPage({viewport:{width:390,height:844},userAgent:'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36'});
   const pageErrors=[];for(const p of[desktop,phone])p.on('pageerror',error=>pageErrors.push(error.message));
   await attach(desktop,first);await attach(phone,second);
   await desktop.goto(ui);await phone.goto(ui);
@@ -73,7 +73,7 @@ try {
   await desktop.locator('#group-name').filter({hasText:'Rust 互通验收'}).waitFor();
   const boot=await first('bootstrap'),groupId=boot.activeGroupId;
   const invite=await first('create_invite',{groupId});
-  await phone.getByRole('button',{name:'加入',exact:true}).click();
+  await phone.getByRole('button',{name:'加入群组',exact:true}).click();
   await phone.getByLabel('设备地址',{exact:true}).fill(boot.endpoint.baseUrl);
   await phone.getByLabel('邀请码',{exact:true}).fill(invite.code);
   await phone.getByRole('button',{name:'申请加入',exact:true}).click();
@@ -111,11 +111,17 @@ try {
   assert.doesNotMatch(await phone.locator('#queue').innerText(), /NotFoundError|insertBefore|失败|错误/);
   assert.doesNotMatch(await phone.locator('#toast').innerText(), /NotFoundError|insertBefore|Failed to execute/);
   assert.equal(await phone.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Phone horizontal overflow');
+  for (const width of [360, 1024, 440]) {
+    await desktop.setViewportSize({width,height:720});
+    assert.equal(await desktop.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`Desktop horizontal overflow at ${width}px`);
+    await desktop.locator('#message-input').fill('调整窗口后保留的草稿');
+    assert.equal(await desktop.locator('#send-text').isVisible(),true,'Send stays visible after desktop resize');
+  }
   await mkdir('artifacts/tauri-runtime',{recursive:true});
   await desktop.screenshot({path:'artifacts/tauri-runtime/desktop.png',fullPage:true});
   await phone.screenshot({path:'artifacts/tauri-runtime/phone.png',fullPage:true});
   assert.deepEqual(pageErrors,[]);for(const page of [desktop,phone])assert.equal(await page.locator('#toast').isVisible(),false,'caught UI errors must not be hidden in toast');assert.equal(await phone.locator(`[data-message-id="${fileMessage.id}"]`).getByRole('button',{name:'保存',exact:true}).count(),1,'received file row must finish rendering');
-  const report={version,realRustNodes:2,joinApproval:true,bidirectionalText:true,fileBytes:saved.length,fileSha256:createHash('sha256').update(saved).digest('hex'),typingPreservesRows:true,receiveRowRendered:true,uiErrorToasts:[],phoneViewport:390,pageErrors};
+  const report={version,realRustNodes:2,joinApproval:true,bidirectionalText:true,fileBytes:saved.length,fileSha256:createHash('sha256').update(saved).digest('hex'),typingPreservesRows:true,receiveRowRendered:true,uiErrorToasts:[],desktopResizeWidths:[360,1024,440],phoneViewport:390,pageErrors};
   await writeFile('artifacts/tauri-runtime/report.json',JSON.stringify(report,null,2)+'\n');
   console.log(JSON.stringify(report));
 } finally {
