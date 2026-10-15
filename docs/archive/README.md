@@ -6,4 +6,4 @@
 - [界面评审与验证](ui-review/)：保留评审结论、历史验收及 `motion-before.json` 基线。
 - [旧版专题资料](legacy/)：Electron / Expo 阶段的设备验证与动物邀请设计。
 
-当前范围以 [PROJECT.md](../PROJECT.md) 为准，实际进度和下一步见 [STATUS.md](../STATUS.md)。仍受维护的旧客户端说明见 [legacy](../legacy/)。归档中的仓库根目录命令应从仓库根执行；原型生成脚本通过自身位置寻找素材。
+当前范围以 [PROJECT.md](../PROJECT.md) 为准，实际进度和下一步见 [STATUS.md](../STATUS.md)。旧客户端已退役，说明见 [历史客户端](legacy/legacy-client.md)，源码回退点为 `b30873b`。归档中的仓库根目录命令应从仓库根执行；原型生成脚本通过自身位置寻找素材。

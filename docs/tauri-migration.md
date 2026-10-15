@@ -1,5 +1,8 @@
 # Tauri 迁移与版本管理
 
+> 2026-10-15 更新：当前 alpha.2 仅维护 Rust/Tauri，旧 Node 服务、Electron/Expo 和 Node TUI 已退役。下文保留迁移当时的旧入口和验收记录；旧源码请在独立 worktree 检出 `b30873b`，不在当前目录运行 legacy 命令。当前验证以 [STATUS.md](STATUS.md) 为准。
+
+
 ## 版本边界
 
 - 原 Electron/Expo 开发状态完整保存在提交 `6c4262e`，标签 `migration/tauri-base-20261012`。

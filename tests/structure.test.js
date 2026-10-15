@@ -19,6 +19,12 @@ test('structure rejects loose root files and unclassified document directories',
   assert.equal(errors.length, 3);
 });
 
+test('retired Node applications cannot return to the Rust-only workspace', () => {
+  for (const directory of ['apps/desktop', 'apps/mobile', 'apps/tui', 'server', 'shared']) {
+    assert.ok(check({ [`${directory}/index.js`]: '' }).some(error => error.includes('retired Node implementation')));
+  }
+});
+
 test('frontend cannot import legacy services or its domain import native bridge', () => {
   const errors = check({
     'apps/tauri/src/main.js': "export { server } from '../../../server/index.js';",

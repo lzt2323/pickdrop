@@ -34,3 +34,6 @@ apps/mobile/modules/*/android/.gradle/
 
 # Local design-tool session records
 /.hallmark/
+
+# Local pnpm cache
+.pnpm-store/

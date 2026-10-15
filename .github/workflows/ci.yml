@@ -20,7 +20,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
-      - run: pnpm test:node
-      - run: pnpm legacy:mobile:check
-      - run: pnpm legacy:mobile:export
+      - run: pnpm test
   # Tauri Preview validates and packages the new shared client separately.

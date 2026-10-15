@@ -4,20 +4,20 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const rootFiles = new Set([
-  'AGENT.md', 'README.md', 'CONTRIBUTING.md', 'LICENSE', 'Cargo.toml', 'Cargo.lock',
+  'AGENTS.md', 'README.md', 'CONTRIBUTING.md', 'LICENSE', 'Cargo.toml', 'Cargo.lock',
   'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'rust-toolchain.toml',
-  'electron-builder.cjs', '.gitignore', '.gitattributes',
+  '.gitignore', '.gitattributes',
 ]);
 const rootDirectories = new Set([
   '.github', '.hallmark', 'apps', 'assets', 'crates', 'docs', 'scripts',
-  'server', 'shared', 'tests', 'vendor',
+  'tests', 'vendor',
 ]);
 const documentEntries = new Set([
   'README.md', 'PROJECT.md', 'STATUS.md', 'DECISIONS.md', 'tauri-migration.md',
-  'linux.md', 'peer-groups.md', 'android-emulator.md', 'tui-arrow-acceptance.md',
+  'android-emulator.md',
   'mini-group-design.html',
 ]);
-const documentDirectories = new Set(['archive', 'legacy', 'releases']);
+const documentDirectories = new Set(['archive', 'releases']);
 const frontend = 'apps/tauri/src/';
 const domainModules = new Set(['model', 'file-drafts', 'file-transfers']);
 
@@ -56,11 +56,14 @@ export function checkStructure(files, read, exists) {
   const graph = new Map();
   for (const file of files) {
     const parts = file.split('/');
+    if (/^(?:apps\/(?:desktop|mobile|tui)|server|shared)(?:\/|$)/.test(file)) {
+      errors.push(`${file}: retired Node implementation must not return to the Rust-only workspace`);
+    }
     if (parts.length === 1 ? !rootFiles.has(file) : !rootDirectories.has(parts[0])) {
       errors.push(`${file}: unexpected repository root entry; assign an existing owner or update the documented structure`);
     }
     if (parts[0] === 'docs' && (parts.length === 2 ? !documentEntries.has(parts[1]) : !documentDirectories.has(parts[1]))) {
-      errors.push(`${file}: document belongs in a maintained guide, legacy/, releases/, or archive/`);
+      errors.push(`${file}: document belongs in a maintained guide, releases/, or archive/`);
     }
     if (file.startsWith(frontend) && /\.(?:js|mjs|cjs)$/.test(file)) {
       const dependencies = [];

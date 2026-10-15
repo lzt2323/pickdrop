@@ -1,22 +1,28 @@
 # 开发与版本管理
 
-`main` 保存已验证版本，每项改动使用独立 `codex/` 分支并通过 Pull Request 合并。不要强制推送、改写已发布标签或覆盖旧发布资产。
+当前仅开发 Rust/Tauri 版本。`main` 保存已验证版本；每项改动使用独立 `codex/` 分支，验证后分主题提交并通过 PR 合并。不要长期积累未提交源码，不强制推送、改写已发布标签或覆盖发布资产。
 
-## 目录与命令约束
+## 开始与目录
 
-开始工作先读 [项目边界](docs/PROJECT.md)、[当前状态](docs/STATUS.md) 和 [目录导航](docs/README.md)。新文件放入现有责任模块；当前规范放 `docs/`，旧客户端指南放 `docs/legacy/`，历史评审/原型/证据放 `docs/archive/`，发布说明放 `docs/releases/`。不再创建根目录 `plans/` 或平行的评审目录。
+阅读 [工程规则](AGENTS.md)、[项目边界](docs/PROJECT.md)、[当前状态](docs/STATUS.md) 和 [目录导航](docs/README.md)。主线源码为 `apps/tauri/` 与 `crates/pickdrop-core/`；协议夹具在 `tests/fixtures/`。旧运行实现只能从 Git 历史获取，不再增加 Electron/Expo/Node 服务/TUI 分支。
 
-`pnpm check` 检查目录归属、维护文档链接、前端字面量依赖边界与循环，以及新旧 JS 语法。新增根目录或文档分区须先说明职责与依赖影响，在 `docs/DECISIONS.md` 记录原因，再更新 `scripts/check-structure.js`；不能为消除报错随意扩充允许列表。该检查不解析计算生成的 import，不代替编译和行为测试。
+`pnpm check` 校验目录、文档链接、前端字面量导入边界及循环和 JS 语法。新增根目录须说明职责并记录到 DECISIONS，再更新检查器。检查器不解析计算导入，不代替编译和行为验证。历史资料仅放 `docs/archive/`，发布记录放 `docs/releases/`，当前待办更新 STATUS。
 
-常用命令与工具归属见 [scripts/README.md](scripts/README.md)。默认 `start`、`mobile:start`、`desktop:package` 是 Tauri；旧客户端使用 `legacy:` 前缀。旧命令保留兼容别名。`pnpm test:node` 验证 Node/TUI/兼容逻辑，`pnpm test:frontend` 验证主线前端，二者不能互相替代。
+Node 是前端与开发工具依赖，不是产品服务。工具入口见 [scripts/README.md](scripts/README.md)。
 
-## Tauri 版本
+## 版本与回退
 
-当前迁移分支 `codex/tauri-migration`，测试版本 `0.6.0-alpha.1`。回退基线为 `migration/tauri-base-20261012`（提交 `6c4262e`）。预览采用独立包名与数据目录，不能自动覆盖旧用户数据。
+当前开发版本为 `0.6.0-alpha.2`；预览标识和数据目录不变。版本同时更新根 package.json、apps/tauri/package.json、两个主 crate 与内部 native 插件 Cargo.toml、Cargo.lock、tauri.conf.json。Android `bundle.android.versionCode` 必须显式递增：alpha.1 为 6000，alpha.2 为 6001，不能仅依靠忽略预发布尾缀的默认换算。
 
-更新版本时同步根 package.json、apps/tauri/package.json、apps/tauri/src-tauri/Cargo.toml 与 tauri.conf.json、crates/pickdrop-core/Cargo.toml、内部 native 插件 Cargo.toml、apps/tui/package.json，以及保留作兼容参考的 apps/mobile/package.json 和 app.json。Android 构建号必须递增，并在 `docs/releases/v<版本>.md` 添加发布说明。
+版本变化新增 `docs/releases/v<版本>.md`，不覆盖旧说明。`pnpm version:check` 校验版本及 Android 构建号。依赖变化同步 pnpm-lock.yaml；Rust 包版本/依赖变化同步 Cargo.lock。安装包、target、gen、用户数据、私有证书及工具本地记录不纳入 Git。
 
-`node scripts/verify-versions.js` 校验版本。依赖更新必须同时提交 pnpm-lock.yaml 和 Cargo.lock，源码纳入 Git，安装包、target、gen、用户数据和私有签名不纳入 Git。
+旧实现最后完整回退点为 `b30873b`（包含已验证的代码职责重构和目录治理）。需要旧版时使用独立目录：
+
+```sh
+git worktree add --detach ../pickdrop-legacy b30873b
+```
+
+不在有未提交工作或日常数据的目录执行 hard reset；旧版不能读取新版数据目录。旧桌面导入保持显式、非破坏性。
 
 ## 必须检查
 
@@ -24,20 +30,21 @@
 pnpm install --frozen-lockfile
 pnpm check
 pnpm version:check
+pnpm test
 cargo test -p pickdrop-core --locked
+cargo test -p pickdrop-tauri --lib --locked
 cargo check -p pickdrop-tauri --locked
-pnpm --dir apps/tauri test
 pnpm --dir apps/tauri build
 pnpm --dir apps/tauri test:browser
 pnpm tauri:test:runtime
 ```
 
-协议更改必须通过旧 JS 签名事件交叉测试和两节点真实传输测试；不能通过去掉签名校验来改善性能。桌面原生窗口与手机原生扫码、分享、相册、前后台和网络变化须分开验收。
+协议改动必须通过保留的旧 JS 签名向量和真实双节点测试。不要为减少依赖删除协议夹具或跳过授权检查。原生窗口、扫码、系统文件和前后台须按平台独立验收。
 
 ## 构建与发布
 
-`Tauri Preview` 在分支/PR 上验证 Rust 核心、前端和真实节点 UI，并构建 macOS、Windows、ARM64 Android。构建结果上传 Actions artifacts，不发布 Release。Android 使用独立预览包名及公开测试证书，正式版须另配私有签名；macOS 内测包采用 ad-hoc 签名，验证签名不等于公证。
+Tauri CI 验证主线并构建 macOS、Windows 和 Android ARM64；不再打包 Node Linux TUI，也不宣称已有 Rust TUI。iOS 需另行签名及验收。手动工作流只产出 artifacts。
 
-稳定发布必须完成验证并合并 main 后，再由发布负责人创建附注 `v<版本>` 标签。统一 Release 工作流校验源码版本、构建 Tauri 桌面和 Android、保留 Linux TUI 包，汇总 SHA256 后发布预发布版本；已存在 Release 时拒绝覆盖。日常测试不要创建发布标签。
+Android 预览继续使用同一公开测试证书和独立包名，以保留预览升级能力；测试证书明确标注来源，不能用于正式发布。macOS ad-hoc 签名不等于公证。
 
-本次迁移不会自动发布或合并。历史 Electron/Expo 流程保留于 [旧版构建约定](docs/legacy/legacy-contributing.md)，主入口不再使用它们。
+发布前完成验证并合并 main，再由发布负责人创建附注 `v<版本>` 标签。Release 汇总上述 Tauri 包与 SHA256；已存在发布时拒绝覆盖。日常提交不打发布标签、不推送或发布，除非用户明确要求。

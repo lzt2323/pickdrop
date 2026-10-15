@@ -25,41 +25,9 @@ jobs:
   tauri:
     needs: verify
     uses: ./.github/workflows/tauri.yml
-  linux:
-    needs: verify
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-24.04
-            arch: x64
-          - os: ubuntu-24.04-arm
-            arch: arm64
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-        with:
-          version: 11.19.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm test:node
-      - name: Package standalone Linux terminal client
-        run: pnpm linux:package --arch=${{ matrix.arch }}
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: installer-linux-${{ matrix.arch }}
-          path: dist/PickDrop-*-Linux-${{ matrix.arch }}-TUI.tar.gz
-          if-no-files-found: error
-          retention-days: 7
-          compression-level: 0
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [verify, tauri, linux]
+    needs: [verify, tauri]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -77,11 +45,6 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: tauri-android-arm64
-          path: release-input
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          pattern: installer-linux-*
-          merge-multiple: true
           path: release-input
       - run: node scripts/tauri-release-manifest.js release-input release-assets
       - name: Publish verified prerelease without overwriting existing assets
