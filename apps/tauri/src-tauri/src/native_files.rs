@@ -14,6 +14,77 @@ use tauri_plugin_fs::FsExt;
 #[cfg(desktop)]
 use tauri_plugin_opener::OpenerExt;
 
+#[tauri::command]
+pub(crate) async fn native_paste_image(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+) -> Result<Option<Value>, String> {
+    #[cfg(desktop)]
+    {
+        use tauri_plugin_clipboard_manager::ClipboardExt;
+        let reason = format!("clipboard-{}", pickdrop_core::protocol::random(12));
+        let _protection = NativeProtection::new(docking::owner(&window)?, &reason);
+        tauri::async_runtime::spawn_blocking(move || {
+            let image = match app.clipboard().read_image() {
+                Ok(image) => image,
+                // The plugin converts arboard's typed ContentNotAvailable error
+                // into this string. An ordinary text paste is not an image error.
+                Err(tauri_plugin_clipboard_manager::Error::Clipboard(message))
+                    if message == "The clipboard contents were not available in the requested format or the clipboard is empty." => return Ok(None),
+                Err(error) => return Err(format!("无法读取剪贴板图片：{error}")),
+            };
+            let host = app.state::<Host>();
+            stage_clipboard_image(&host.data, image.width(), image.height(), image.rgba()).map(Some)
+        }).await.map_err(|error| error.to_string())?
+    }
+    #[cfg(mobile)]
+    {
+        let _ = (app, window);
+        Err("手机端请通过文件选择或系统分享添加图片".into())
+    }
+}
+
+#[cfg(desktop)]
+fn stage_clipboard_image(
+    data: &Path,
+    width: u32,
+    height: u32,
+    rgba: &[u8],
+) -> Result<Value, String> {
+    use image::ImageEncoder;
+    let expected = u64::from(width)
+        .checked_mul(u64::from(height))
+        .and_then(|pixels| pixels.checked_mul(4));
+    if width == 0
+        || height == 0
+        || expected.is_none_or(|bytes| bytes > 64 * 1024 * 1024 || bytes != rgba.len() as u64)
+    {
+        return Err("剪贴板图片尺寸无效或超过 64 MiB 像素上限".into());
+    }
+    let directory = data.join("clipboard");
+    std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    let name = format!("clipboard-{}.png", pickdrop_core::protocol::random(12));
+    let path = directory.join(&name);
+    let file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map_err(|error| error.to_string())?;
+    if let Err(error) = image::codecs::png::PngEncoder::new(file).write_image(
+        rgba,
+        width,
+        height,
+        image::ExtendedColorType::Rgba8,
+    ) {
+        let _ = std::fs::remove_file(&path);
+        return Err(format!("无法保存剪贴板图片：{error}"));
+    }
+    let size = std::fs::metadata(&path)
+        .map_err(|error| error.to_string())?
+        .len();
+    Ok(json!({"path":path,"name":name,"size":size,"mimeType":"image/png"}))
+}
+
 // File dialogs are asynchronous; the actual stream copy runs off the UI thread.
 #[tauri::command]
 pub(crate) async fn native_pick_files(
@@ -444,6 +515,39 @@ pub(crate) async fn native_drag_file(
 #[cfg(test)]
 mod tests {
     use super::safe_export_name;
+    #[cfg(desktop)]
+    #[test]
+    fn clipboard_image_staging_preserves_pixels_and_uses_unique_app_owned_files() {
+        let directory = tempfile::tempdir().unwrap();
+        let pixels = [255, 0, 0, 255, 0, 255, 0, 128];
+        let first = super::stage_clipboard_image(directory.path(), 2, 1, &pixels).unwrap();
+        let second = super::stage_clipboard_image(directory.path(), 2, 1, &pixels).unwrap();
+        assert_ne!(first["path"], second["path"]);
+        let path = std::path::Path::new(first["path"].as_str().unwrap());
+        assert!(path.starts_with(directory.path().join("clipboard")));
+        assert_eq!(image::open(path).unwrap().to_rgba8().as_raw(), &pixels);
+        assert_eq!(
+            first["size"].as_u64().unwrap(),
+            std::fs::metadata(path).unwrap().len()
+        );
+        assert_eq!(first["mimeType"], "image/png");
+    }
+    #[cfg(desktop)]
+    #[test]
+    fn invalid_clipboard_dimensions_and_pixel_counts_do_not_create_files() {
+        let directory = tempfile::tempdir().unwrap();
+        for (width, height, pixels) in [
+            (0, 1, vec![]),
+            (2, 1, vec![0; 4]),
+            (4097, 4096, vec![]),
+            (u32::MAX, u32::MAX, vec![]),
+        ] {
+            assert!(
+                super::stage_clipboard_image(directory.path(), width, height, &pixels).is_err()
+            );
+        }
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+    }
     #[test]
     fn preview_and_thumbnail_use_distinct_bounded_sizes() {
         use base64::Engine;

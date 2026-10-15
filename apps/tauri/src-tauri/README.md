@@ -10,6 +10,8 @@ The desktop and mobile hosts use the same Rust core and frontend. Preview identi
 - `pickdrop:event` broadcasts state changes, group changes and transfer progress.
 - `native_pick_files()` streams Android content providers into native app storage,
   returning only metadata and paths; desktop paths are approved by the picker.
+- `native_paste_image()` reads desktop clipboard images on a worker and stages PNG
+  drafts in app storage; returns metadata/paths only, with a 64 MiB RGBA limit.
 - `native_save_file({sourcePath,suggestedName})` streams to a user-selected destination.
 - `native_thumbnail({path})` generates a PNG at most 320×320 on a Rust worker;
   encoded input, dimensions and decoded allocation are bounded. Original file bytes
@@ -30,7 +32,8 @@ UIActivityViewController and Photos export. An iOS share extension for incoming
 external shares is not included; iOS cannot receive those via Android intent filters.
 Native desktop file drag in/out is supported. Edge docking snaps near the left,
 right or top work-area edge, collapses on blur and expands through the frontend
-hover tab. Window pinning suppresses collapse. Closing a desktop window hides it and keeps
+hover tab. Window pinning keeps the panel expanded and on top, overriding automatic and
+manual collapse. Unpinning preserves the existing edge-docking preference. Closing a desktop window hides it and keeps
 the Rust peer service available; the tray Quit action exits the application. This implementation uses a single
 resized native surface; the prior Electron split-surface animation is not reused.
 
@@ -50,7 +53,7 @@ on real devices before promoting the preview to the stable identifier.
 ## Storage accounting in this preview
 
 The storage panel currently reports the Rust core message/file cache. Native
-picker drafts and named OS exports are separate staging storage and are not part
+picker/clipboard drafts and named OS exports are separate staging storage and are not part
 of its clear-cache action, so drafts or in-flight files cannot be deleted by that
 action. Named exports are cleaned after 24 hours on the next native export.
 An iOS incoming-share extension remains outside this preview; the iOS entrypoint,

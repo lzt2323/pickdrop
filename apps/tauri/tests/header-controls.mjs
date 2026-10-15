@@ -36,7 +36,10 @@ try {
   assert.ok(geometry.bubbleWidth<100,`short bubble stretched: ${geometry.bubbleWidth}`);assert.ok(geometry.gap>=0&&geometry.gap<=6);assert.equal(geometry.copyOpacity,'1');
   assert.equal(await short.locator('.bubble').getAttribute('title'),null,'no persistent double-click tooltip');
   await short.getByRole('button',{name:'复制消息'}).click();assert.equal(await page.evaluate(()=>window.copied),'短消息');
-  await page.locator('#pin-window').click();await page.locator('#dock-window').click();
+  await page.locator('#pin-window').click();
+  assert.match(await page.locator('#pin-window').getAttribute('title'),/保持展开/);
+  assert.match(await page.locator('#dock-window').getAttribute('title'),/长驻期间暂停收缩/);
+  await page.locator('#dock-window').click();
   assert.equal(await page.locator('#dock-window').getAttribute('aria-pressed'),'false');assert.equal(await page.locator('#pin-window').getAttribute('aria-pressed'),'true');
   await page.reload();await page.locator('[data-message-id=short]').waitFor();assert.equal(await page.locator('#dock-window').getAttribute('aria-pressed'),'false');
   await page.locator('#dock-window').click();assert.equal(await page.locator('#dock-window').getAttribute('aria-pressed'),'true');

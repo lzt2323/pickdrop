@@ -2,7 +2,7 @@
 
 <img src="assets/brand/app-icon.png" width="96" height="96" alt="拾传 Logo">
 
-局域网文件群聊。桌面与手机共用 Tauri 2 客户端和 Rust 核心，支持文字、文件、多群、邀请审批及本地历史。当前开发版本 **0.6.0-alpha.4**，仅维护 Rust/Tauri 实现。
+局域网文件群聊。桌面与手机共用 Tauri 2 客户端和 Rust 核心，支持文字、文件、多群、邀请审批及本地历史。当前开发版本 **0.6.0-alpha.5**，仅维护 Rust/Tauri 实现。
 
 [文档导航](docs/README.md) · [项目范围](docs/PROJECT.md) · [当前进度](docs/STATUS.md) · [开发命令](scripts/README.md) · [版本管理](CONTRIBUTING.md)
 
@@ -52,4 +52,4 @@ pnpm tauri:test:runtime
 
 CI 构建 macOS、Windows、Android ARM64 预览包。iOS 构建签名、真机及 Linux Rust 产品交付不在本次验证范围内。源码提交不会自动创建 Release；发布需单独审批和版本标签。
 
-MIT 许可证。[本次版本说明](docs/releases/v0.6.0-alpha.4.md)
+MIT 许可证。[本次版本说明](docs/releases/v0.6.0-alpha.5.md)

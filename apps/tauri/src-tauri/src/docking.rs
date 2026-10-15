@@ -486,8 +486,12 @@ pub fn action(w: &WebviewWindow, action: &str, value: Option<bool>) -> Result<()
         }
         "pin" => {
             r.pinned = value.unwrap_or(true);
-            manager.put(w, r.clone());
             w.set_always_on_top(r.pinned).map_err(|e| e.to_string())?;
+            manager.next_exit_generation(w.label());
+            manager.put(w, r.clone());
+            if r.pinned && r.collapsed {
+                expand(w)?;
+            }
             manager.save();
             emit(w, &manager.get(w));
             Ok(())
@@ -649,7 +653,7 @@ pub fn expand(w: &WebviewWindow) -> Result<(), String> {
 pub fn anchor_moved(w: &WebviewWindow) -> Result<(), String> {
     let manager = w.state::<Docking>();
     let mut r = manager.get(w);
-    if suppressed(&r) {
+    if r.pinned || suppressed(&r) {
         return Ok(());
     }
     let Some(anchor) = w.app_handle().get_webview_window(&anchor_label(w)) else {
@@ -726,6 +730,7 @@ pub fn collapse(w: &WebviewWindow) -> Result<(), String> {
 }
 fn can_collapse(r: &Record, manual: bool) -> bool {
     !r.collapsed
+        && !r.pinned
         && r.protections.is_empty()
         && !r.busy
         && !r.upload_busy
@@ -984,7 +989,7 @@ mod tests {
         assert!(!r.docking_disabled);
         r.edge = Some("right".into());
         r.pinned = true;
-        assert!(can_collapse(&r, false));
+        assert!(!can_collapse(&r, false));
         r.docking_disabled = true;
         assert!(!can_collapse(&r, false));
         assert!(r.pinned);
@@ -1032,14 +1037,18 @@ mod tests {
         assert!(can_collapse(&r, false));
     }
     #[test]
-    fn pinned_only_controls_z_order_and_busy_panels_do_not_auto_collapse() {
+    fn pinned_overrides_manual_and_automatic_collapse_without_changing_docking() {
         let mut record = Record::default();
         assert!(can_collapse(&record, true));
         assert!(!can_collapse(&record, false));
         record.edge = Some("right".into());
         assert!(can_collapse(&record, false));
         record.pinned = true;
-        assert!(can_collapse(&record, true));
+        assert!(!can_collapse(&record, true));
+        assert!(!can_collapse(&record, false));
+        assert_eq!(record.edge.as_deref(), Some("right"));
+        assert!(!record.docking_disabled);
+        record.pinned = false;
         assert!(can_collapse(&record, false));
         record.collapsed = true;
         assert!(!can_collapse(&record, true));

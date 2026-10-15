@@ -557,11 +557,16 @@ let pinned = false, dockingEnabled = true;
 function syncDockButton() {
     $('dock-window').setAttribute('aria-pressed',String(dockingEnabled));
     const edgeName={left:'左侧',right:'右侧',top:'顶部',bottom:'底部'}[app.dockEdge];
-    $('dock-window').title=dockingEnabled ? `自动贴边已开启${edgeName ? ` · 当前贴合${edgeName}` : ''}` : '自动贴边已关闭';
+    $('dock-window').title=dockingEnabled ? `自动贴边已开启${edgeName ? ` · 当前贴合${edgeName}` : ''}${pinned ? ' · 长驻期间暂停收缩' : ''}` : '自动贴边已关闭';
+}
+function syncPinButton() {
+    $('pin-window').setAttribute('aria-pressed', String(pinned));
+    $('pin-window').title = pinned ? '长驻已开启：保持展开并置顶' : '开启长驻：保持展开并置顶';
+    syncDockButton();
 }
 $('dock-window').onclick=()=>run(async()=>{const value=!dockingEnabled;await native('window_action',{action:'edge-docking',value});dockingEnabled=value;syncDockButton();},$('dock-window'));
 
-$('pin-window').onclick = () => run(async () => { const value = !pinned; await native('window_action', { action: 'pin', value }); pinned = value; $('pin-window').setAttribute('aria-pressed', String(pinned)); }, $('pin-window'));
+$('pin-window').onclick = () => run(async () => { const value = !pinned; await native('window_action', { action: 'pin', value }); pinned = value; syncPinButton(); }, $('pin-window'));
 $('groups-button').onclick = groupsPanel;
 $('settings-button').onclick = settingsPanel;
 $('invite-button').onclick = () => run(invitePanel);
@@ -633,6 +638,22 @@ $('choose-file').onclick = () => run(async () => {
     try { const files = await native('native_pick_files'); if (files?.length) addFileDrafts(files, groupId); }
     finally { await setWindowBusy('file-picker', false); }
 }, $('choose-file'));
+document.addEventListener('paste', event => {
+    const editable = event.target?.closest?.('input,textarea,[contenteditable]');
+    if (event.defaultPrevented || document.body.dataset.desktop !== 'true' || $('panel').open || !app.groupId || (editable && editable !== $('message-input'))) return;
+    const containsImage = [...(event.clipboardData?.items || [])].some(item => item.type.startsWith('image/'));
+    if (containsImage) event.preventDefault();
+    if (app.state?.membershipRevoked) { if (containsImage) toast('请重新加入群组后发送'); return; }
+    const groupId = app.groupId;
+    const reason = `clipboard-paste-${crypto.randomUUID()}`;
+    run(async () => {
+        await setWindowBusy(reason, true);
+        try {
+            const image = await native('native_paste_image');
+            if (image && !app.disposed) addFileDrafts([image], groupId);
+        } finally { await setWindowBusy(reason, false); }
+    });
+});
 async function consumeIncoming() {
     if (app.consumingIncoming) { app.consumeAgain = true; return app.consumingIncoming; }
     app.consumingIncoming = (async () => {
@@ -736,7 +757,7 @@ async function start() { try {
     const boot = await loadBootstrap();
     await selectGroup(new URLSearchParams(location.search).get('group') || boot.activeGroupId || app.groups[0]?.id || null); if(isMobile() && !app.pendingIncoming?.length)homeView('groups');
     app.unlisten = await subscribe(onEvent);if(/Android/i.test(navigator.userAgent)){app.unlistenBack=await subscribeBack(()=>onEvent({type:'back'}));app.unlistenIncoming=await subscribeIncoming(()=>run(consumeIncoming));}
-    app.unlistenWindow = await subscribeWindow(state => { if(state.owner && state.owner !== ownerLabel)return; document.body.dataset.collapsed = String(state.collapsed); document.body.dataset.dockEdge = state.edge || ''; app.dockEdge = state.edge; dockingEnabled = state.dockingEnabled ?? true; syncDockButton(); pinned = state.pinned; $('pin-window').setAttribute('aria-pressed', String(pinned)); });
+    app.unlistenWindow = await subscribeWindow(state => { if(state.owner && state.owner !== ownerLabel)return; document.body.dataset.collapsed = String(state.collapsed); document.body.dataset.dockEdge = state.edge || ''; app.dockEdge = state.edge; dockingEnabled = state.dockingEnabled ?? true; pinned = state.pinned; syncPinButton(); });
     await consumeIncoming();
     if (!window.__PICKDROP_TEST_BRIDGE__) {
         const { getCurrentWebview } = await import('@tauri-apps/api/webview');

@@ -111,6 +111,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             core_call,
             native_files::native_pick_files,
+            native_files::native_paste_image,
             native_files::native_save_file,
             native_files::native_open_file,
             native_files::native_thumbnail,

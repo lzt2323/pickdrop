@@ -34,6 +34,7 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm --dir apps/tauri test:browser
       - run: pnpm --dir apps/tauri test:join
+      - run: pnpm --dir apps/tauri test:paste
       - run: cargo build -p pickdrop-core --example ui_bridge --locked
       - run: node tests/tauri-runtime-smoke.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

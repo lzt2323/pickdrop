@@ -1,6 +1,6 @@
 {
   "name": "@pickdrop/tauri",
-  "version": "0.6.0-alpha.4",
+  "version": "0.6.0-alpha.5",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,7 +13,8 @@
     "tauri": "tauri",
     "test:regression": "node tests/file-window-regression.mjs",
     "test:header": "node tests/header-controls.mjs",
-    "test:join": "node tests/join-request-browser.mjs"
+    "test:join": "node tests/join-request-browser.mjs",
+    "test:paste": "node tests/clipboard-paste.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",

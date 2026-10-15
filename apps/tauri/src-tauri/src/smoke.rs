@@ -166,7 +166,7 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
         }
         .await;
         let passed = result.is_ok();
-        let payload = json!({"passed":passed,"error":result.err(),"checks":["native file drag does not clear modal busy", "core bootstrap","compact size cap and no maximize","pin/unpin","transparent animal anchor", "frameless Mac panel", "expanded panel hides animal and has no edge offset", "anchor file drop approval and forwarding", "drag to each edge then inactivity auto collapses while pinned", "resize/focus preserves dimensions", "restore uses saved bounds", "edge collapse/expand preserves dimensions", "dragging away disables automatic collapse", "animal restore preserves panel edge and dimensions", "all edge and free resizes preserve frame center anchors", "overshoot and corner restore fit actual OS outer frame", "repeated center resizing is stable", "hide/show","multiwindow","rapid exit retrigger preserves full grace","exit timers are independent across windows","expand and hide invalidate old exit timers","native event emission", "edge docking preference stays independent, persisted and per owner"],"geometry": *geometry.lock().unwrap(), "platform":std::env::consts::OS});
+        let payload = json!({"passed":passed,"error":result.err(),"checks":["native file drag does not clear modal busy", "core bootstrap","compact size cap and no maximize","pin/unpin","transparent animal anchor", "frameless Mac panel", "expanded panel hides animal and has no edge offset", "anchor file drop approval and forwarding", "pin overrides explicit collapse and pending exits; unpin restores edge collapse", "resize/focus preserves dimensions", "restore uses saved bounds", "edge collapse/expand preserves dimensions", "dragging away disables automatic collapse", "animal restore preserves panel edge and dimensions", "all edge and free resizes preserve frame center anchors", "overshoot and corner restore fit actual OS outer frame", "repeated center resizing is stable", "hide/show","multiwindow","rapid exit retrigger preserves full grace","exit timers are independent across windows","expand and hide invalidate old exit timers","native event emission", "edge docking preference stays independent, persisted and per owner"],"geometry": *geometry.lock().unwrap(), "platform":std::env::consts::OS});
         let _ = std::fs::write(report, serde_json::to_vec_pretty(&payload).unwrap());
         app.exit(if passed { 0 } else { 1 });
     });
@@ -212,8 +212,7 @@ async fn verify_auto_edge(
     use std::time::Duration;
     super::docking::action(window, "undock", None)?;
     super::docking::action(window, "busy", Some(false))?;
-    // Pin is only z-order; a saved true value must not disable edge hiding.
-    super::docking::action(window, "pin", Some(true))?;
+    super::docking::action(window, "pin", Some(false))?;
     tokio::time::sleep(Duration::from_millis(300)).await;
     let original_cursor = window.cursor_position().map_err(|e| e.to_string())?;
     let monitor = window
@@ -262,6 +261,18 @@ async fn verify_auto_edge(
                 .eval("document.activeElement?.blur()")
                 .map_err(|e| e.to_string())?;
             tokio::time::sleep(Duration::from_millis(100)).await;
+            if edge == "left" {
+                super::docking::blurred(window.clone());
+                super::docking::action(window, "pin", Some(true))?;
+                super::docking::action(window, "collapse", None)?;
+                tokio::time::sleep(Duration::from_millis(900)).await;
+                if !window.is_visible().map_err(|e| e.to_string())? {
+                    return Err(
+                        "pinned panel collapsed after a pending exit or explicit collapse".into(),
+                    );
+                }
+                super::docking::action(window, "pin", Some(false))?;
+            }
             super::docking::blurred(window.clone());
             tokio::time::sleep(Duration::from_millis(900)).await;
             let anchor = window
@@ -271,7 +282,17 @@ async fn verify_auto_edge(
             if window.is_visible().map_err(|e| e.to_string())?
                 || !anchor.is_visible().map_err(|e| e.to_string())?
             {
-                return Err(format!("{edge} edge did not auto collapse while pinned"));
+                return Err(format!("{edge} edge did not auto collapse after unpinning"));
+            }
+            if edge == "left" {
+                super::docking::action(window, "pin", Some(true))?;
+                tokio::time::sleep(Duration::from_millis(150)).await;
+                if !window.is_visible().map_err(|e| e.to_string())?
+                    || anchor.is_visible().map_err(|e| e.to_string())?
+                {
+                    return Err("pinning a collapsed panel did not expand it".into());
+                }
+                super::docking::action(window, "pin", Some(false))?;
             }
             if other.map(|other| other.is_visible().unwrap_or(false)) != other_visible {
                 return Err("auto collapse changed other group visibility".into());
@@ -580,10 +601,12 @@ async fn verify_docking_toggle(
     });
     let leaked = Arc::new(AtomicUsize::new(0));
     let observed = leaked.clone();
-    let owner=main.label().to_string();
+    let owner = main.label().to_string();
     let other_listener = other.listen("pickdrop:window", move |event| {
-        let payload:serde_json::Value=serde_json::from_str(event.payload()).unwrap_or_default();
-        if payload["owner"]==owner {observed.fetch_add(1, Ordering::SeqCst);}
+        let payload: serde_json::Value = serde_json::from_str(event.payload()).unwrap_or_default();
+        if payload["owner"] == owner {
+            observed.fetch_add(1, Ordering::SeqCst);
+        }
     });
     super::docking::action(main, "dock-right", None)?;
     super::docking::action(main, "pin", Some(true))?;

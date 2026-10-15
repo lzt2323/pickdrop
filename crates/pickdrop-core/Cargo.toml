@@ -1,6 +1,6 @@
 [package]
 name = "pickdrop-core"
-version = "0.6.0-alpha.4"
+version = "0.6.0-alpha.5"
 edition = "2021"
 
 [dependencies]
