@@ -43,7 +43,7 @@
 - 在现有 vendor 扫码插件的 consumer rules 中保留 ML Kit 注册类反射构造函数；初始化异常通过调用结果返回，并清理相机界面。没有替换扫码 SDK 或关闭 release 优化。
 - 新增实际 release APK 的构造函数校验，接入 Android CI；旧 alpha.3 APK 校验失败，新 alpha.4 APK 三项检查通过。结构/链接/语法、版本检查及工具 13 项测试通过，Android release 构建及签名通过。
 - 手机已覆盖安装 alpha.4（构建号 6003），版本和安装 APK 哈希一致，冷启动成功，当前进程日志没有 Invalid component registrar、NoSuchMethodException 或 FATAL EXCEPTION。保留设备身份和数据；与现有 alpha.3 桌面端兼容。本轮没有重装桌面端。
-- 日志、旧包失败与新包验证记录保存于 .build/reports/scan-crash。已请求用户重新扫描实测，实际相机识别和返回邀请页的结果仍待确认，不以冷启动代替完整扫码验收。
+- 日志、旧包失败与新包验证记录保存于 .build/reports/scan-crash。用户已在 alpha.4 真机确认扫码识别成功、未闪退；本次确认覆盖扫码识别，不将其等同于完整入群及跨设备传输验收。
 
 ## 已知范围与下一步
 
