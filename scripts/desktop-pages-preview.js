@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 if (process.env.PICKDROP_CAPTURE_READY !== '1') throw new Error('Capture not started. Stop competing desktop tests, then set PICKDROP_CAPTURE_READY=1.');
 const root = fileURLToPath(new URL('../', import.meta.url));
-const output = path.join(root, 'docs/ui-concepts/2026-10-11/desktop-product');
+const output = path.join(root, 'docs/archive/ui-concepts/2026-10-11/desktop-product');
 const dir = await mkdtemp(path.join(tmpdir(), 'pickdrop-pages-'));
 const apps = [], pages = [], errors = [], uncovered = [];
 const routes = {

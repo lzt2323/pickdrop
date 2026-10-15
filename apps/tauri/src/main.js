@@ -1,5 +1,6 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { draftFile, snapshotFiles, removeDraft, acceptDrop } from './file-drafts.js';
+import { createFileTransfers } from './file-transfers.js';
 import { icon } from './icons.js';
 import './style.css';
 import packageInfo from '../package.json';
@@ -17,8 +18,6 @@ const fileStorageKey = ownerLabel === 'main' ? 'pickdrop.file-drafts.v1' : `pick
 const seenDropKey=`pickdrop.drop-ids.v1.${ownerLabel}`;
 let savedDropIds=[];try{savedDropIds=JSON.parse(localStorage.getItem(seenDropKey)||'[]');}catch{}
 const seenDrops = new Set(savedDropIds);
-const removedDrafts = new Set();
-const inflightDrafts = new Set();
 const $ = id => document.getElementById(id);
 const animals = ['cat', 'sheep', 'monkey', 'dog', 'chick', 'lizard', 'alpaca', 'rabbit', 'otter', 'capybara'];
 const names = ['小猫', '绵羊', '小猴', '小狗', '小鸡', '小蜥蜴', '羊驼', '小兔', '水獭', '卡皮巴拉'];
@@ -488,10 +487,10 @@ function renderFileDrafts() {
     if (files.length) body.append(el('p', 'draft-target', `${app.groups.find(g => g.id === groupId)?.name || '目标不可用'} · ${files.length} 个文件待发送${app.state?.membershipRevoked ? ' · 请重新加入后发送' : ''}`));
     for (const file of files) {
         const row = el('div', 'file-draft'); row.dataset.draftId = file.draftId;
-        const task = [...app.transfers.values()].find(t => t.draftId === file.draftId && inflightDrafts.has(file.draftId));
+        const task = [...app.transfers.values()].find(t => t.draftId === file.draftId && fileTransfers.isDraftInFlight(file.draftId));
         row.append(el('span', null, file.name || file.path.split(/[\\/]/).at(-1)), button(task ? '取消传输' : '移除', async () => {
             if (task) { const result = await call('cancel_transfer', {transferId:task.id}); if(result?.ok !== false && task.status !== '完成') task.status = '已取消'; renderQueue(); return; }
-            removedDrafts.add(file.draftId);
+            fileTransfers.markDraftRemoved(file.draftId);
             app.fileDrafts.set(groupId, removeDraft(app.fileDrafts.get(groupId) || [], file.draftId)); renderFileDrafts();
         })); body.append(row);
     }
@@ -525,60 +524,11 @@ function renderQueue() {
         if (focusedAction?.hidden) [record.retry,record.clear,record.cancel].find(control => !control.hidden && !control.disabled)?.focus({preventScroll:true});
     }
 }
-async function retryFile(task) {
-    const file=draftFile({path:task.path,name:task.name,transferId:task.id,draftId:task.draftId});
-    task.draftId=file.draftId; removedDrafts.delete(file.draftId);
-    if(!(app.fileDrafts.get(task.groupId)||[]).some(d=>d.draftId===file.draftId))addFileDrafts([file],task.groupId);
-    return sendFiles([file],task.groupId);
-}
-async function sendFiles(paths, groupId = app.groupId) {
-    if (!groupId || !app.groups.some(g => g.id === groupId)) throw Error('目标群组不可用，附件已保留');
-    const targetState = await call('get_state', {groupId});
-    if(targetState?.membershipRevoked) throw Error('请重新加入群组后发送，附件已保留');
-    if (groupId === app.groupId && app.state?.membershipRevoked) throw Error('请重新加入群组后发送');
-    const failed = [];
-    const batchProtection = `transfer:${crypto.randomUUID()}`;
-    await setWindowBusy(batchProtection, true);
-    try { for (const item of snapshotFiles(paths)) {
-        if (item.draftId && removedDrafts.has(item.draftId)) continue;
-        const file = typeof item === 'string' ? { path: item } : item;
-        if(file.draftId && inflightDrafts.has(file.draftId))continue;
-        if(file.draftId)inflightDrafts.add(file.draftId);
-        const path = file.path, id = file.transferId || crypto.randomUUID();
-        const task = { id, name: file.name || path.split(/[\\/]/).at(-1), status: '发送中', progress: 0, path, groupId, draftId:file.draftId };
-        app.transfers.set(id, task); renderQueue(); renderFileDrafts();
-        try {
-            await call('send_file', { groupId, path, transferId: id });
-            Object.assign(task, { status: '完成', progress: 1 });
-            const drafts = app.fileDrafts.get(groupId);
-            if (drafts) app.fileDrafts.set(groupId, removeDraft(drafts, file.draftId));
-            persistFiles();if(groupId===app.groupId)renderFileDrafts();
-        } catch (e) {
-            failed.push({ ...file, transferId: id });
-            const current = app.fileDrafts.get(groupId) || [];
-            app.fileDrafts.set(groupId, current.map(d => d.draftId === file.draftId ? {...d, transferId:id} : d));
-            persistFiles();
-            const cancelled = task.status === '已取消' || /cancel|已取消/i.test(String(e));
-            Object.assign(task, { status: cancelled ? '已取消' : '失败', error: cancelled ? '' : String(e) });
-        } finally {if(file.draftId)inflightDrafts.delete(file.draftId);}
-        progress.flush();
-    }
-    await refresh(); return failed;
-    } finally { await setWindowBusy(batchProtection, false); renderFileDrafts(); }
-}
-async function receive(message, groupId = app.groupId) {
-    const id = message.id, task = { id, groupId, message, name: message.fileName, status: '接收中', progress: 0 };
-    app.transfers.set(id, task); renderQueue();
-    try {
-        const result = await call('receive_file', { groupId, id, transferId: id });
-        app.files.set(id, typeof result === 'string' ? result : result.path || result.localPath);
-        Object.assign(task, { status: '完成', progress: 1 }); renderMessages();
-    } catch (e) {
-        const cancelled = task.status === '已取消' || /cancel|已取消/i.test(String(e));
-        Object.assign(task, { status: cancelled ? '已取消' : '失败', error: cancelled ? '' : String(e) });
-        if (!cancelled) throw e;
-    } finally { progress.flush(); }
-}
+const fileTransfers = createFileTransfers({
+    app, call, setWindowBusy, persistFiles, addFileDrafts,
+    renderQueue, renderFileDrafts, renderMessages, refresh, progress,
+});
+const { sendFiles, receive, retryFile } = fileTransfers;
 let pinned = false, dockingEnabled = true;
 function syncDockButton() {
     $('dock-window').setAttribute('aria-pressed',String(dockingEnabled));
@@ -726,19 +676,7 @@ $('chat-back')?.addEventListener('click', () => homeView('groups'));
 $('transfer-summary')?.addEventListener('click', transfersPanel);
 
 function onEvent(event) {if(event.type==='back'){if(isScanningInvite()){run(cancelInviteScan);return;}if($('panel').open)closePanel();else if(app.historical)run(()=>refresh({latest:true}));else if(isMobile() && document.body.dataset.view==='chat')homeView('groups');else{persistDrafts();persistFiles();run(()=>native('native_back_default'));}return;} if (event.type === 'transfer_progress' || event.type === 'transfer') {
-    const id = event.id || event.messageId;
-    let item = app.transfers.get(id);
-    if (!item) {
-        item = { id, name: event.name || '文件', status: '传输中' };
-        app.transfers.set(id, item);
-    }
-    if(['完成','失败','已取消'].includes(item.status)&&!['completed','failed','cancelled'].includes(event.status))return;item.progress = event.progress ?? (event.total ? event.bytes / event.total : 0);
-    if (event.status)
-        item.status = ({ completed: '完成', failed: '失败', receiving: '接收中', sending: '发送中', cancelled:'已取消' })[event.status] || event.status;
-    if (['completed', 'failed', 'cancelled'].includes(event.status))
-        progress.flush();
-    else
-        progress.push();
+    fileTransfers.updateProgress(event);
     return;
 } if (event.type === 'groups') {
     app.groups = event.groups || app.groups;

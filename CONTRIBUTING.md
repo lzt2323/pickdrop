@@ -2,6 +2,14 @@
 
 `main` 保存已验证版本，每项改动使用独立 `codex/` 分支并通过 Pull Request 合并。不要强制推送、改写已发布标签或覆盖旧发布资产。
 
+## 目录与命令约束
+
+开始工作先读 [项目边界](docs/PROJECT.md)、[当前状态](docs/STATUS.md) 和 [目录导航](docs/README.md)。新文件放入现有责任模块；当前规范放 `docs/`，旧客户端指南放 `docs/legacy/`，历史评审/原型/证据放 `docs/archive/`，发布说明放 `docs/releases/`。不再创建根目录 `plans/` 或平行的评审目录。
+
+`pnpm check` 检查目录归属、维护文档链接、前端字面量依赖边界与循环，以及新旧 JS 语法。新增根目录或文档分区须先说明职责与依赖影响，在 `docs/DECISIONS.md` 记录原因，再更新 `scripts/check-structure.js`；不能为消除报错随意扩充允许列表。该检查不解析计算生成的 import，不代替编译和行为测试。
+
+常用命令与工具归属见 [scripts/README.md](scripts/README.md)。默认 `start`、`mobile:start`、`desktop:package` 是 Tauri；旧客户端使用 `legacy:` 前缀。旧命令保留兼容别名。`pnpm test:node` 验证 Node/TUI/兼容逻辑，`pnpm test:frontend` 验证主线前端，二者不能互相替代。
+
 ## Tauri 版本
 
 当前迁移分支 `codex/tauri-migration`，测试版本 `0.6.0-alpha.1`。回退基线为 `migration/tauri-base-20261012`（提交 `6c4262e`）。预览采用独立包名与数据目录，不能自动覆盖旧用户数据。
@@ -14,6 +22,7 @@
 
 ```sh
 pnpm install --frozen-lockfile
+pnpm check
 pnpm version:check
 cargo test -p pickdrop-core --locked
 cargo check -p pickdrop-tauri --locked
@@ -31,4 +40,4 @@ pnpm tauri:test:runtime
 
 稳定发布必须完成验证并合并 main 后，再由发布负责人创建附注 `v<版本>` 标签。统一 Release 工作流校验源码版本、构建 Tauri 桌面和 Android、保留 Linux TUI 包，汇总 SHA256 后发布预发布版本；已存在 Release 时拒绝覆盖。日常测试不要创建发布标签。
 
-本次迁移不会自动发布或合并。历史 Electron/Expo 流程保留于 [旧版构建约定](docs/legacy-contributing.md)，主入口不再使用它们。
+本次迁移不会自动发布或合并。历史 Electron/Expo 流程保留于 [旧版构建约定](docs/legacy/legacy-contributing.md)，主入口不再使用它们。

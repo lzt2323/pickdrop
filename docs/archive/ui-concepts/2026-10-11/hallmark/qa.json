@@ -1,0 +1,166 @@
+{
+  "date": "2026-10-11T15:04:04.502Z",
+  "responsive": [
+    {
+      "page": "index",
+      "width": 320,
+      "scroll": 320,
+      "broken": 0
+    },
+    {
+      "page": "desktop",
+      "width": 320,
+      "scroll": 320,
+      "broken": 0
+    },
+    {
+      "page": "mobile",
+      "width": 320,
+      "scroll": 320,
+      "broken": 0
+    },
+    {
+      "page": "terminal",
+      "width": 320,
+      "scroll": 320,
+      "broken": 0
+    },
+    {
+      "page": "brand",
+      "width": 320,
+      "scroll": 320,
+      "broken": 0
+    },
+    {
+      "page": "index",
+      "width": 375,
+      "scroll": 375,
+      "broken": 0
+    },
+    {
+      "page": "desktop",
+      "width": 375,
+      "scroll": 375,
+      "broken": 0
+    },
+    {
+      "page": "mobile",
+      "width": 375,
+      "scroll": 375,
+      "broken": 0
+    },
+    {
+      "page": "terminal",
+      "width": 375,
+      "scroll": 375,
+      "broken": 0
+    },
+    {
+      "page": "brand",
+      "width": 375,
+      "scroll": 375,
+      "broken": 0
+    },
+    {
+      "page": "index",
+      "width": 414,
+      "scroll": 414,
+      "broken": 0
+    },
+    {
+      "page": "desktop",
+      "width": 414,
+      "scroll": 414,
+      "broken": 0
+    },
+    {
+      "page": "mobile",
+      "width": 414,
+      "scroll": 414,
+      "broken": 0
+    },
+    {
+      "page": "terminal",
+      "width": 414,
+      "scroll": 414,
+      "broken": 0
+    },
+    {
+      "page": "brand",
+      "width": 414,
+      "scroll": 414,
+      "broken": 0
+    },
+    {
+      "page": "index",
+      "width": 768,
+      "scroll": 768,
+      "broken": 0
+    },
+    {
+      "page": "desktop",
+      "width": 768,
+      "scroll": 768,
+      "broken": 0
+    },
+    {
+      "page": "mobile",
+      "width": 768,
+      "scroll": 768,
+      "broken": 0
+    },
+    {
+      "page": "terminal",
+      "width": 768,
+      "scroll": 768,
+      "broken": 0
+    },
+    {
+      "page": "brand",
+      "width": 768,
+      "scroll": 768,
+      "broken": 0
+    },
+    {
+      "page": "index",
+      "width": 1440,
+      "scroll": 1440,
+      "broken": 0
+    },
+    {
+      "page": "desktop",
+      "width": 1440,
+      "scroll": 1440,
+      "broken": 0
+    },
+    {
+      "page": "mobile",
+      "width": 1440,
+      "scroll": 1440,
+      "broken": 0
+    },
+    {
+      "page": "terminal",
+      "width": 1440,
+      "scroll": 1440,
+      "broken": 0
+    },
+    {
+      "page": "brand",
+      "width": 1440,
+      "scroll": 1440,
+      "broken": 0
+    }
+  ],
+  "terminal": [
+    "retry",
+    "send to second group",
+    "keyboard file selection",
+    "escape"
+  ],
+  "review": [
+    "four page switch",
+    "rationale toggle"
+  ],
+  "pageErrors": []
+}

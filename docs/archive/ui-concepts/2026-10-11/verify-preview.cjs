@@ -1,0 +1,25 @@
+const { chromium } = require('playwright');
+const fs = require('fs');
+const path = require('path');
+(async () => {
+  const browser = await chromium.launch({headless:true});
+  const page = await browser.newPage({viewport:{width:1600,height:1000},deviceScaleFactor:1});
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('file://'+path.join(__dirname,'index.html'));
+  await page.evaluate(()=>document.fonts.ready);
+  fs.mkdirSync(path.join(__dirname,'previews'),{recursive:true});
+  const boards=await page.locator('.board').evaluateAll(nodes=>nodes.map(n=>({id:n.id,platform:n.dataset.platform})));
+  for(const b of boards)await page.locator('#'+b.id).screenshot({path:path.join(__dirname,'previews',b.id+'.png')});
+  const overflow=await page.locator('.screen').evaluateAll(ns=>ns.map(n=>({id:n.parentElement.id,w:n.clientWidth,sw:n.scrollWidth,h:n.clientHeight,sh:n.scrollHeight})).filter(n=>n.sw>n.w+2||n.sh>n.h+2));
+  await page.locator('[data-filter="mobile"]').click();
+  const mobileOnly=await page.locator('.board:visible').evaluateAll(ns=>ns.every(n=>n.dataset.platform==='mobile'));
+  await page.locator('#overview').click();
+  const allRestored=await page.locator('.board:visible').count()===boards.length;
+  const action=page.locator('[data-action]:not([data-target])').first();
+  await action.click();const toastShown=await page.locator('#toast').isVisible();
+  await page.keyboard.press('Escape');
+  const targets=await page.locator('[data-target]').evaluateAll(ns=>ns.filter(n=>!document.getElementById(n.dataset.target)).map(n=>n.dataset.target));
+  const result={boards:boards.length,platformCounts:boards.reduce((a,b)=>(a[b.platform]=(a[b.platform]||0)+1,a),{}),overflow,errors,mobileOnly,allRestored,toastShown,missingTargets:[...new Set(targets)]};
+  fs.writeFileSync(path.join(__dirname,'verification.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2));
+  await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

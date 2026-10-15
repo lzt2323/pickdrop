@@ -1,0 +1,276 @@
+{
+  "dimensions": [
+    {
+      "width": 320,
+      "view": "home",
+      "scrollWidth": 320,
+      "viewport": 320,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 320,
+      "view": "chat",
+      "scrollWidth": 320,
+      "viewport": 320,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 320,
+      "view": "create",
+      "scrollWidth": 320,
+      "viewport": 320,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 320,
+      "view": "join",
+      "scrollWidth": 320,
+      "viewport": 320,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 320,
+      "view": "invite",
+      "scrollWidth": 320,
+      "viewport": 320,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 320,
+      "view": "members",
+      "scrollWidth": 320,
+      "viewport": 320,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 320,
+      "view": "queue",
+      "scrollWidth": 320,
+      "viewport": 320,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 320,
+      "view": "settings",
+      "scrollWidth": 320,
+      "viewport": 320,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 375,
+      "view": "home",
+      "scrollWidth": 375,
+      "viewport": 375,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 375,
+      "view": "chat",
+      "scrollWidth": 375,
+      "viewport": 375,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 375,
+      "view": "create",
+      "scrollWidth": 375,
+      "viewport": 375,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 375,
+      "view": "join",
+      "scrollWidth": 375,
+      "viewport": 375,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 375,
+      "view": "invite",
+      "scrollWidth": 375,
+      "viewport": 375,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 375,
+      "view": "members",
+      "scrollWidth": 375,
+      "viewport": 375,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 375,
+      "view": "queue",
+      "scrollWidth": 375,
+      "viewport": 375,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 375,
+      "view": "settings",
+      "scrollWidth": 375,
+      "viewport": 375,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 414,
+      "view": "home",
+      "scrollWidth": 414,
+      "viewport": 414,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 414,
+      "view": "chat",
+      "scrollWidth": 414,
+      "viewport": 414,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 414,
+      "view": "create",
+      "scrollWidth": 414,
+      "viewport": 414,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 414,
+      "view": "join",
+      "scrollWidth": 414,
+      "viewport": 414,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 414,
+      "view": "invite",
+      "scrollWidth": 414,
+      "viewport": 414,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 414,
+      "view": "members",
+      "scrollWidth": 414,
+      "viewport": 414,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 414,
+      "view": "queue",
+      "scrollWidth": 414,
+      "viewport": 414,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 414,
+      "view": "settings",
+      "scrollWidth": 414,
+      "viewport": 414,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 768,
+      "view": "home",
+      "scrollWidth": 768,
+      "viewport": 768,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 768,
+      "view": "chat",
+      "scrollWidth": 768,
+      "viewport": 768,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 768,
+      "view": "create",
+      "scrollWidth": 768,
+      "viewport": 768,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 768,
+      "view": "join",
+      "scrollWidth": 768,
+      "viewport": 768,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 768,
+      "view": "invite",
+      "scrollWidth": 768,
+      "viewport": 768,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 768,
+      "view": "members",
+      "scrollWidth": 768,
+      "viewport": 768,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 768,
+      "view": "queue",
+      "scrollWidth": 768,
+      "viewport": 768,
+      "overflow": false,
+      "smallTargets": []
+    },
+    {
+      "width": 768,
+      "view": "settings",
+      "scrollWidth": 768,
+      "viewport": 768,
+      "overflow": false,
+      "smallTargets": []
+    }
+  ],
+  "errors": [],
+  "interaction": "pass",
+  "tested": [
+    "save simulation",
+    "file attach and send",
+    "offline draft restored",
+    "approve device",
+    "retry transfer",
+    "clear cache confirmation",
+    "create group animal selection",
+    "join validation"
+  ],
+  "limitations": [
+    "No real file/network/camera operations",
+    "Clipboard permission dependent"
+  ]
+}

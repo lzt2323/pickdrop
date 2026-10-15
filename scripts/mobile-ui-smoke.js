@@ -14,7 +14,7 @@ const manager = await createGroupManager({ dataDir: root, host: '127.0.0.1', dev
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
 const errors = [], peers = [];
-const galleryRoot = 'docs/ui-concepts/2026-10-11/mobile-product';
+const galleryRoot = 'docs/archive/ui-concepts/2026-10-11/mobile-product';
 const captures = [];
 await mkdir(`${galleryRoot}/shots`, { recursive: true });
 async function navigate(label) {

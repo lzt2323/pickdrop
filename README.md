@@ -4,7 +4,13 @@
 
 局域网文件群聊。桌面与手机共享 Tauri 2 客户端、Rust 同步核心和轻量网页界面，支持文字、文件、多群、邀请审批和本地历史。
 
-当前源码版本 **0.6.0-alpha.1**，是独立安装的迁移预览。原 0.5.x 发布包仍可使用，新版没有覆盖旧版用户数据或替换已有 Release。旧客户端说明见 [0.5.x 使用指南](docs/legacy-client.md)，迁移与回退见 [Tauri 迁移记录](docs/tauri-migration.md)。
+当前源码版本 **0.6.0-alpha.1**，是独立安装的迁移预览。原 0.5.x 发布包仍可使用，新版没有覆盖旧版用户数据或替换已有 Release。旧客户端说明见 [0.5.x 使用指南](docs/legacy/legacy-client.md)，迁移与回退见 [Tauri 迁移记录](docs/tauri-migration.md)。
+
+## 仓库入口
+
+[文档导航与目录职责](docs/README.md) · [项目边界](docs/PROJECT.md) · [当前进度](docs/STATUS.md) · [开发命令](scripts/README.md)
+
+主线源码在 `apps/tauri/` 和 `crates/pickdrop-core/`；`apps/tui/` 是仍维护的 Linux 客户端。`apps/desktop/`、`apps/mobile/` 为兼容维护的旧客户端，依赖的 `server/`、`shared/` 仍服务于 TUI。历史原型和评审统一在 `docs/archive/`，不作为当前任务入口。
 
 ## 运行
 
@@ -26,7 +32,7 @@ pnpm tauri:ios:init
 pnpm tauri:ios:build
 ```
 
-原 Electron 入口为 `pnpm start:legacy`。旧桌面打包命令、手机启动与预览命令保留 `:legacy` 后缀，不会被打入 Tauri 安装包。
+原 Electron 入口为 `pnpm legacy:start`。旧桌面打包命令、手机启动与预览命令保留 `:legacy` 后缀，不会被打入 Tauri 安装包。
 
 ## 使用
 
@@ -59,4 +65,4 @@ pnpm tauri:build
 
 Linux TUI 暂保留 Node 实现。iOS 外部分享接收扩展尚未迁入；原生功能与构建验收情况分别记录于迁移文档，不把支持配置视为已经通过真机验证。
 
-项目采用 MIT 许可证。[版本管理](CONTRIBUTING.md) · [迁移记录](docs/tauri-migration.md) · [发布说明](docs/releases/v0.6.0-alpha.1.md)
+项目采用 MIT 许可证。[项目架构](docs/PROJECT.md) · [当前进度](docs/STATUS.md) · [版本管理](CONTRIBUTING.md) · [迁移记录](docs/tauri-migration.md) · [发布说明](docs/releases/v0.6.0-alpha.1.md)

@@ -17,7 +17,7 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
                 return Err("pin failed".into());
             }
             super::docking::action(&window, "pin", Some(false))?;
-            super::window_resize(window.clone(), 1400., 1000.).await?;
+            super::window_commands::window_resize(window.clone(), 1400., 1000.).await?;
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
             let compact = window
                 .inner_size()
@@ -29,7 +29,7 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
             if window.is_maximizable().map_err(|e| e.to_string())? {
                 return Err("compact desktop still allows maximize".into());
             }
-            super::window_resize(window.clone(), 350., 470.).await?;
+            super::window_commands::window_resize(window.clone(), 350., 470.).await?;
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
             let resized = window.inner_size().map_err(|e| e.to_string())?;
             window.set_focus().map_err(|e| e.to_string())?;
@@ -131,7 +131,7 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
             if !window.is_visible().map_err(|e| e.to_string())? {
                 return Err("show failed".into());
             }
-            super::window_action(window.clone(), "new".into(), None).await?;
+            super::window_commands::window_action(window.clone(), "new".into(), None).await?;
             if app
                 .webview_windows()
                 .keys()
@@ -276,7 +276,7 @@ async fn verify_auto_edge(
             if other.map(|other| other.is_visible().unwrap_or(false)) != other_visible {
                 return Err("auto collapse changed other group visibility".into());
             }
-            super::window_action(anchor.clone(), "expand".into(), None).await?;
+            super::window_commands::window_action(anchor.clone(), "expand".into(), None).await?;
             tokio::time::sleep(Duration::from_millis(300)).await;
             if !window.is_visible().map_err(|e| e.to_string())?
                 || anchor.is_visible().map_err(|e| e.to_string())?
@@ -292,7 +292,7 @@ async fn verify_auto_edge(
                 y * 2 + original_size.height as i32,
             );
             for (width, height) in [(320., 420.), (350., 470.)] {
-                super::window_resize(window.clone(), width, height).await?;
+                super::window_commands::window_resize(window.clone(), width, height).await?;
                 tokio::time::sleep(Duration::from_millis(300)).await;
                 let p = window.outer_position().map_err(|e| e.to_string())?;
                 let size = window.outer_size().map_err(|e| e.to_string())?;
@@ -328,7 +328,7 @@ async fn verify_auto_edge(
         if !window.is_visible().map_err(|e| e.to_string())? {
             return Err("free window auto collapsed after dragging away".into());
         }
-        super::window_resize(window.clone(), 320., 420.).await?;
+        super::window_commands::window_resize(window.clone(), 320., 420.).await?;
         tokio::time::sleep(Duration::from_millis(300)).await;
         let p = window.outer_position().map_err(|e| e.to_string())?;
         let size = window.outer_size().map_err(|e| e.to_string())?;
@@ -499,7 +499,7 @@ async fn verify_frame_fit(
             .unwrap()
             .push(assert_frame_fits(window, &area)?);
         for (width, height) in [(380., 520.), (300., 360.), (320., 420.)] {
-            super::window_resize(window.clone(), width, height).await?;
+            super::window_commands::window_resize(window.clone(), width, height).await?;
             tokio::time::sleep(Duration::from_millis(300)).await;
             geometry
                 .lock()
@@ -508,7 +508,7 @@ async fn verify_frame_fit(
         }
     }
     super::docking::action(window, "undock", None)?;
-    super::window_resize(window.clone(), 320., 420.).await?;
+    super::window_commands::window_resize(window.clone(), 320., 420.).await?;
     tokio::time::sleep(Duration::from_millis(350)).await;
     let size = window.outer_size().map_err(|e| e.to_string())?;
     window
@@ -522,7 +522,7 @@ async fn verify_frame_fit(
     let center = (p.x * 2 + size.width as i32, p.y * 2 + size.height as i32);
     for _ in 0..3 {
         for (width, height) in [(380., 520.), (300., 360.), (350., 470.), (320., 420.)] {
-            super::window_resize(window.clone(), width, height).await?;
+            super::window_commands::window_resize(window.clone(), width, height).await?;
             tokio::time::sleep(Duration::from_millis(300)).await;
             let p = window.outer_position().map_err(|e| e.to_string())?;
             let s = window.outer_size().map_err(|e| e.to_string())?;

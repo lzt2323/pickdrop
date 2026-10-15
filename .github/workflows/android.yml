@@ -32,8 +32,8 @@ jobs:
           java-version: 17
       - name: Install dependencies including build tools
         run: pnpm install --frozen-lockfile --prod=false
-      - run: pnpm mobile:check
-      - run: pnpm test
+      - run: pnpm legacy:mobile:check
+      - run: pnpm test:node
         env:
           # React's act helper is available only in the test/development build.
           NODE_ENV: test

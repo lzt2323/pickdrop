@@ -1,0 +1,21 @@
+{
+  "source": "https://uupm.cc/demo/pet-grooming",
+  "observed": {
+    "method": "Rendered browser screenshot and computed styles",
+    "background": "rgb(255,249,245)",
+    "secondarySurface": "rgb(255,243,235)",
+    "accent": "rgb(255,140,66)",
+    "displayFont": "Nunito",
+    "bodyFont": "Quicksand",
+    "buttonRadius": "16px",
+    "buttonShadow": "4px 4px peach offset with inset lower edge",
+    "structure": "Pet service marketing page with split hero and rounded service panels"
+  },
+  "adaptation": {
+    "scope": "Desktop prototype only",
+    "structure": "Compact group workspace, device presence, content tabs, file conversation, fixed composer",
+    "retained": ["Cream and apricot surfaces", "Rounded tactile controls", "Friendly rounded typography", "Soft peach depth"],
+    "changed": ["CJK font support", "Dark text on orange for contrast", "Original animal SVGs", "File-sharing actions and states"],
+    "notCopied": ["Pet photography", "Marketing copy and claims", "Landing-page sections", "Emoji controls", "Gradient headline"]
+  }
+}

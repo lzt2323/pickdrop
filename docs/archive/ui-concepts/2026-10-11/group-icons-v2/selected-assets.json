@@ -1,0 +1,56 @@
+{
+  "mode": "built-in image_gen",
+  "selection": "B",
+  "assets": [
+    {
+      "id": "cat",
+      "source": "/Users/wujie/.codex/generated_images/01a12b58-67eb-7811-848e-13724569f422/exec-ff6d802b-1b67-46a8-b2d7-e82cc58b7d3a.png",
+      "prompt": "Edit target: the attached selected style B animal contact sheet. Output ONE standalone transparent-background group-avatar asset: ONLY the orange cat in top row column 1. Preserve exactly its chosen round satin 3D emoji-like visual identity, face, color, proportions and expression. Carefully isolate this one head, remove all other animals and the sheet background. Center the complete head on a square genuinely transparent canvas with about 10% transparent breathing room on all four sides, including ears and whiskers fully contained. No white rectangle, no circular badge or plate, no cast shadow, no text, no body, no accessories. This will display at 32-48px in a white app, so retain clear smooth surfaces and readable silhouette. Do not redesign the animal or add details. Output high-quality PNG with real alpha."
+    },
+    {
+      "id": "sheep",
+      "source": "/Users/wujie/.codex/generated_images/01a12b58-67eb-7811-848e-13724569f422/exec-e0472823-5e2b-44e4-9755-06d403bbf990.png",
+      "prompt": "Edit target: the attached selected style B animal contact sheet. Output ONE standalone transparent-background group-avatar asset: ONLY the cream sheep in top row column 2. Preserve exactly its chosen round satin 3D emoji-like visual identity, face, color, proportions and expression. Carefully isolate this one head, remove all other animals and the sheet background. Center the complete head on a square genuinely transparent canvas with about 10% transparent breathing room on all four sides, including ears and whiskers fully contained. No white rectangle, no circular badge or plate, no cast shadow, no text, no body, no accessories. This will display at 32-48px in a white app, so retain clear smooth surfaces and readable silhouette. Do not redesign the animal or add details. Output high-quality PNG with real alpha."
+    },
+    {
+      "id": "monkey",
+      "source": "/Users/wujie/.codex/generated_images/01a12b58-67eb-7811-848e-13724569f422/exec-1c898663-6c8c-42e2-a09d-bee7dc3c894a.png",
+      "prompt": "Edit target: the attached selected style B animal contact sheet. Output ONE standalone transparent-background group-avatar asset: ONLY the monkey in top row column 3. Preserve exactly its chosen round satin 3D emoji-like visual identity, face, color, proportions and expression. Carefully isolate this one head, remove all other animals and the sheet background. Center the complete head on a square genuinely transparent canvas with about 10% transparent breathing room on all four sides, including ears and whiskers fully contained. No white rectangle, no circular badge or plate, no cast shadow, no text, no body, no accessories. This will display at 32-48px in a white app, so retain clear smooth surfaces and readable silhouette. Do not redesign the animal or add details. Output high-quality PNG with real alpha."
+    },
+    {
+      "id": "dog",
+      "source": "/Users/wujie/.codex/generated_images/01a12b58-67eb-7811-848e-13724569f422/exec-a394acc8-ceb8-4b91-8ff4-f885c62d8717.png",
+      "prompt": "Edit target: the attached selected style B animal contact sheet. Output ONE standalone transparent-background group-avatar asset: ONLY the floppy-eared dog in top row column 4. Preserve exactly its chosen round satin 3D emoji-like visual identity, face, color, proportions and expression. Carefully isolate this one head, remove all other animals and the sheet background. Center the complete head on a square genuinely transparent canvas with about 10% transparent breathing room on all four sides, including ears and whiskers fully contained. No white rectangle, no circular badge or plate, no cast shadow, no text, no body, no accessories. This will display at 32-48px in a white app, so retain clear smooth surfaces and readable silhouette. Do not redesign the animal or add details. Output high-quality PNG with real alpha."
+    },
+    {
+      "id": "chick",
+      "source": "/Users/wujie/.codex/generated_images/01a12b58-67eb-7811-848e-13724569f422/exec-73eb62c3-0b2e-4a31-854e-961c19e5d28a.png",
+      "prompt": "Edit target: the attached selected style B animal contact sheet. Output ONE standalone transparent-background group-avatar asset: ONLY the yellow chick in top row column 5. Preserve exactly its chosen round satin 3D emoji-like visual identity, face, color, proportions and expression. Carefully isolate this one head, remove all other animals and the sheet background. Center the complete head on a square genuinely transparent canvas with about 10% transparent breathing room on all four sides, including ears and whiskers fully contained. No white rectangle, no circular badge or plate, no cast shadow, no text, no body, no accessories. This will display at 32-48px in a white app, so retain clear smooth surfaces and readable silhouette. Do not redesign the animal or add details. Output high-quality PNG with real alpha."
+    },
+    {
+      "id": "lizard",
+      "source": "/Users/wujie/.codex/generated_images/01a12b58-67eb-7811-848e-13724569f422/exec-0ea0cbbc-46a4-489c-9312-8e43c2b2985d.png",
+      "prompt": "Edit target: the attached selected style B animal contact sheet. Output ONE standalone transparent-background group-avatar asset: ONLY the green lizard in bottom row column 1. Preserve exactly its chosen round satin 3D emoji-like visual identity, face, color, proportions and expression. Carefully isolate this one head, remove all other animals and the sheet background. Center the complete head on a square genuinely transparent canvas with about 10% transparent breathing room on all four sides, including ears and whiskers fully contained. No white rectangle, no circular badge or plate, no cast shadow, no text, no body, no accessories. This will display at 32-48px in a white app, so retain clear smooth surfaces and readable silhouette. Do not redesign the animal or add details. Output high-quality PNG with real alpha."
+    },
+    {
+      "id": "alpaca",
+      "source": "/Users/wujie/.codex/generated_images/01a12b58-67eb-7811-848e-13724569f422/exec-6702c329-6f0c-4f2d-be98-22d75cedbcb1.png",
+      "prompt": "Edit target: the attached selected style B animal contact sheet. Output ONE standalone transparent-background group-avatar asset: ONLY the alpaca in bottom row column 2. Preserve exactly its chosen round satin 3D emoji-like visual identity, face, color, proportions and expression. Carefully isolate this one head, remove all other animals and the sheet background. Center the complete head on a square genuinely transparent canvas with about 10% transparent breathing room on all four sides, including ears and whiskers fully contained. No white rectangle, no circular badge or plate, no cast shadow, no text, no body, no accessories. This will display at 32-48px in a white app, so retain clear smooth surfaces and readable silhouette. Do not redesign the animal or add details. Output high-quality PNG with real alpha."
+    },
+    {
+      "id": "rabbit",
+      "source": "/Users/wujie/.codex/generated_images/01a12b58-67eb-7811-848e-13724569f422/exec-82f30dcf-ebae-4c91-a422-68dcaeea8f7c.png",
+      "prompt": "Edit target: the attached selected style B animal contact sheet. Output ONE standalone transparent-background group-avatar asset: ONLY the gray rabbit in bottom row column 3. Preserve exactly its chosen round satin 3D emoji-like visual identity, face, color, proportions and expression. Carefully isolate this one head, remove all other animals and the sheet background. Center the complete head on a square genuinely transparent canvas with about 10% transparent breathing room on all four sides, including ears and whiskers fully contained. No white rectangle, no circular badge or plate, no cast shadow, no text, no body, no accessories. This will display at 32-48px in a white app, so retain clear smooth surfaces and readable silhouette. Do not redesign the animal or add details. Output high-quality PNG with real alpha."
+    },
+    {
+      "id": "otter",
+      "source": "/Users/wujie/.codex/generated_images/01a12b58-67eb-7811-848e-13724569f422/exec-b7b6c2e5-5d24-4ea3-9645-e68a353d86f7.png",
+      "prompt": "Edit target: the attached selected style B animal contact sheet. Output ONE standalone transparent-background group-avatar asset: ONLY the otter in bottom row column 4. Preserve exactly its chosen round satin 3D emoji-like visual identity, face, color, proportions and expression. Carefully isolate this one head, remove all other animals and the sheet background. Center the complete head on a square genuinely transparent canvas with about 10% transparent breathing room on all four sides, including ears and whiskers fully contained. No white rectangle, no circular badge or plate, no cast shadow, no text, no body, no accessories. This will display at 32-48px in a white app, so retain clear smooth surfaces and readable silhouette. Do not redesign the animal or add details. Output high-quality PNG with real alpha."
+    },
+    {
+      "id": "capybara",
+      "source": "/Users/wujie/.codex/generated_images/01a12b58-67eb-7811-848e-13724569f422/exec-65e57422-e10f-4c39-9a3b-347d0c3aca83.png",
+      "prompt": "Edit target: the attached selected style B animal contact sheet. Output ONE standalone transparent-background group-avatar asset: ONLY the capybara in bottom row column 5. Preserve exactly its chosen round satin 3D emoji-like visual identity, face, color, proportions and expression. Carefully isolate this one head, remove all other animals and the sheet background. Center the complete head on a square genuinely transparent canvas with about 10% transparent breathing room on all four sides, including ears and whiskers fully contained. No white rectangle, no circular badge or plate, no cast shadow, no text, no body, no accessories. This will display at 32-48px in a white app, so retain clear smooth surfaces and readable silhouette. Do not redesign the animal or add details. Output high-quality PNG with real alpha."
+    }
+  ]
+}

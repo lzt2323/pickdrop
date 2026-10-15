@@ -27,9 +27,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: rustup toolchain install 1.99.0 --profile minimal
+      - run: pnpm structure:check
+      - run: pnpm check:frontend
       - run: node scripts/verify-versions.js
       - run: cargo test -p pickdrop-core --locked
-      - run: pnpm --dir apps/tauri test
+      - run: pnpm test:frontend
       - run: pnpm --dir apps/tauri build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm --dir apps/tauri test:browser

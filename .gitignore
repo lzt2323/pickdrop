@@ -31,3 +31,6 @@ apps/mobile/export-check-ios/
 apps/mobile/credentials.json
 apps/mobile/modules/*/android/build/
 apps/mobile/modules/*/android/.gradle/
+
+# Local design-tool session records
+/.hallmark/

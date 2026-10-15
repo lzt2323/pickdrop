@@ -1,0 +1,12 @@
+/* Emil animate: spatial continuity, interruptible transitions, no layout animation. */
+.app{opacity:1;transform:translateX(0) scale(1);transition:transform var(--dur-long) var(--ease-out),opacity var(--dur-short) var(--ease-out)}
+.app.motion-collapsed{transform:translateX(48px) scale(.96);opacity:0;pointer-events:none}
+.edge-tab{opacity:1;transform:translateX(0);transition:transform var(--dur-long) var(--ease-out),opacity var(--dur-short) var(--ease-out)}
+.edge-tab.motion-dormant{opacity:0;transform:translateX(100%);pointer-events:none}
+dialog{opacity:1;transform:scale(1);transition:transform var(--dur-long) var(--ease-out),opacity var(--dur-short) var(--ease-out)}
+dialog.motion-dismissed{opacity:0;transform:scale(.96)}
+dialog::backdrop{transition:opacity var(--dur-short) var(--ease-out);opacity:1}
+dialog.motion-dismissed::backdrop{opacity:0}
+.motion-instant,.motion-instant::backdrop{transition:none!important}
+button{transition:transform var(--dur-short) var(--ease-out)}button:active:not(:disabled){transform:scale(.97)}
+@media(prefers-reduced-motion:reduce){.app,.edge-tab,dialog,button,dialog::backdrop{transition:none!important;transform:none!important}}

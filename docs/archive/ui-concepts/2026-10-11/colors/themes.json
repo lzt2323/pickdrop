@@ -1,0 +1,98 @@
+[
+  {
+    "id": "blue",
+    "name": "晴空蓝",
+    "en": "SKY / CLEAR",
+    "desc": "清爽、利落。白底与蓝色操作，头像像轻巧的圆角贴纸。",
+    "primary": "#315BD6",
+    "ink": "#202D48",
+    "muted": "#58667F",
+    "bg": "#F5F7FD",
+    "soft": "#E8EEFC",
+    "border": "#D7E0F3",
+    "accent": "#96BBFF",
+    "fur": "#F7FAFF",
+    "shade": "#CDDDF6",
+    "dark": "#151D30",
+    "darkmuted": "#AFBCD8",
+    "light": "#E8EEFF",
+    "focus": "#2B3F6C",
+    "contrast": {
+      "body": 12.81,
+      "secondary": 5.41,
+      "button": 5.84
+    }
+  },
+  {
+    "id": "violet",
+    "name": "雾紫",
+    "en": "IRIS / SOFT",
+    "desc": "柔和、安静。低饱和紫与雾白，动物采用更柔软的轮廓。",
+    "primary": "#7054B3",
+    "ink": "#342B45",
+    "muted": "#706478",
+    "bg": "#FAF8FC",
+    "soft": "#EEE7F6",
+    "border": "#DFD6EB",
+    "accent": "#C9B5EE",
+    "fur": "#FBF8FF",
+    "shade": "#DCCEEF",
+    "dark": "#241D30",
+    "darkmuted": "#C2B3D2",
+    "light": "#F2EAFB",
+    "focus": "#4C385F",
+    "contrast": {
+      "body": 12.61,
+      "secondary": 5.26,
+      "button": 5.82
+    }
+  },
+  {
+    "id": "clay",
+    "name": "杏陶",
+    "en": "APRICOT / WARM",
+    "desc": "温暖、亲近。杏色和陶土色，动物像一组简洁的纸片玩偶。",
+    "primary": "#A64B32",
+    "ink": "#493329",
+    "muted": "#7B675C",
+    "bg": "#FCF8F3",
+    "soft": "#F4E6DA",
+    "border": "#E9D8C8",
+    "accent": "#E9B785",
+    "fur": "#FFF7E9",
+    "shade": "#E8C8A9",
+    "dark": "#2A211C",
+    "darkmuted": "#D0BBA9",
+    "light": "#FFF0E1",
+    "focus": "#594032",
+    "contrast": {
+      "body": 11.1,
+      "secondary": 5.04,
+      "button": 5.72
+    }
+  },
+  {
+    "id": "graphite",
+    "name": "石墨黄",
+    "en": "GRAPHITE / PLAY",
+    "desc": "克制、有辨识度。黑白界面，只用一点纸黄色点亮图标和头像。",
+    "primary": "#34373E",
+    "ink": "#272A30",
+    "muted": "#64676C",
+    "bg": "#F7F7F5",
+    "soft": "#ECECE8",
+    "border": "#DCDDD7",
+    "accent": "#F2D16B",
+    "fur": "#FAF9F2",
+    "shade": "#E5D493",
+    "dark": "#1C1D20",
+    "darkmuted": "#BABCC1",
+    "light": "#F3F3EC",
+    "focus": "#464334",
+    "contrast": {
+      "body": 13.41,
+      "secondary": 5.29,
+      "button": 11.92
+    }
+  }
+]

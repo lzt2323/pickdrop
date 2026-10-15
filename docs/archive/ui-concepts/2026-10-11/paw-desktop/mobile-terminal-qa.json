@@ -1,0 +1,39 @@
+{
+  "scope": "Mobile and terminal browser design previews only",
+  "mobile": {
+    "views": 8,
+    "agentVerifiedWidths": [
+      320,
+      375,
+      390,
+      414,
+      768
+    ],
+    "rootVerified": [
+      "home to chat",
+      "send text",
+      "group settings",
+      "invitation",
+      "390px screenshot visual review"
+    ]
+  },
+  "terminal": {
+    "verifiedWidths": [
+      320,
+      375,
+      414,
+      768
+    ],
+    "verified": [
+      "select file",
+      "send selected file",
+      "sent item appears in conversation"
+    ]
+  },
+  "productionIntegration": "paused at user request",
+  "limitations": [
+    "Simulated transfers and membership",
+    "Terminal is a browser interaction study, not a running Ink TUI",
+    "Not a complete accessibility audit"
+  ]
+}

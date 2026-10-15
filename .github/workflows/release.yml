@@ -47,7 +47,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
+      - run: pnpm test:node
       - name: Package standalone Linux terminal client
         run: pnpm linux:package --arch=${{ matrix.arch }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

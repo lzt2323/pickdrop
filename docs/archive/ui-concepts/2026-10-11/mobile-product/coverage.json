@@ -1,0 +1,207 @@
+{
+  "runtime": "React Native Web, not a physical device",
+  "pairing": [
+    "invitation link",
+    "address and code"
+  ],
+  "imagePreviewPlaceholder": true,
+  "separateFileMenus": true,
+  "realServer": true,
+  "groupIsolation": true,
+  "perGroupTextDraft": true,
+  "pairedLinkReconnect": true,
+  "memberApproval": true,
+  "bottomNavigation": true,
+  "realFileFilter": true,
+  "fileFilterDraftRetained": true,
+  "navigationDraftRetained": true,
+  "navigationSelection": true,
+  "fileCount": "3 actual loaded files",
+  "narrowScreen": "320x568",
+  "responsiveWidths": [
+    320,
+    375,
+    414,
+    768
+  ],
+  "errors": [],
+  "captures": [
+    {
+      "id": "welcome",
+      "title": "首次打开",
+      "detail": "无群组的正式应用空态",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "transfers-empty",
+      "title": "传输",
+      "detail": "全群真实传输队列空态",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "profile",
+      "title": "我的与缓存",
+      "detail": "设备名称与原生缓存入口，浏览器清理被禁用",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "create",
+      "title": "新建群组",
+      "detail": "正式创建面板与动物选择",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "join-code",
+      "title": "邀请码加入",
+      "detail": "真实地址、端口和邀请码表单",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "join-link",
+      "title": "邀请链接加入",
+      "detail": "填写测试服务端的真实邀请链接",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "join-pending",
+      "title": "等待允许",
+      "detail": "服务端记录待处理配对申请",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "chat",
+      "title": "群消息",
+      "detail": "真实文本与 PDF、ZIP、图片消息",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "files",
+      "title": "文件页签",
+      "detail": "筛选真实 3 个文件，保留未发送文字",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "invite",
+      "title": "邀请设备",
+      "detail": "服务端生成的邀请码与实际地址",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "image-actions",
+      "title": "图片操作",
+      "detail": "相册、文件和分享入口；原生操作未执行",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "file-actions",
+      "title": "文件操作",
+      "detail": "PDF 操作不提供相册保存",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "files-empty",
+      "title": "文件空态",
+      "detail": "第二个群只有文字消息，没有文件",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "groups",
+      "title": "我的群组",
+      "detail": "两个已配对群的真实消息摘要",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "member-approval",
+      "title": "设备与加入申请",
+      "detail": "服务端真实待审批设备",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "id": "chat-small",
+      "title": "窄屏会话",
+      "detail": "320px 输入区可见且无横向溢出",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      }
+    },
+    {
+      "id": "chat-375",
+      "title": "375px 会话",
+      "detail": "同一真实会话，验证左右对话与输入区",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      }
+    },
+    {
+      "id": "chat-414",
+      "title": "414px 会话",
+      "detail": "同一真实会话，验证左右对话与输入区",
+      "viewport": {
+        "width": 414,
+        "height": 812
+      }
+    },
+    {
+      "id": "chat-768",
+      "title": "768px 会话",
+      "detail": "同一真实会话，验证左右对话与输入区",
+      "viewport": {
+        "width": 768,
+        "height": 812
+      }
+    }
+  ],
+  "limitations": [
+    "运行生产 App.tsx 的 React Native Web，不是重新画的原型。",
+    "连接本机真实测试群，消息、配对与审批经过实际服务端；示例文件用于测试。",
+    "浏览器不支持原生建群、文件选择、相册保存、系统分享、相机权限、Android 图片粘贴和后台行为；这些仍需真机验证。",
+    "传输和缓存的浏览器空态不代表真机能力已验证。"
+  ]
+}

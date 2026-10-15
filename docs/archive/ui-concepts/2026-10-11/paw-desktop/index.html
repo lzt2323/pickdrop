@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>拾传 · 桌面</title><link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="desktop.css"><link rel="stylesheet" href="motion.css"></head>
+<body>
+<div class="prototype"><span>拾传 · 桌面设计</span><span>本地交互演示</span></div>
+<main class="app" id="app">
+<header class="head"><button class="group-switch" id="groups" aria-label="切换群组"><img src="assets/cat.svg" alt="" id="group-avatar"><span id="group-name">设计协作</span><span class="chevron">⌄</span></button><button class="icon" id="collapse" aria-label="贴边收起" title="贴边收起">⇥</button></header>
+<div class="presence"><button id="members" aria-label="查看在线设备"><span class="avatar-stack"><img src="assets/cat.svg" alt=""><img src="assets/dog.svg" alt=""></span><span>2 台设备在线</span><span class="online-dot"></span></button></div>
+<nav class="tabs" aria-label="内容视图"><button class="selected" id="conversation" aria-pressed="true">全部</button><button id="files" aria-pressed="false">文件 <span id="file-count">3</span></button><button class="invite" id="invite">邀请 +</button></nav>
+<div class="stream" id="stream" aria-live="polite"></div>
+<form class="composer" id="composer"><div id="drafts"></div><label class="sr-only" for="message">发送文字</label><textarea id="message" rows="2" placeholder="传点什么…"></textarea><div class="composer-actions"><button type="button" id="attach"><span class="attach-icon">＋</span> 文件</button><button type="button" class="quiet" id="storage">存储</button><button type="submit" class="primary" id="send" disabled>发送 ↑</button></div><input type="file" id="file-input" multiple hidden></form>
+</main>
+<button class="edge-tab" id="expand" hidden aria-label="展开拾传"><img src="assets/cat.svg" alt="">拾传 <span>←</span></button>
+<dialog id="dialog"><div class="dialog-top"><h2 id="dialog-title"></h2><button id="close-dialog" class="icon" aria-label="关闭">×</button></div><div id="dialog-body"></div></dialog>
+<script src="motion.js"></script><script src="desktop.js"></script></body></html>
