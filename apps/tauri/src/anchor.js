@@ -4,6 +4,7 @@ import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 const current=getCurrentWindow(),owner=current.label.replace(/^anchor-/,'');
 const button = document.querySelector('#animal');
+let timer, down, dragging = false, fileHover = false;
 const animals = new Set(['cat','sheep','monkey','dog','chick','lizard','alpaca','rabbit','otter','capybara']);
 const showAnimal = animal => { button.querySelector('img').src = `/assets/group-animals/${animals.has(animal) ? animal : 'cat'}.png`; };
 async function initialize() {
@@ -13,15 +14,16 @@ async function initialize() {
   await invoke('window_action', { action: 'sync' });
   await getCurrentWebview().onDragDropEvent(event => {
     const type = event.payload.type;
-    button.dataset.accepting = String(type === 'enter' || type === 'over');
-    if(type === 'enter') invoke('window_action', {action:'file-hover',value:true}).catch(console.error);
-    if(type === 'leave' || type === 'drop') invoke('window_action', {action:'file-hover',value:false}).catch(console.error);
+    fileHover = type === 'enter' || type === 'over';
+    // Keep the native drop surface alive until the OS delivers Drop or Leave.
+    clearTimeout(timer);
+    button.dataset.accepting = String(fileHover);
+    // Native drag events own file-hover protection and the captured group.
   });
 }
 initialize().catch(console.error);
-let timer, down, dragging = false;
-const expand = () => invoke('window_action', { action: 'expand' }).catch(console.error);
-button.addEventListener('pointerenter', event => { if (!event.buttons) { if(dragging) invoke('window_action', {action:'anchor-drag-end'}).catch(console.error); dragging = false; down = null; } timer = setTimeout(() => { if (!down && !dragging) expand(); }, 250); });
+const expand = () => { if (!fileHover) invoke('window_action', { action: 'expand' }).catch(console.error); };
+button.addEventListener('pointerenter', event => { if (!event.buttons) { if(dragging) invoke('window_action', {action:'anchor-drag-end'}).catch(console.error); dragging = false; down = null; } if (!fileHover && !event.buttons) timer = setTimeout(() => { if (!down && !dragging) expand(); }, 250); });
 button.addEventListener('pointerleave', () => { clearTimeout(timer); invoke('window_action', { action:'pointer-leave' }).catch(console.error); });
 button.addEventListener('pointerdown', event => { clearTimeout(timer); down = { x:event.clientX, y:event.clientY }; dragging = false; });
 button.addEventListener('pointermove', async event => {
@@ -34,5 +36,5 @@ button.addEventListener('pointerup', () => { down = null; if(dragging) invoke('w
 button.addEventListener('click', () => { if (!dragging) expand(); dragging = false; });
 button.addEventListener('keydown', event => { if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); expand(); } });
 
-button.addEventListener('pointercancel', () => { down = null; clearTimeout(timer); invoke('window_action',{action:'file-hover',value:false}).catch(console.error); });
+button.addEventListener('pointercancel', () => { down = null; clearTimeout(timer); });
 window.addEventListener('blur', () => { down = null; clearTimeout(timer); });

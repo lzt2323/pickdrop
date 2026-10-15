@@ -111,7 +111,35 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
             let dropped = std::env::temp_dir()
                 .join(format!("pickdrop-anchor-drop-{}.txt", std::process::id()));
             std::fs::write(&dropped, b"native anchor drag and drop").map_err(|e| e.to_string())?;
+            window
+                .set_cursor_position(tauri::PhysicalPosition::new(
+                    area.position.x + area.size.width as i32 / 2 - position.x,
+                    area.position.y + area.size.height as i32 - 4 - position.y,
+                ))
+                .map_err(|e| e.to_string())?;
+            window
+                .eval("document.activeElement?.blur()")
+                .map_err(|e| e.to_string())?;
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            super::docking::action(&window, "collapse", None)?;
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            if window.is_visible().map_err(|e| e.to_string())? {
+                return Err("file-hover smoke setup did not collapse the panel".into());
+            }
+            super::docking::file_hover(&window, true);
+            super::docking::action(&window, "expand", None)?;
+            if window.is_visible().map_err(|e| e.to_string())?
+                || !anchor.is_visible().map_err(|e| e.to_string())?
+            {
+                return Err("file hover hid the native animal drop surface".into());
+            }
             super::forward_anchor_drop(&anchor, std::slice::from_ref(&dropped))?;
+            super::docking::action(&window, "expand", None)?;
+            if !window.is_visible().map_err(|e| e.to_string())?
+                || anchor.is_visible().map_err(|e| e.to_string())?
+            {
+                return Err("completed animal drop did not permit expansion".into());
+            }
             if !received.load(std::sync::atomic::Ordering::SeqCst)
                 || app
                     .state::<super::Host>()
@@ -166,7 +194,7 @@ pub fn launch(app: tauri::AppHandle, report: std::path::PathBuf) {
         }
         .await;
         let passed = result.is_ok();
-        let payload = json!({"passed":passed,"error":result.err(),"checks":["native file drag does not clear modal busy", "core bootstrap","compact size cap and no maximize","pin/unpin","transparent animal anchor", "frameless Mac panel", "expanded panel hides animal and has no edge offset", "anchor file drop approval and forwarding", "pin overrides explicit collapse and pending exits; unpin restores edge collapse", "resize/focus preserves dimensions", "restore uses saved bounds", "edge collapse/expand preserves dimensions", "dragging away disables automatic collapse", "animal restore preserves panel edge and dimensions", "all edge and free resizes preserve frame center anchors", "overshoot and corner restore fit actual OS outer frame", "repeated center resizing is stable", "hide/show","multiwindow","rapid exit retrigger preserves full grace","exit timers are independent across windows","expand and hide invalidate old exit timers","native event emission", "edge docking preference stays independent, persisted and per owner"],"geometry": *geometry.lock().unwrap(), "platform":std::env::consts::OS});
+        let payload = json!({"passed":passed,"error":result.err(),"checks":["native file drag does not clear modal busy", "core bootstrap","compact size cap and no maximize","pin/unpin","transparent animal anchor", "frameless Mac panel", "expanded panel hides animal and has no edge offset", "file hover retains animal until drop; completed drop approves, forwards and permits expansion", "pin overrides explicit collapse and pending exits; unpin restores edge collapse", "resize/focus preserves dimensions", "restore uses saved bounds", "edge collapse/expand preserves dimensions", "dragging away disables automatic collapse", "animal restore preserves panel edge and dimensions", "all edge and free resizes preserve frame center anchors", "overshoot and corner restore fit actual OS outer frame", "repeated center resizing is stable", "hide/show","multiwindow","rapid exit retrigger preserves full grace","exit timers are independent across windows","expand and hide invalidate old exit timers","native event emission", "edge docking preference stays independent, persisted and per owner"],"geometry": *geometry.lock().unwrap(), "platform":std::env::consts::OS});
         let _ = std::fs::write(report, serde_json::to_vec_pretty(&payload).unwrap());
         app.exit(if passed { 0 } else { 1 });
     });

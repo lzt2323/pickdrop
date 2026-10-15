@@ -3092,7 +3092,7 @@ dependencies = [
 
 [[package]]
 name = "pickdrop-core"
-version = "0.6.0-alpha.5"
+version = "0.6.0-alpha.6"
 dependencies = [
  "anyhow",
  "axum",
@@ -3115,7 +3115,7 @@ dependencies = [
 
 [[package]]
 name = "pickdrop-tauri"
-version = "0.6.0-alpha.5"
+version = "0.6.0-alpha.6"
 dependencies = [
  "base64 0.22.1",
  "drag",
@@ -4575,7 +4575,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-pickdrop-native"
-version = "0.6.0-alpha.5"
+version = "0.6.0-alpha.6"
 dependencies = [
  "serde_json",
  "tauri",

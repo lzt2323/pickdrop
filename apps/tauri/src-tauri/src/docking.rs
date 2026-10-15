@@ -554,7 +554,13 @@ pub fn action(w: &WebviewWindow, action: &str, value: Option<bool>) -> Result<()
             Ok(())
         }
         "collapse" => collapse(w),
-        "expand" => expand(w),
+        "expand" => {
+            // A queued frontend hover must not hide the native drag destination.
+            if r.collapsed && r.file_hover {
+                return Ok(());
+            }
+            expand(w)
+        }
         "busy" => {
             if value.unwrap_or(true) {
                 let mut generations = manager.layout_generations.lock().unwrap();
