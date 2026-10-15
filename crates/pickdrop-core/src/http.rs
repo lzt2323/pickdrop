@@ -1,10 +1,11 @@
 //! HTTP boundary for peer discovery, synchronization, pairing, and file reads.
 use crate::{
-    learn, presence,
+    network::origin,
     protocol::{random, s, verify, PROTOCOL},
+    sync::{learn_peer_routes, update_presence},
     Core,
 };
-use anyhow::{bail, ensure, Context};
+use anyhow::{bail, ensure, Context, Result};
 use axum::{
     body::Body,
     extract::{Path, Query, State},
@@ -72,9 +73,9 @@ async fn sync_handler(State(core): State<Core>, Json(proof): Json<Value>) -> Web
         let member = g.replica.member(sender, key);
         let known: HashSet<_> = payload["known"].as_array().into_iter().flatten().filter_map(|v| v.as_str()).collect();
         let missing: Vec<_> = if member { g.replica.ordered(None).into_iter().filter(|event| !known.contains(s(event, "eventId"))).cloned().collect() } else { vec![] };
-        let presence_changed = member && presence(g, Some(sender));
+        let presence_changed = member && update_presence(g, Some(sender));
         let old_peers = g.peers.clone();
-        if member { learn(g, &payload, s(&core.endpoint(), "deviceId")); }
+        if member { learn_peer_routes(g, &payload, s(&core.endpoint(), "deviceId")); }
         let receipt = if member { None } else { g.replica.revocation_for(sender, key) };
         let response = g.replica.proof("sync-result", json!({
             "genesis":g.replica.genesis,
@@ -141,4 +142,24 @@ async fn file_handler(
     }
     .await
     .map_err(web_error)
+}
+
+impl Core {
+    pub(super) async fn post_peer_json(&self, url: &str, path: &str, body: Value) -> Result<Value> {
+        let permit = self.0.network.acquire().await?;
+        let response = self
+            .0
+            .http
+            .post(format!("{}{path}", origin(url)?))
+            .json(&body)
+            .send()
+            .await?;
+        let status = response.status();
+        let bytes = response.bytes().await?;
+        ensure!(bytes.len() <= 16 * 1024 * 1024, "Response too large");
+        let payload: Value = serde_json::from_slice(&bytes)?;
+        drop(permit);
+        ensure!(status.is_success(), "{}", s(&payload, "error"));
+        Ok(payload)
+    }
 }
