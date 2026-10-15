@@ -9,7 +9,7 @@ async function walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const file = path.join(dir, entry.name);
     if (entry.isDirectory()) await walk(file);
-    else if (/\.(dmg|exe|msi|apk)$/i.test(entry.name)) files.push(file);
+    else if (/(?:\.(dmg|exe|msi|apk)|-Linux-x64-tui\.tar\.gz)$/i.test(entry.name)) files.push(file);
   }
 }
 await walk(source);
@@ -17,6 +17,7 @@ for (const [label, predicate] of [
   ['macOS', f => f.endsWith('.dmg')],
   ['Windows', f => /\.(exe|msi)$/.test(f)],
   ['Android', f => /Android-arm64-preview\.apk$/.test(f)],
+  ['Linux Rust TUI', f => /-Linux-x64-tui\.tar\.gz$/.test(f)],
 ]) if (!files.some(predicate)) throw new Error(`Missing ${label} installer`);
 await mkdir(destination, { recursive: true });
 const sums = [], names = new Set();

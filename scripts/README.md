@@ -16,8 +16,8 @@
 
 `check-structure.js` 管理目录与模块边界；`check-syntax.js frontend` 递归检查前端源文件。Rust 验证使用 Cargo，浏览器测试不能替代真机验收。
 
-`tauri-release-manifest.js` 汇总 macOS、Windows、Android 安装包并生成 SHA-256 清单；当前未提供 Linux 安装包。`sign-tauri-preview-apk.js` 使用 [公开预览测试证书](fixtures/README.md)，保持既有预览安装的签名身份，不依赖 Expo。`run-android-emulator.sh` 在已有 ARM64 模拟器或显式指定设备上构建、覆盖安装并启动 Tauri 预览，属于主动开发操作。
+`tauri-release-manifest.js` 汇总 macOS、Windows、Android 安装包及 Linux x64 Rust TUI 归档，生成 SHA-256 清单。`sign-tauri-preview-apk.js` 使用 [公开预览测试证书](fixtures/README.md)，保持既有预览安装的签名身份，不依赖 Expo。`run-android-emulator.sh` 在已有 ARM64 模拟器或显式指定设备上构建、覆盖安装并启动 Tauri 预览，属于主动开发操作。
 
-Electron、Expo、Node TUI 的构建、验收与旧资源生成脚本已退役；品牌素材本身保留。CI 与发布只调用当前工具。
+Electron、Expo、Node TUI 的构建、验收与旧资源生成脚本已退役；品牌素材本身保留。CI 与发布只调用当前工具。`test-rust-tui.py` 通过真实 PTY 和两个生产 Rust 进程验证终端、审批、消息、文件哈希及重启，输出到 .build/reports/rust-tui。
 
 浏览器截图与报告统一保存到仓库根 `.build/reports/`，发布流水线输入与安装包汇总使用 `.build/release/`。既有输出备份位于 `.build/history/`，不作为当前验收结果。

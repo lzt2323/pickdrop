@@ -46,6 +46,10 @@ jobs:
         with:
           name: tauri-android-arm64
           path: .build/release/input
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: rust-linux-x64-tui
+          path: .build/release/input
       - run: node scripts/tauri-release-manifest.js .build/release/input .build/release/assets
       - name: Publish verified prerelease without overwriting existing assets
         env:

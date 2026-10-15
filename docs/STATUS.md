@@ -1,6 +1,6 @@
 # 当前工程状态
 
-更新日期：2026-10-16。开发版本：`0.6.0-alpha.7`，Android `versionCode: 6006`。主线仅为 Rust/Tauri；目标与边界见 [PROJECT.md](PROJECT.md)，版本及回退见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
+更新日期：2026-10-16。开发版本：`0.6.0-alpha.8`，Android `versionCode: 6007`。主线为 Rust 核心、Tauri 与 Rust TUI；目标与边界见 [PROJECT.md](PROJECT.md)，版本及回退见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
 
 ## 已完成
 
@@ -22,7 +22,7 @@
 
 ## 版本管理
 
-当前工作分支为 `fix/windows-animal-drop`。`b30873b` 是退役前完整源码回退点，`8bd412c` 完成 Rust-only 退役与 alpha.2 版本更新。本轮按宿主、核心、前端与文档分别提交，具体提交以 git log 为准。没有推送、合并、创建标签或发布安装包。
+当前工作分支为 `feat/rust-tui`。`b30873b` 是退役前完整源码回退点，`8bd412c` 完成 Rust-only 退役与 alpha.2 版本更新。本轮按宿主、核心、前端与文档分别提交，具体提交以 git log 为准。没有推送、合并、创建标签或发布安装包。
 
 工作开始前已有的 AGENTS.md 修改保持原样，未纳入本轮提交。需要旧程序时在独立 worktree 检出回退提交；不要覆盖当前工作区或让旧版读取新版数据。
 
@@ -47,9 +47,9 @@
 
 ## 已知范围与下一步
 
-1. Node Linux TUI 尚未迁移，此次退役其源码与安装包，没有 Rust TUI 替代；不能宣称完成其功能迁移。当前 CI 只交付 macOS、Windows、Android 预览包。
+1. 旧 Node Linux TUI 已退役；现已新增独立 Rust TUI，基础功能和指定 Linux 服务器验收见下节。旧版 daemon/systemd、目录批量发送和二维码未迁移，不将轻量版称为旧 TUI 全功能替代。
 2. iOS 外部分享接收扩展仍未迁移，iOS 构建签名和真机验收仍需完成。
-3. 继续验证网络切换、大文件、扫码、前后台和原生窗口；优先对 alpha.2 同签名 APK 做安装升级及跨设备文件回归。
+3. 继续验证网络切换、大文件、扫码、前后台和原生窗口；补充 Rust TUI 与现有 GUI 设备互传及安装升级回归。
 4. 前端群组面板仍由 main.js 组装；整体抽取会增加大量回调，当前仅抽取可独立测试的生命周期。后续按具体维护问题继续收敛，不按行数机械拆分。
 
 ## 2026-10-15：审批后未连接修复
@@ -106,3 +106,16 @@
 - 结构/链接/语法、版本检查和宿主 19 项测试通过；Windows 原生 release 构建及 NSIS 打包通过，已覆盖安装 alpha.7，桌面会话进程版本与响应正常，安装程序除 Tauri 包类型标记外与构建一致（归一化 SHA-256 相同）；用户先确认展开窗口可以拖入，再明确确认收缩后的动物图标也能接收文件、展开并出现待发送附件。此确认未覆盖点击发送及另一设备接收。Mac 保持用户确认可用的 alpha.6，手机保持 alpha.4；源码统一递增 alpha.7 / Android 6006。
 
 - 补充 Windows 实机回归步骤到宿主 README，区分真实 OLE 拖放与浏览器/原生辅助函数测试。构建和安装记录保存在 .build/reports/windows-animal-drop，安装包归 .build/release/assets；最终源码与候选归档的非 Markdown 输入逐文件核对一致。
+
+## 2026-10-16：轻量 Rust TUI 与指定服务器验收
+
+- 用户明确授权恢复终端产品并在指定 Linux 服务器测试。新增 crates/pickdrop-tui，直接调用 pickdrop-core；main 管启动/目录锁/JSON Lines，app 管命令与附件草稿/安全导出，terminal 管终端输入、绘制与模式恢复。新终端依赖 crossterm 0.29（MIT）及 unicode-width 0.2（MIT/Apache-2.0），其余复用现有依赖，不引入 Node、图形桌面或另一套同步服务。
+- 提供创建/选择群、邀请/申请/审批、设备状态、手动连接、文字、文件暂存和确认发送、接收/保存、取消及历史查询。附件每群一个并持久化；失败/取消保留草稿。导出 create_new 拒绝覆盖，数据目录独占锁防止多个进程写同一身份。默认回环监听，可信局域网通过 --bind 显式开启。
+- 核心增加显式 IPv4 绑定入口，固定绑定不被网络刷新改写；回环模式不启动 mDNS。既有 Core::open 保持原绑定/发现行为，签名、协议、群组和文件校验逻辑继续共享。核心改动已提交 d5f8e16。
+- 旧 Node TUI 的 cli/ui 仅从回退提交 b30873b 读取参考命令和确认发送行为，未检出、复制或恢复旧代码；apps/tui 仍受结构规则禁止。服务器未发现既有 pickdrop/Node 命令，没有删除服务器已有业务资料。Git 历史不改写。
+- 本地核心 31 项（新增固定回环与无效绑定 2 项）、TUI 6 项、宿主 19 项、工具 14 项测试通过；结构/链接/语法、版本、Rust 格式、Python 编译及两份 CI YAML 语法检查通过。TUI 自身 clippy --no-deps -D warnings 通过；全依赖严格 Clippy 仍被 protocol.rs 原有 3 处 needless_borrow 阻断，本轮未扩大修改。
+- 在指定 Ubuntu 22.04 x86_64 服务器的指定文件夹内创建隔离子目录，原生构建 release；服务器核心 31 项与 TUI 6 项测试通过。真实 PTY 验证中文/空格路径、文件暂存不发送、草稿重启、切群清除旧详情并保留附件目标、明确发送、窗口缩放、Ctrl+C/SIGTERM 模式恢复。初次回归发现长路径遮住文件名及验收重复读取已消费帧，已修正，最终 Linux 回归通过。
+- 两个生产 Rust 进程完成申请/审批、双向文字、512 KiB 双向文件 SHA-256、拒绝覆盖已有目标、非法请求恢复、目录锁及重启后的身份/端口/群组/历史恢复；测试只使用生成文件和群组，均回环监听。不能据此宣称公网互通或现有 Mac/Windows/手机真实群验收。
+- 已在服务器隔离目录安装 5,136,872 字节的独立 pickdrop 二进制和 run-tui.sh，工作目录为用户指定测试目录，实际身份在独立 data 中。启动脚本/回环端点验证通过，运行不依赖 Node 或编译器。安装包 SHA-256 和服务器编译输入逐文件指纹与当前源码一致；清理了本次隔离的 Rust 工具链与 target 缓存，保留程序、源码和验收记录，目录约 18 MiB。
+- 本地安装包在 .build/release/assets/PickDrop-0.6.0-alpha.8-Linux-x64-tui.tar.gz，报告在 .build/reports/rust-tui/server；真实服务器位置见忽略的 install.json，不在源码记录 SSH 凭据。Linux 构建/验收、打包、发布汇总及版本检查接入 CI，GitHub 工作流本身未远端运行。CI 仅上传报告/终端日志，不上传含临时身份密钥的节点数据目录。
+- 版本统一 alpha.8 / Android 源码 6007，本轮不更新桌面/手机安装（Mac alpha.6、Windows alpha.7、手机 alpha.4）。不自动创建后台服务、不推送/合并/创建标签/发布；原有 AGENTS.md 修改未纳入提交。下一步按实际需求验证可信局域网与现有 GUI 设备互传，以及大文件和弱网；不扩展旧版所有功能。

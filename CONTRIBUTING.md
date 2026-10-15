@@ -4,7 +4,7 @@
 
 ## 开始与目录
 
-阅读 [工程规则](AGENTS.md)、[项目边界](docs/PROJECT.md)、[当前状态](docs/STATUS.md) 和 [目录导航](docs/README.md)。主线源码为 `apps/tauri/` 与 `crates/pickdrop-core/`；协议夹具在 `tests/fixtures/`。旧运行实现只能从 Git 历史获取，不再增加 Electron/Expo/Node 服务/TUI 分支。
+阅读 [工程规则](AGENTS.md)、[项目边界](docs/PROJECT.md)、[当前状态](docs/STATUS.md) 和 [目录导航](docs/README.md)。主线源码为 `apps/tauri/`、`crates/pickdrop-tui/` 与 `crates/pickdrop-core/`；协议夹具在 `tests/fixtures/`。旧运行实现只能从 Git 历史获取，不再增加 Electron/Expo/Node 服务或旧 Node TUI 分支。
 
 `pnpm check` 校验目录、文档链接、前端字面量导入边界及循环和 JS 语法。新增根目录须说明职责并记录到 DECISIONS，再更新检查器。检查器不解析计算导入，不代替编译和行为验证。过期方案和截图从当前分支删除，通过 Git 历史追溯；发布记录放 `docs/releases/`，当前待办更新 STATUS。验收输出统一写入仓库根 `.build/reports/`，发布汇总写入 `.build/release/`，工具链默认输出目录保持不变。
 
@@ -12,7 +12,7 @@ Node 是前端与开发工具依赖，不是产品服务。工具入口见 [scri
 
 ## 版本与回退
 
-当前开发版本为 `0.6.0-alpha.7`；预览标识和数据目录不变。版本同时更新根 package.json、apps/tauri/package.json、两个主 crate 与内部 native 插件 Cargo.toml、Cargo.lock、tauri.conf.json。Android `bundle.android.versionCode` 必须显式递增：alpha.1 为 6000，alpha.2 为 6001，alpha.3 为 6002，alpha.4 为 6003，alpha.5 为 6004，alpha.6 为 6005，alpha.7 为 6006，不能仅依靠忽略预发布尾缀的默认换算。
+当前开发版本为 `0.6.0-alpha.8`；预览标识和数据目录不变。版本同时更新根 package.json、apps/tauri/package.json、核心、Rust TUI、Tauri 宿主与内部 native 插件 Cargo.toml、Cargo.lock、tauri.conf.json。Android `bundle.android.versionCode` 必须显式递增：alpha.1 为 6000，alpha.2 为 6001，alpha.3 为 6002，alpha.4 为 6003，alpha.5 为 6004，alpha.6 为 6005，alpha.7 为 6006，alpha.8 为 6007，不能仅依靠忽略预发布尾缀的默认换算。
 
 版本变化新增 `docs/releases/v<版本>.md`，不覆盖旧说明。`pnpm version:check` 校验版本及 Android 构建号。依赖变化同步 pnpm-lock.yaml；Rust 包版本/依赖变化同步 Cargo.lock。安装包、target、gen、用户数据、私有证书及工具本地记录不纳入 Git。
 
@@ -44,7 +44,7 @@ pnpm tauri:test:runtime
 
 ## 构建与发布
 
-Tauri CI 验证主线并构建 macOS、Windows 和 Android ARM64；不再打包 Node Linux TUI，也不宣称已有 Rust TUI。iOS 需另行签名及验收。手动工作流只产出 artifacts。
+CI 验证主线并构建 macOS、Windows、Android ARM64 和 Linux x64 Rust TUI；不再打包 Node Linux TUI。iOS 需另行签名及验收。手动工作流只产出 artifacts。
 
 Android 预览继续使用同一公开测试证书和独立包名，以保留预览升级能力；测试证书明确标注来源，不能用于正式发布。macOS ad-hoc 签名不等于公证。
 

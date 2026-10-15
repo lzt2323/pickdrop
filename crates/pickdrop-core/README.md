@@ -1,8 +1,8 @@
 # PickDrop shared native core
 
-Version `0.6.0-alpha.2`. Tauri desktop and mobile hosts share this crate; no Node sidecar is required.
+Version follows the workspace. Tauri desktop/mobile hosts and the Rust TUI share this crate; no Node sidecar is required.
 
-`Core::open(data_dir, kind)` creates or restores a device identity, validates persisted groups once, opens a native LAN HTTP listener on a port persisted in independent `network.json` (reused after restart, with a saved fallback if occupied), browses/announces `_pickdrop._tcp.local.`, and starts bounded foreground synchronization. Hosts should call `set_active` on app lifecycle changes and relay `Core::subscribe()` to their UI.
+`Core::open(data_dir, kind)` creates or restores a device identity, validates persisted groups once, opens a native LAN HTTP listener on a port persisted in independent `network.json` (reused after restart, with a saved fallback if occupied), browses/announces `_pickdrop._tcp.local.`, and starts bounded foreground synchronization. `Core::open_with_bind_address(data_dir, kind, ipv4)` supports explicit binding; loopback mode keeps the advertised endpoint on loopback and disables mDNS. Existing `Core::open` behavior is unchanged. Hosts should call `set_active` on app lifecycle changes and relay `Core::subscribe()` to their UI.
 
 On Android, the host can bridge system NSD discoveries through `remember_discovery {records:[{groupId,hostDeviceId,peerProtocol:"pickdrop-peer-v1",baseUrl,name}]}` so VPN routing does not interfere with application UDP sockets. Every hint is UUID/protocol/origin validated. It only creates routes for an already loaded group and known member, capped at 64 routes per group; a signed HTTP exchange is required before online presence or persisted routing changes. Nearby groups can be listed before joining without probing them. New hints and verified routes take priority over stale addresses. Physical LAN selection prefers WiFi on mobile and excludes VPN/cellular/virtual interfaces, both at startup and during the four-second refresh.
 

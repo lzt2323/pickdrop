@@ -13,6 +13,7 @@ const names = [
   `PickDrop-${version}.dmg`,
   `PickDrop-${version}.exe`,
   `PickDrop-${version}-Tauri-Android-arm64-preview.apk`,
+  `PickDrop-${version}-Linux-x64-tui.tar.gz`,
 ];
 async function fixture(t, assets = names) {
   const directory = await mkdtemp(path.join(tmpdir(), 'pickdrop-release-'));
@@ -26,12 +27,12 @@ async function fixture(t, assets = names) {
   };
 }
 
-test('release requires only Tauri desktop and Android installers and hashes copied bytes', async t => {
+test('release requires native desktop, Android and Rust TUI assets and hashes copied bytes', async t => {
   const data = await fixture(t);
   const result = data.run();
   assert.equal(result.status, 0, result.stderr);
   const lines = (await readFile(path.join(data.destination, 'SHA256SUMS.txt'), 'utf8')).trim().split('\n');
-  assert.equal(lines.length, 3);
+  assert.equal(lines.length, 4);
   for (const name of names) {
     const bytes = await readFile(path.join(data.destination, name));
     assert.equal(bytes.toString(), `fixture:${name}`);
@@ -53,4 +54,9 @@ test('release rejects mismatched versions and duplicate asset names', async t =>
   await mkdir(path.join(duplicate.source, 'nested'));
   await writeFile(path.join(duplicate.source, 'nested', names[0]), 'duplicate');
   assert.match(duplicate.run().stderr, /Unexpected\/duplicate versioned asset/);
+});
+
+test('release rejects a missing Rust Linux TUI archive', async t => {
+  const data = await fixture(t, names.slice(0, 3));
+  assert.match(data.run().stderr, /Missing Linux Rust TUI installer/);
 });

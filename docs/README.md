@@ -7,13 +7,14 @@
 - [DECISIONS.md](DECISIONS.md)：结构与产品范围变化的原因。
 - [工程规则](../AGENTS.md)、[开发与版本管理](../CONTRIBUTING.md)、[命令导航](../scripts/README.md)。
 - [迁移与回退](tauri-migration.md)、[Android 模拟器](android-emulator.md)。
-- [Rust 核心](../crates/pickdrop-core/README.md)、[Tauri 宿主](../apps/tauri/src-tauri/README.md)。
+- [Rust TUI](../crates/pickdrop-tui/README.md)、[Rust 核心](../crates/pickdrop-core/README.md)、[Tauri 宿主](../apps/tauri/src-tauri/README.md)。
 
 ## 目录职责
 
 | 路径 | 职责 |
 | --- | --- |
-| `apps/tauri/` | 唯一客户端、原生宿主和前端测试 |
+| `apps/tauri/` | 桌面/移动客户端、原生宿主和前端测试 |
+| `crates/pickdrop-tui/` | 轻量终端客户端、终端命令及适配测试 |
 | `crates/pickdrop-core/` | Rust 同步核心及集成测试 |
 | `tests/` | 开发工具回归、真实双节点前端验收、旧 JS 协议兼容向量 |
 | `scripts/`、`.github/` | 主线检查、构建与发布工具 |

@@ -119,3 +119,35 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           compression-level: 0
+
+  linux-tui:
+    needs: core
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: rustup toolchain install 1.99.0 --profile minimal
+      - run: cargo test -p pickdrop-tui --locked
+      - run: cargo build --release -p pickdrop-tui --locked
+      - run: python3 scripts/test-rust-tui.py target/release/pickdrop
+      - name: Package standalone Linux terminal binary
+        run: |
+          VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' crates/pickdrop-tui/Cargo.toml)
+          mkdir -p .build/release/linux .build/release/assets
+          cp target/release/pickdrop crates/pickdrop-tui/README.md LICENSE .build/release/linux/
+          tar -czf ".build/release/assets/PickDrop-$VERSION-Linux-x64-tui.tar.gz" -C .build/release/linux pickdrop README.md LICENSE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rust-linux-x64-tui
+          path: .build/release/assets/*-Linux-x64-tui.tar.gz
+          include-hidden-files: true
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rust-tui-acceptance
+          path: |
+            .build/reports/rust-tui/acceptance.json
+            .build/reports/rust-tui/terminal.ansi
+            .build/reports/rust-tui/nodes.log
+          include-hidden-files: true

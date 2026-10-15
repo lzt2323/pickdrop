@@ -1,6 +1,6 @@
 # 拾传 · PickDrop 项目说明
 
-> 本文定义项目目标、功能范围和架构边界，供开发与产品决策参考。整理日期：2026-10-16。当前源码版本：`0.6.0-alpha.7`，处于 Tauri 迁移预览阶段。
+> 本文定义项目目标、功能范围和架构边界，供开发与产品决策参考。整理日期：2026-10-16。当前源码版本：`0.6.0-alpha.8`，处于 Tauri 迁移预览阶段。
 >
 > 本文定义项目目标与架构边界；当前进度、实际验证和未完成事项见 [STATUS.md](STATUS.md)，历史迁移与回退见 [迁移记录](tauri-migration.md)。
 
@@ -10,7 +10,7 @@
 
 **项目简介：** 以群聊方式在局域网设备之间交换文字和文件的跨平台工具。用户将电脑和手机加入同一个群组，即可发送内容、查看本地历史并保存收到的文件。
 
-**项目定位：** 面向个人多设备及可信局域网内的小范围协作，提供轻量、直接、可持续使用的文件收件箱。当前主线采用 Tauri 2 客户端与 Rust 同步核心，安装后的应用不依赖 Node.js 或开发服务器。
+**项目定位：** 面向个人多设备及可信局域网内的小范围协作，提供轻量、直接、可持续使用的文件收件箱。当前主线采用 Tauri 2 客户端、轻量 Rust TUI 与共享 Rust 同步核心，安装后的应用不依赖 Node.js 或开发服务器。
 
 ## 2. 项目目标
 
@@ -58,7 +58,7 @@
 ### 当前范围
 
 - 可信、设备间可互通的局域网。
-- 仅开发 Tauri 桌面与移动端共享客户端及 Rust 核心；Node Linux TUI 已退役，没有 Rust TUI 替代。
+- 维护 Tauri 桌面/移动端客户端、轻量 Rust TUI 与共享 Rust 核心；旧 Node Linux TUI 已退役。
 - 兼容现有 `pickdrop-peer-v1` 签名协议。
 - 保留显式、非破坏性的旧桌面数据导入；旧运行源码通过 Git 历史回退，不留在当前工作区。
 
@@ -69,6 +69,7 @@
 - 不保证离线投递、手机后台长时间在线或传输，也不保证断点续传。
 - 不保证跨 AP、组播受限或网络隔离环境中的自动发现；已有同群设备可尝试手动地址连接，但仍需网络可达与签名验证。
 - iOS 外部分享接收扩展尚未迁入。
+- Rust TUI 不提供旧 Node 守护进程、systemd 管理、目录批量发送或二维码；不自动导入旧 TUI 数据。
 - 不自动覆盖旧版数据、升级正式应用身份或发布正式版本。
 
 新增需求应按 AGENTS.md 评估用户价值、简单替代方案、系统影响和维护成本，再决定接受、简化、推迟或拒绝。
@@ -93,6 +94,7 @@
 | --- | --- |
 | `apps/tauri/src/` | 主线界面、状态模型、文件草稿与原生桥接 |
 | `apps/tauri/src-tauri/` | Tauri 宿主、平台适配、窗口与原生命令 |
+| `crates/pickdrop-tui/` | Linux 终端界面、终端命令、附件草稿与安全文件导出；复用核心业务 |
 | `crates/pickdrop-core/` | 共享 Rust 核心、协议实现及核心集成测试 |
 | `apps/tauri/tests/` | 前端单元测试、浏览器及交互回归脚本 |
 | `tests/` | 开发工具回归、协议兼容向量及真实 Rust 节点前端验收 |
@@ -154,7 +156,7 @@ pnpm start
 
 ```sh
 pnpm version:check
-cargo test -p pickdrop-core --locked
+cargo test -p pickdrop-core -p pickdrop-tui --locked
 cargo check -p pickdrop-tauri --locked
 pnpm --dir apps/tauri test
 pnpm --dir apps/tauri build

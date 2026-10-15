@@ -5,7 +5,7 @@ for (const path of ['apps/tauri/package.json']) {
   if (read(path).version !== version) throw new Error(`${path}: version differs from ${version}`);
 }
 if (read('apps/tauri/src-tauri/tauri.conf.json').version !== version) throw new Error('Native configuration version mismatch');
-for (const path of ['crates/pickdrop-core/Cargo.toml', 'apps/tauri/src-tauri/Cargo.toml', 'apps/tauri/src-tauri/plugins/native/Cargo.toml']) {
+for (const path of ['crates/pickdrop-core/Cargo.toml', 'crates/pickdrop-tui/Cargo.toml', 'apps/tauri/src-tauri/Cargo.toml', 'apps/tauri/src-tauri/plugins/native/Cargo.toml']) {
   const actual = readFileSync(path, 'utf8').match(/^version\s*=\s*"([^"]+)"/m)?.[1];
   if (actual !== version) throw new Error(`${path}: ${actual} differs from ${version}`);
 }
