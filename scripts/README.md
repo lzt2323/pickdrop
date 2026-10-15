@@ -9,6 +9,7 @@
 | 前端单元测试 | `pnpm test:frontend` |
 | 上述两类测试 | `pnpm test` |
 | 浏览器交互验收 | `pnpm --dir apps/tauri test:browser` |
+| 入群轮询、重试与关闭竞态验收 | `pnpm --dir apps/tauri test:join` |
 | 真实 Rust 节点联调 | `pnpm tauri:test:runtime` |
 | 包、Rust、原生版本与发布说明检查 | `pnpm version:check` |
 

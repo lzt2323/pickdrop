@@ -1,6 +1,6 @@
 # 开发与版本管理
 
-当前仅开发 Rust/Tauri 版本。`main` 保存已验证版本；每项改动使用独立 `codex/` 分支，验证后分主题提交并通过 PR 合并。不要长期积累未提交源码，不强制推送、改写已发布标签或覆盖发布资产。
+当前仅开发 Rust/Tauri 版本。`main` 保存已验证版本；较大改动使用职责明确的 `feat/`、`fix/`、`refactor/` 或 `docs/` 分支，验证后以 Conventional Commits 分主题提交并通过 PR 合并。Agent 自有开发分支上的已验证改动按 AGENTS.md 自动提交；已有的无关修改保留在工作区。不要长期积累未提交源码，不强制推送、改写已发布标签或覆盖发布资产。
 
 ## 开始与目录
 
@@ -36,6 +36,7 @@ cargo test -p pickdrop-tauri --lib --locked
 cargo check -p pickdrop-tauri --locked
 pnpm --dir apps/tauri build
 pnpm --dir apps/tauri test:browser
+pnpm --dir apps/tauri test:join
 pnpm tauri:test:runtime
 ```
 

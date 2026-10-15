@@ -102,12 +102,16 @@
 | --- | --- | --- |
 | `apps/tauri/src/main.js` | 页面组装、DOM 更新、交互绑定 | 文件传输生命周期、协议与文件权限实现 |
 | `apps/tauri/src/file-transfers.js` | 发送批次、接收、重试、草稿并发与进度状态 | DOM 查询、直接调用 Tauri 插件 |
+| `apps/tauri/src/join-request.js` | 入群轮询、请求去重、停止与失效响应处理 | DOM、原生插件与页面导航 |
 | `apps/tauri/src/bridge.js` | 核心及原生命令桥接 | 复制 Rust 业务规则 |
 | `crates/pickdrop-core/src/lib.rs` | Core 公共入口、共享状态与业务协调 | HTTP 路由细节、平台 UI |
 | 核心 `http.rs` / `network.rs` | HTTP 边界 / 网络选址与发现校验 | 前端状态与窗口行为 |
+| 核心 `pairing.rs` / `sync.rs` | 邀请、审批与入群 / 同步调度、连接与在线状态 | HTTP 传输细节、平台交互 |
 | 核心 `files.rs` / `migration.rs` | 文件传输和缓存 / 显式旧数据导入 | UI 与平台文件选择器 |
 | 宿主 `lib.rs` / `host.rs` | 启动注册与生命周期 / 状态与路径授权 | 页面业务与重复协议实现 |
 | 宿主 `native_files.rs` / `window_commands.rs` | 系统文件操作 / 窗口命令与操作保护 | 跨入其他窗口的私有状态 |
+
+宿主 `docking.rs` 管理贴边窗口状态、持久化与系统操作；`docking/geometry.rs` 负责尺寸、坐标、缩放和边缘判定，纯计算不依赖 Tauri。
 
 新逻辑先归属现有领域模块；只有独立职责和实际维护需求才拆文件。不得将领域逻辑放入无明确所有者的 `utils` 或 `shared`。Rust 内部模块保持私有，仅开放必要的内部接口；外部继续通过 Core 与已注册原生命令访问。前端传输模块通过显式回调连接桥接和渲染，不能反向导入页面入口。
 
@@ -152,6 +156,7 @@ cargo check -p pickdrop-tauri --locked
 pnpm --dir apps/tauri test
 pnpm --dir apps/tauri build
 pnpm --dir apps/tauri test:browser
+pnpm --dir apps/tauri test:join
 pnpm tauri:test:runtime
 ```
 
