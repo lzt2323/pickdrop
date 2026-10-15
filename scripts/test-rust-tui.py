@@ -74,6 +74,7 @@ def terminal_test(binary, work, report):
     source = work / '终端 有空格.txt'
     source.write_text('terminal draft confirmation\n')
     transcript = bytearray()
+    default_directory = work / '默认 下载'
 
     def session(action):
         master, slave = pty.openpty()
@@ -162,6 +163,14 @@ def terminal_test(binary, work, report):
         keys(master, read_until, b'i', '输入文字')
         paste(master, '键盘消息中文')
         read_until('操作完成')
+        default_directory.mkdir()
+        menu(master, read_until, 8, '[默认保存目录]')
+        keys(master, read_until, b'\r', '输入默认保存目录')
+        os.write(master, b'\x15')  # Ctrl+U clears the prefilled directory.
+        paste(master, str(default_directory))
+        read_until('默认保存目录已更新')
+        preferences = json.loads((data / 'tui-preferences.json').read_text())
+        assert preferences['downloadDirectory'] == str(default_directory)
         os.write(master, b'\x03')
     session(first)
 
@@ -176,12 +185,11 @@ def terminal_test(binary, work, report):
         assert len(snapshot['events']) == 2
         assert json.loads((data / 'tui-drafts.json').read_text()) == []
         menu(master, read_until, 3, '终端 有空格.txt')
-        keys(master, read_until, b'\r', '输入保存文件的完整目标路径')
-        saved = work / '导出文件.txt'
-        paste(master, str(saved))
-        read_until('已校验并保存')
+        keys(master, read_until, b'\r', '默认 下载')
+        saved = default_directory / source.name
+        keys(master, read_until, b'\r', '已校验并保存')
         assert saved.read_bytes() == source.read_bytes()
-        # Directory list: path action, parent, terminal-data directory, saved file, source.
+        # Directory list: path action, parent, two directories, source.
         menu(master, read_until, 2, '[输入文件路径]')
         keys(master, read_until, b'\x1b[B' * 4 + b'\r', '附件已暂存')
         assert json.loads((data / 'tui-drafts.json').read_text())[0]['path'] == str(source)
@@ -195,7 +203,7 @@ def terminal_test(binary, work, report):
         os.kill(process.pid, signal.SIGWINCH)
         read_until('单栏')
         menu(master, read_until, 8, '[修改设备名称]')
-        keys(master, read_until, b'\r', '输入设备名称')
+        keys(master, read_until, b'\x1b[B\r', '输入设备名称')
         paste(master, '键盘验收设备')
         read_until('操作完成')
         process.send_signal(signal.SIGTERM)
@@ -215,7 +223,7 @@ def main():
     checks = []
     # PTY first: preexec_fn is used before any reader threads are created.
     terminal_test(binary, work, output / 'terminal.ansi')
-    checks.append('PTY: arrow/Enter menus and forms, Unicode composition, safe default confirmation, group-bound persisted draft, explicit file send, Tab panel focus, 36/60/80/100/120-column layouts, narrow settings, Ctrl+C/SIGTERM restoration')
+    checks.append('PTY: arrow/Enter menus and forms, Unicode composition, safe default confirmation, persisted default save directory and prefilled filename, group-bound persisted draft, explicit file send, Tab panel focus, 36/60/80/100/120-column layouts, narrow settings, Ctrl+C/SIGTERM restoration')
     a = b = None
     try:
         a = Node(binary, work / 'a', output / 'nodes.log')

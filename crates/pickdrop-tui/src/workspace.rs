@@ -29,9 +29,14 @@ pub enum FormKind {
     Create,
     Join,
     Name,
+    DownloadDirectory,
     Path(String),
     Connect(String),
-    Save { group: String, id: String },
+    Save {
+        group: String,
+        id: String,
+        name: String,
+    },
     Command,
 }
 #[derive(Clone)]
@@ -224,6 +229,7 @@ impl Workspace {
                             Action::Form(FormKind::Save {
                                 group: group.clone(),
                                 id: s(message, "id").into(),
+                                name: s(message, "fileName").into(),
                             })
                         } else {
                             Action::Detail(vec![
@@ -292,6 +298,7 @@ impl Workspace {
                             Action::Form(FormKind::Save {
                                 group: group.clone(),
                                 id: s(message, "id").into(),
+                                name: s(message, "fileName").into(),
                             }),
                         ));
                     }
@@ -381,6 +388,16 @@ impl Workspace {
                 }
             }
             8 => {
+                rows.push(Row::new(
+                    "download-directory",
+                    format!(
+                        "[默认保存目录] {}",
+                        app.download_directory()
+                            .map(|p| p.display().to_string())
+                            .unwrap_or_else(|e| format!("错误：{e}"))
+                    ),
+                    Action::Form(FormKind::DownloadDirectory),
+                ));
                 rows.push(Row::new(
                     "name",
                     "[修改设备名称]",

@@ -180,13 +180,26 @@ async fn activate(
                 FormKind::Create => "输入新群名称",
                 FormKind::Join => "粘贴完整邀请链接，或输入 地址 邀请码",
                 FormKind::Name => "输入设备名称",
+                FormKind::DownloadDirectory => "输入默认保存目录（已存在的目录，支持 ~）",
                 FormKind::Path(_) => "输入普通文件完整路径（暂存后需确认发送）",
                 FormKind::Connect(_) => "输入已入群设备的 http://IP:端口",
                 FormKind::Save { .. } => "输入保存文件的完整目标路径（含文件名；拒绝覆盖）",
                 FormKind::Command => "输入命令；/help 查看用法",
             };
+            let initial = match &kind {
+                FormKind::DownloadDirectory => Some(app.download_directory()?),
+                FormKind::Save { name, .. } => Some(app.suggested_save_path(name)?),
+                _ => None,
+            };
+            let mut next_editor = Editor::default();
+            if let Some(path) = initial {
+                next_editor.insert(
+                    path.to_str()
+                        .context("保存路径不是 UTF-8，请选择其他目录")?,
+                )?;
+            }
             ui.open_form(title, kind);
-            *editor = Editor::default();
+            *editor = next_editor;
         }
         Action::Select(id) => {
             launch(core, ui, job, "select_group", json!({"id":id}))?;
@@ -282,7 +295,16 @@ async fn submit_form(
         FormKind::Join => ("join_group", app::join_params(text)?),
         FormKind::Name => ("rename_device", json!({"name":text})),
         FormKind::Connect(group) => ("connect_peer", json!({"groupId":group,"address":text})),
-        FormKind::Save { group, id } => ("save_file", json!({"groupId":group,"id":id,"path":text})),
+        FormKind::Save { group, id, .. } => {
+            ("save_file", json!({"groupId":group,"id":id,"path":text}))
+        }
+        FormKind::DownloadDirectory => {
+            app.set_download_directory(text)?;
+            ui.form = None;
+            ui.focus = Focus::Content;
+            *editor = Editor::default();
+            return Ok(false);
+        }
         FormKind::Path(group) => {
             app.stage_for_group(text, group.clone())?;
             ui.form = None;

@@ -62,6 +62,7 @@ pub async fn run(core: &Core, data: &Path) -> Result<()> {
                 Some(Ok(Event::Key(key))) if key.kind!=KeyEventKind::Release => {
                     dirty=true;
                     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code==KeyCode::Char('c') { break; }
+                    if ui.focus==Focus::Input && key.modifiers==KeyModifiers::CONTROL && key.code==KeyCode::Char('u') {editor=Editor::default();}
                     if !key.modifiers.intersects(KeyModifiers::CONTROL|KeyModifiers::ALT) {
                         match key_action(core,&mut app,&mut ui,&mut editor,&mut job,key.code).await {
                             Ok(true)=>break,Ok(false)=>{},Err(error)=>app.notice=format!("错误：{error:#}")

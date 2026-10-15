@@ -1,6 +1,6 @@
 # 拾传 · PickDrop 项目说明
 
-> 本文定义项目目标、功能范围和架构边界，供开发与产品决策参考。整理日期：2026-10-16。当前源码版本：`0.6.0-alpha.9`，处于 Tauri 迁移预览阶段。
+> 本文定义项目目标、功能范围和架构边界，供开发与产品决策参考。整理日期：2026-10-16。当前源码版本：`0.6.0-alpha.10`，处于 Tauri 迁移预览阶段。
 >
 > 本文定义项目目标与架构边界；当前进度、实际验证和未完成事项见 [STATUS.md](STATUS.md)，历史迁移与回退见 [迁移记录](tauri-migration.md)。
 
@@ -189,4 +189,4 @@ pnpm tauri:test:runtime
 
 ### Rust TUI 界面边界
 
-终端工作区沿用现有 crossterm：`terminal.rs` 负责终端生命周期与异步事件，`workspace.rs` 管菜单、稳定 ID 选择和列表，`interaction.rs` 将按键/表单转为核心调用，`view.rs` 管尺寸、绘制和 UTF-8 编辑，`app.rs` 保留命令/草稿/安全导出。宽屏左右分栏，窄屏单栏切换焦点。JSON Lines、核心接口与持久化身份格式保持兼容；不引入第二套协议或 Node 运行依赖。
+终端工作区沿用现有 crossterm：`terminal.rs` 负责终端生命周期与异步事件，`workspace.rs` 管菜单、稳定 ID 选择和列表，`interaction.rs` 将按键/表单转为核心调用，`view.rs` 管尺寸、绘制和 UTF-8 编辑，`app.rs` 保留命令/草稿/安全导出。宽屏左右分栏，窄屏单栏切换焦点。默认保存目录单独保存在 `tui-preferences.json`，保存文件时预填目录及文件名，仍需确认且拒绝覆盖。JSON Lines、核心接口与持久化身份格式保持兼容；不引入第二套协议或 Node 运行依赖。

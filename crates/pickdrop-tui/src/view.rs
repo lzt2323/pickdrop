@@ -272,7 +272,10 @@ pub(crate) fn render(app: &App, editor: &Editor, ui: &Workspace, busy: bool) -> 
             lines.push(("←→ / ↑↓ 选择 · Enter 执行 · Esc 取消".into(), false));
         } else if let Some((title, _)) = &ui.form {
             lines.extend(wrapped(title, cw).into_iter().map(|s| (s, false)));
-            lines.push(("底部输入；Enter 提交 · Esc 取消".into(), false));
+            lines.push((
+                "底部输入；Enter 提交 · Esc 取消 · Ctrl+U 清空".into(),
+                false,
+            ));
         } else if let Some(detail) = &app.detail {
             for line in detail {
                 lines.extend(wrapped(line, cw).into_iter().map(|s| (s, false)));

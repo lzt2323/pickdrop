@@ -27,6 +27,11 @@ pub struct Draft {
     pub group: String,
     pub path: PathBuf,
 }
+#[derive(Default, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+struct Preferences {
+    download_directory: Option<PathBuf>,
+}
 pub struct App {
     pub boot: Value,
     pub state: Value,
@@ -36,6 +41,8 @@ pub struct App {
     pub detail: Option<Vec<String>>,
     pub scroll: usize,
     draft_file: PathBuf,
+    preferences: Preferences,
+    preferences_file: PathBuf,
 }
 impl App {
     pub fn open(data: &Path) -> Result<Self> {
@@ -47,16 +54,54 @@ impl App {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => vec![],
             Err(error) => return Err(error.into()),
         };
+        let preferences_file = data.join("tui-preferences.json");
+        let preferences = match std::fs::read(&preferences_file) {
+            Ok(bytes) => serde_json::from_slice(&bytes)
+                .context("终端设置损坏，请检查 tui-preferences.json")?,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Preferences::default(),
+            Err(error) => return Err(error.into()),
+        };
         Ok(Self {
             boot: Value::Null,
             state: Value::Null,
             requests: Value::Null,
             drafts,
             draft_file,
+            preferences,
+            preferences_file,
             notice: "↑↓ 选择菜单，→ / Enter 进入；文件暂存后需确认发送。".into(),
             detail: None,
             scroll: 0,
         })
+    }
+    pub fn download_directory(&self) -> Result<PathBuf> {
+        match &self.preferences.download_directory {
+            Some(path) => Ok(path.clone()),
+            None => std::env::current_dir().context("无法确定默认保存目录"),
+        }
+    }
+    pub fn set_download_directory(&mut self, value: &str) -> Result<()> {
+        let directory = expand_path(value)?
+            .canonicalize()
+            .context("默认保存目录不存在或无法访问")?;
+        ensure!(directory.is_dir(), "默认保存路径必须是已存在的目录");
+        let previous = self.preferences.download_directory.replace(directory);
+        let result = (|| -> Result<()> {
+            let temporary = self.preferences_file.with_extension("tmp");
+            std::fs::write(&temporary, serde_json::to_vec(&self.preferences)?)?;
+            std::fs::rename(temporary, &self.preferences_file)?;
+            Ok(())
+        })();
+        if let Err(error) = result {
+            self.preferences.download_directory = previous;
+            return Err(error.context("默认保存目录写入失败，原设置已保留"));
+        }
+        self.notice = "默认保存目录已更新".into();
+        Ok(())
+    }
+    pub fn suggested_save_path(&self, name: &str) -> Result<PathBuf> {
+        let name = Path::new(name).file_name().context("消息缺少有效文件名")?;
+        Ok(self.download_directory()?.join(name))
     }
     pub fn group(&self) -> Result<String> {
         self.boot["activeGroupId"]
@@ -313,6 +358,57 @@ mod tests {
             restored.current_draft().unwrap().path,
             file.canonicalize().unwrap()
         );
+    }
+    #[test]
+    fn download_directory_persists_and_rejects_invalid_paths_without_changing_settings() {
+        let data = tempfile::tempdir().unwrap();
+        let destination = data.path().join("中文 下载");
+        std::fs::create_dir(&destination).unwrap();
+        let mut app = App::open(data.path()).unwrap();
+        assert_eq!(
+            app.download_directory().unwrap(),
+            std::env::current_dir().unwrap()
+        );
+        app.set_download_directory(destination.to_str().unwrap())
+            .unwrap();
+        let restored = App::open(data.path()).unwrap();
+        assert_eq!(
+            restored.download_directory().unwrap(),
+            destination.canonicalize().unwrap()
+        );
+        assert_eq!(
+            restored.suggested_save_path("../../文件.txt").unwrap(),
+            destination.canonicalize().unwrap().join("文件.txt")
+        );
+        assert!(app
+            .set_download_directory(data.path().join("missing").to_str().unwrap())
+            .is_err());
+        let file = data.path().join("ordinary-file");
+        std::fs::write(&file, b"x").unwrap();
+        assert!(app.set_download_directory(file.to_str().unwrap()).is_err());
+        assert_eq!(
+            app.download_directory().unwrap(),
+            restored.download_directory().unwrap()
+        );
+        // Simulate a persistence failure after validation, without relying on root-sensitive permissions.
+        app.preferences_file = data.path().join("missing/preferences.json");
+        assert!(app
+            .set_download_directory(data.path().to_str().unwrap())
+            .is_err());
+        assert_eq!(
+            app.download_directory().unwrap(),
+            restored.download_directory().unwrap()
+        );
+    }
+    #[test]
+    fn corrupt_preferences_are_reported_instead_of_silently_reset() {
+        let data = tempfile::tempdir().unwrap();
+        std::fs::write(data.path().join("tui-preferences.json"), b"not-json").unwrap();
+        assert!(App::open(data.path())
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("终端设置损坏"));
     }
     #[test]
     fn invitation_and_group_selection_are_unambiguous() {
