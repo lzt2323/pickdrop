@@ -35,7 +35,7 @@
 - 子代理环境不能监听核心网络测试；主代理已重跑完整核心及真实双节点验收。
 - 上轮冻结锁文件安装已通过，本轮未改依赖或锁文件。本机 pnpm 为 11.25.0，仓库/CI 固定 11.19.0。
 
-本轮没有重新打包/安装 APK，没有验证 Android 实机升级；同签名和构建号检查不能替代实际安装。没有新做 macOS/Windows/iOS GUI 真机验收。历史 Node 测试不计入当前结果。
+上述职责重构验证当时未重新安装原生应用；此后本机及设备安装检查见下节。历史 Node 测试不计入当前结果。
 
 ## 已知范围与下一步
 
@@ -50,3 +50,11 @@
 - 浏览器报告固定到仓库根 .build/reports，发布输入和汇总改为 .build/release；已有散落输出移动至 .build/history。
 - 删除旧 Expo 路径忽略配置，禁止历史原型目录及根 artifacts/dist 回归。工具链默认 target、apps/tauri/dist、gen 保留。
 - 本轮只改资料、工具输出路径和检查规则，不修改产品行为。结构与链接检查、前端和改动脚本语法、版本检查、13 项工具测试通过；浏览器 smoke 与真实双 Rust 节点验收通过，新截图和报告确实写入 .build/reports，未重建散落 artifacts 目录。CI 发布路径已同步但未运行远端发布或重新签名 APK。
+
+## 2026-10-15：当前源码安装检查
+
+- 以 91563f3 的产品源码构建 0.6.0-alpha.2。macOS Apple Silicon 已安装到 /Applications/拾传 Preview.app，通过 codesign 校验并启动。
+- USB Android 真机安装签名 ARM64 release APK（versionCode 6001），启动成功，实际界面显示 alpha.2；安装后的 APK SHA-256 与本轮构建一致，未执行卸载或清除数据。
+- 通过 SSH 在 Windows x64 原生构建 NSIS 安装包，并在已登录桌面会话安装及启动；进程版本 alpha.2、窗口响应正常。安装程序与构建程序仅有 Tauri 的 UNK 到 NSS 包类型标记差异，归一化后 SHA-256 一致。
+- Windows 首次构建补齐独立 Rust/pnpm 工具环境；NSIS 下载超时后由 Mac 下载官方工具及插件，核对 Tauri 对应 SHA-1 后传入缓存，打包成功。临时计划任务和上传入口文件已清理。
+- 本地安装包保存在 .build/release/assets，安装与哈希记录保存在 .build/reports/device-install。本次只验证安装、启动与文件身份，未新做手机/Windows 跨设备传输、系统分享或完整 GUI 功能验收；iOS 仍未验收。
