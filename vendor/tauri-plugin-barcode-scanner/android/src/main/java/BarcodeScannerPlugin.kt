@@ -250,25 +250,32 @@ class BarcodeScannerPlugin(private val activity: Activity) : Plugin(activity),
     private fun configureCamera(formats: List<Int>) {
         activity
             .runOnUiThread {
-                val vibrator =
-                    activity.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                this.vibrator = vibrator
-                if (previewView == null) {
-                    throw Exception("Something went wrong configuring the BarcodeScanner")
-                }
+                try {
+                    val vibrator =
+                        activity.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                    this.vibrator = vibrator
+                    if (previewView == null) {
+                        throw Exception("Something went wrong configuring the BarcodeScanner")
+                    }
 
-                if (formats.isNotEmpty()) {
-                    val mappedFormats = mapFormats(formats)
-                    val options =
-                        BarcodeScannerOptions.Builder()
-                            .setBarcodeFormats(Barcode.FORMAT_QR_CODE, *mappedFormats).build()
-                    scannerOptions = options
-                    scanner = BarcodeScanning.getClient(options)
-                } else {
-                    val options = BarcodeScannerOptions.Builder()
-                        .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS).build()
-                    scannerOptions = options
-                    scanner = BarcodeScanning.getClient(options)
+                    if (formats.isNotEmpty()) {
+                        val mappedFormats = mapFormats(formats)
+                        val options =
+                            BarcodeScannerOptions.Builder()
+                                .setBarcodeFormats(Barcode.FORMAT_QR_CODE, *mappedFormats).build()
+                        scannerOptions = options
+                        scanner = BarcodeScanning.getClient(options)
+                    } else {
+                        val options = BarcodeScannerOptions.Builder()
+                            .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS).build()
+                        scannerOptions = options
+                        scanner = BarcodeScanning.getClient(options)
+                    }
+                } catch (error: Exception) {
+                    Logger.error("Barcode scanner initialization failed: $error")
+                    val pendingScan = savedInvoke
+                    destroy()
+                    pendingScan?.reject("无法启动扫码：${error.message ?: error.javaClass.simpleName}")
                 }
             }
     }

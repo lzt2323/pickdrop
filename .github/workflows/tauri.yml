@@ -107,6 +107,7 @@ jobs:
         run: |
           APK=$(find apps/tauri/src-tauri/gen/android/app/build/outputs/apk -name '*release-unsigned.apk' -print -quit)
           test -n "$APK"
+          node scripts/verify-android-scanner.js "$APK"
           VERSION=$(node -p "require('./package.json').version")
           node scripts/sign-tauri-preview-apk.js "$APK" ".build/release/assets/PickDrop-$VERSION-Tauri-Android-arm64-preview.apk"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

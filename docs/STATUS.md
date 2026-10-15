@@ -1,6 +1,6 @@
 # 当前工程状态
 
-更新日期：2026-10-15。开发版本：`0.6.0-alpha.3`，Android `versionCode: 6002`。主线仅为 Rust/Tauri；目标与边界见 [PROJECT.md](PROJECT.md)，版本及回退见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
+更新日期：2026-10-15。开发版本：`0.6.0-alpha.4`，Android `versionCode: 6003`。主线仅为 Rust/Tauri；目标与边界见 [PROJECT.md](PROJECT.md)，版本及回退见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
 
 ## 已完成
 
@@ -22,7 +22,7 @@
 
 ## 版本管理
 
-当前工作分支为 `fix/approved-peer-connection`。`b30873b` 是退役前完整源码回退点，`8bd412c` 完成 Rust-only 退役与 alpha.2 版本更新。本轮按宿主、核心、前端与文档分别提交，具体提交以 git log 为准。没有推送、合并、创建标签或发布安装包。
+当前工作分支为 `fix/android-qr-scan-crash`。`b30873b` 是退役前完整源码回退点，`8bd412c` 完成 Rust-only 退役与 alpha.2 版本更新。本轮按宿主、核心、前端与文档分别提交，具体提交以 git log 为准。没有推送、合并、创建标签或发布安装包。
 
 工作开始前已有的 AGENTS.md 修改保持原样，未纳入本轮提交。需要旧程序时在独立 worktree 检出回退提交；不要覆盖当前工作区或让旧版读取新版数据。
 
@@ -36,6 +36,14 @@
 - 上轮冻结锁文件安装已通过，本轮未改依赖或锁文件。本机 pnpm 为 11.25.0，仓库/CI 固定 11.19.0。
 
 上述职责重构验证当时未重新安装原生应用；此后本机及设备安装检查见下节。历史 Node 测试不计入当前结果。
+
+## 2026-10-15：Android 扫码崩溃修复
+
+- 手机 crash 日志确认：打开扫码时 ML Kit 初始化触发主线程 NullPointerException；冷启动日志进一步记录三个注册类无参构造函数的 NoSuchMethodException。对已安装 alpha.3 APK 的检查复现构造函数缺失。
+- 在现有 vendor 扫码插件的 consumer rules 中保留 ML Kit 注册类反射构造函数；初始化异常通过调用结果返回，并清理相机界面。没有替换扫码 SDK 或关闭 release 优化。
+- 新增实际 release APK 的构造函数校验，接入 Android CI；旧 alpha.3 APK 校验失败，新 alpha.4 APK 三项检查通过。结构/链接/语法、版本检查及工具 13 项测试通过，Android release 构建及签名通过。
+- 手机已覆盖安装 alpha.4（构建号 6003），版本和安装 APK 哈希一致，冷启动成功，当前进程日志没有 Invalid component registrar、NoSuchMethodException 或 FATAL EXCEPTION。保留设备身份和数据；与现有 alpha.3 桌面端兼容。本轮没有重装桌面端。
+- 日志、旧包失败与新包验证记录保存于 .build/reports/scan-crash。已请求用户重新扫描实测，实际相机识别和返回邀请页的结果仍待确认，不以冷启动代替完整扫码验收。
 
 ## 已知范围与下一步
 

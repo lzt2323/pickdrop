@@ -12,6 +12,7 @@
 | 入群轮询、重试与关闭竞态验收 | `pnpm --dir apps/tauri test:join` |
 | 真实 Rust 节点联调 | `pnpm tauri:test:runtime` |
 | 包、Rust、原生版本与发布说明检查 | `pnpm version:check` |
+| Android release 扫码反射入口检查 | `ANDROID_HOME=<sdk> node scripts/verify-android-scanner.js <release.apk>` |
 
 `check-structure.js` 管理目录与模块边界；`check-syntax.js frontend` 递归检查前端源文件。Rust 验证使用 Cargo，浏览器测试不能替代真机验收。
 
