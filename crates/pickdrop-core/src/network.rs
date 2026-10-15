@@ -3,15 +3,16 @@ use crate::protocol::{s, PROTOCOL};
 use anyhow::{ensure, Result};
 use serde_json::{json, Value};
 
-pub(super) async fn bind_listener(preferred: Option<u16>) -> Result<tokio::net::TcpListener> {
+pub(super) async fn bind_listener(
+    address: std::net::Ipv4Addr,
+    preferred: Option<u16>,
+) -> Result<tokio::net::TcpListener> {
     if let Some(port) = preferred {
-        if let Ok(listener) =
-            tokio::net::TcpListener::bind((std::net::Ipv4Addr::UNSPECIFIED, port)).await
-        {
+        if let Ok(listener) = tokio::net::TcpListener::bind((address, port)).await {
             return Ok(listener);
         }
     }
-    Ok(tokio::net::TcpListener::bind((std::net::Ipv4Addr::UNSPECIFIED, 0)).await?)
+    Ok(tokio::net::TcpListener::bind((address, 0)).await?)
 }
 
 pub(super) fn validate_discovery_hint(hint: &Value) -> Result<Value> {
@@ -130,12 +131,18 @@ mod network_tests {
     use super::*;
     #[tokio::test]
     async fn listener_reuses_preferred_port_and_safely_falls_back_on_conflict() {
-        let first = bind_listener(None).await.unwrap();
+        let first = bind_listener(std::net::Ipv4Addr::LOCALHOST, None)
+            .await
+            .unwrap();
         let port = first.local_addr().unwrap().port();
         drop(first);
-        let reused = bind_listener(Some(port)).await.unwrap();
+        let reused = bind_listener(std::net::Ipv4Addr::LOCALHOST, Some(port))
+            .await
+            .unwrap();
         assert_eq!(reused.local_addr().unwrap().port(), port);
-        let fallback = bind_listener(Some(port)).await.unwrap();
+        let fallback = bind_listener(std::net::Ipv4Addr::LOCALHOST, Some(port))
+            .await
+            .unwrap();
         assert_ne!(fallback.local_addr().unwrap().port(), port);
     }
     fn iface(name: &str, ip: &str) -> (String, std::net::IpAddr) {

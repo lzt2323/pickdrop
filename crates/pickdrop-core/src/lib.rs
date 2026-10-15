@@ -37,6 +37,7 @@ struct Inner {
     http: reqwest::Client,
     file_http: reqwest::Client,
     endpoint: std::sync::RwLock<Value>,
+    bind_address: std::net::Ipv4Addr,
     active: AtomicBool,
     syncing: AtomicBool,
     network: Semaphore,
@@ -68,6 +69,14 @@ struct Group {
 }
 impl Core {
     pub async fn open(dir: PathBuf, kind: &str) -> Result<Self> {
+        Self::open_with_bind_address(dir, kind, std::net::Ipv4Addr::UNSPECIFIED).await
+    }
+    /// Bind explicitly for headless hosts and loopback-only SSH sessions.
+    pub async fn open_with_bind_address(
+        dir: PathBuf,
+        kind: &str,
+        bind_address: std::net::Ipv4Addr,
+    ) -> Result<Self> {
         tokio::fs::create_dir_all(dir.join("files")).await?;
         let identity = dir.join("identity.json");
         let (key, device) = if identity.exists() {
@@ -103,9 +112,13 @@ impl Core {
             .or(saved_settings["listenPort"].as_u64())
             .filter(|port| *port > 0 && *port <= 65535)
             .map(|port| port as u16);
-        let listener = bind_listener(preferred).await?;
+        let listener = bind_listener(bind_address, preferred).await?;
         let port = listener.local_addr()?.port();
-        let ip = preferred_lan_ip().unwrap_or("127.0.0.1".parse().unwrap());
+        let ip = if bind_address.is_unspecified() {
+            preferred_lan_ip().unwrap_or(std::net::Ipv4Addr::LOCALHOST.into())
+        } else {
+            bind_address.into()
+        };
         let endpoint =
             json!({"baseUrl":format!("http://{ip}:{port}"),"port":port,"deviceId":device["id"]});
         let mut groups: BTreeMap<String, Group> = BTreeMap::new();
@@ -181,11 +194,16 @@ impl Core {
                 .redirect(reqwest::redirect::Policy::none())
                 .build()?,
             endpoint: std::sync::RwLock::new(endpoint),
+            bind_address,
             active: AtomicBool::new(true),
             syncing: AtomicBool::new(false),
             network: Semaphore::new(4),
             transfers: Mutex::new(HashMap::new()),
-            mdns: mdns_sd::ServiceDaemon::new().ok(),
+            mdns: if bind_address.is_loopback() {
+                None
+            } else {
+                mdns_sd::ServiceDaemon::new().ok()
+            },
             discovered: Mutex::new(BTreeMap::new()),
             shutdown: CancellationToken::new(),
             server_stopped: AtomicBool::new(false),
@@ -243,6 +261,9 @@ impl Core {
         self.0.endpoint.read().unwrap().clone()
     }
     async fn refresh_network(&self) {
+        if !self.0.bind_address.is_unspecified() {
+            return;
+        }
         let Some(ip) = preferred_lan_ip() else {
             return;
         };
