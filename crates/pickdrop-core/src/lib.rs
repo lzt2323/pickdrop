@@ -3,8 +3,8 @@ mod http;
 mod migration;
 mod network;
 mod pairing;
-mod sync;
 pub mod protocol;
+mod sync;
 
 use anyhow::{bail, ensure, Context, Result};
 use ed25519_dalek::SigningKey;
@@ -50,6 +50,7 @@ struct Data {
     device: Value,
     groups: BTreeMap<String, Group>,
     active: Option<String>,
+    pending_joins: BTreeMap<String, Value>,
 }
 struct Group {
     replica: Replica,
@@ -87,6 +88,11 @@ impl Core {
             .ok()
             .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
             .unwrap_or_else(|| json!({}));
+        let pending_joins = match tokio::fs::read(dir.join("pending-joins.json")).await {
+            Ok(bytes) => serde_json::from_slice(&bytes).context("Invalid pending joins")?,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => BTreeMap::new(),
+            Err(error) => return Err(error.into()),
+        };
         let saved_network = tokio::fs::read(dir.join("network.json"))
             .await
             .ok()
@@ -163,6 +169,7 @@ impl Core {
                 device,
                 groups,
                 active,
+                pending_joins,
             }),
             events,
             http: reqwest::Client::builder()
@@ -208,6 +215,7 @@ impl Core {
                 }
             }
         });
+        core.start_pending_join_checks();
         core.start_discovery();
         {
             let data = core.0.data.lock().await;

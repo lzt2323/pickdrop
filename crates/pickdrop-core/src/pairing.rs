@@ -6,11 +6,37 @@ use crate::{
     Core, Group,
 };
 use anyhow::{ensure, Context, Result};
+use futures_util::{stream, StreamExt};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 impl Core {
+    pub(super) fn start_pending_join_checks(&self) {
+        let weak = std::sync::Arc::downgrade(&self.0);
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(4));
+            loop {
+                interval.tick().await;
+                let Some(inner) = weak.upgrade() else { break };
+                let core = Core(inner);
+                if core.0.shutdown.is_cancelled() {
+                    break;
+                }
+                if core.0.active.load(std::sync::atomic::Ordering::Relaxed) {
+                    // A slow invitation host must not stall established peer sync.
+                    tokio::select! {
+                        _ = core.0.shutdown.cancelled() => break,
+                        _ = core.finish_pending_joins() => {}
+                    }
+                }
+            }
+        });
+    }
     pub(super) async fn join_group(&self, params: &Value) -> Result<Value> {
+        ensure!(
+            self.0.data.lock().await.pending_joins.len() < 20,
+            "待确认的入群申请过多"
+        );
         let address = origin(s(params, "address"))?;
         let data = self.0.data.lock().await;
         let proof = sign(
@@ -34,7 +60,50 @@ impl Core {
             "Invalid join ticket"
         );
         ticket["baseUrl"] = address.into();
+        let mut data = self.0.data.lock().await;
+        let mut pending = data.pending_joins.clone();
+        pending.insert(s(&ticket, "requestId").into(), ticket.clone());
+        atomic(&self.0.dir.join("pending-joins.json"), &json!(pending)).await?;
+        data.pending_joins = pending;
         Ok(ticket)
+    }
+    pub(super) async fn finish_pending_joins(&self) {
+        let tickets: Vec<_> = self
+            .0
+            .data
+            .lock()
+            .await
+            .pending_joins
+            .values()
+            .cloned()
+            .collect();
+        stream::iter(tickets)
+            .for_each_concurrent(4, |ticket| async move {
+                let expires = ticket["expiresAt"].as_i64().unwrap_or(0);
+                // The host retains an approved ticket for an hour after its deadline.
+                let result = if chrono::Utc::now().timestamp_millis() > expires + 3_600_000 {
+                    self.remove_pending_join(&ticket).await
+                } else {
+                    self.check_join(&ticket).await.map(|_| ())
+                };
+                if let Err(error) = result {
+                    eprintln!(
+                        "Pending join {} could not complete: {error}",
+                        s(&ticket, "groupId")
+                    );
+                }
+            })
+            .await;
+    }
+    async fn remove_pending_join(&self, ticket: &Value) -> Result<()> {
+        let mut data = self.0.data.lock().await;
+        if data.pending_joins.contains_key(s(ticket, "requestId")) {
+            let mut pending = data.pending_joins.clone();
+            pending.remove(s(ticket, "requestId"));
+            atomic(&self.0.dir.join("pending-joins.json"), &json!(pending)).await?;
+            data.pending_joins = pending;
+        }
+        Ok(())
     }
     pub(super) async fn check_join(&self, ticket: &Value) -> Result<Value> {
         let base = origin(s(ticket, "baseUrl"))?;
@@ -54,6 +123,9 @@ impl Core {
                 .error_for_status()?;
             result = response.json::<Value>().await?;
             if s(&result, "status") != "approved" {
+                if ["denied", "expired", "revoked"].contains(&s(&result, "status")) {
+                    self.remove_pending_join(ticket).await?;
+                }
                 return Ok(result);
             }
             let group = &result["group"];
@@ -90,34 +162,63 @@ impl Core {
             "Join did not grant identity"
         );
         let id = s(&replica.genesis, "groupId").to_string();
-        data.groups.insert(
-            id.clone(),
-            Group {
-                replica,
-                peers: BTreeMap::from([(base, s(ticket, "hostDeviceId").into())]),
-                remote_known: HashMap::new(),
-                invites: HashMap::new(),
-                tickets: HashMap::new(),
-                hidden: false,
-                seen: HashMap::new(),
-                presence_revision: 0,
-                online: HashSet::new(),
-                retry: HashMap::new(),
-                route_hints: HashMap::new(),
-                route_seen: HashMap::new(),
-            },
-        );
-        data.active = Some(id.clone());
+        let select_joined = data.groups.get(&id).is_none_or(|group| group.hidden);
+        if let Some(group) = data.groups.get_mut(&id) {
+            ensure!(
+                group.replica.genesis == replica.genesis,
+                "Group identity changed"
+            );
+            // A UI poll and background completion may race. Merge verified events
+            // instead of replacing messages and permissions learned since approval.
+            group
+                .replica
+                .merge(replica.events.into_values().collect())?;
+            ensure!(
+                group.replica.member(
+                    s(&self.endpoint(), "deviceId"),
+                    &hex::encode(self.0.key.verifying_key().to_bytes())
+                ),
+                "入群授权已失效"
+            );
+            group.hidden = false;
+            group.peers.insert(base, s(ticket, "hostDeviceId").into());
+        } else {
+            data.groups.insert(
+                id.clone(),
+                Group {
+                    replica,
+                    peers: BTreeMap::from([(base, s(ticket, "hostDeviceId").into())]),
+                    remote_known: HashMap::new(),
+                    invites: HashMap::new(),
+                    tickets: HashMap::new(),
+                    hidden: false,
+                    seen: HashMap::new(),
+                    presence_revision: 0,
+                    online: HashSet::new(),
+                    retry: HashMap::new(),
+                    route_hints: HashMap::new(),
+                    route_seen: HashMap::new(),
+                },
+            );
+        }
+        if select_joined {
+            data.active = Some(id.clone());
+        }
         self.changed(&id, &mut data).await?;
-        atomic(
-            &self.0.dir.join("settings.json"),
-            &json!({"activeGroupId":id}),
-        )
-        .await?;
+        if select_joined {
+            atomic(
+                &self.0.dir.join("settings.json"),
+                &json!({"activeGroupId":id}),
+            )
+            .await?;
+        }
         result["group"] = Self::group_list(&data, &self.endpoint())
             .into_iter()
             .find(|g| s(g, "id") == id)
             .unwrap();
+        drop(data);
+        self.remove_pending_join(ticket).await?;
+        self.kick_sync();
         Ok(result)
     }
     pub(super) fn create_invite(

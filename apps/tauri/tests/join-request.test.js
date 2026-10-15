@@ -21,7 +21,7 @@ function setup(t, check) {
 }
 
 test('waiting polls every two seconds, and approval or denial ends polling', async t => {
-    for (const result of [{ status: 'approved' }, { group: { id: 'new' } }, { status: 'denied' }]) {
+    for (const result of [{ status: 'approved' }, { group: { id: 'new' } }, { status: 'denied' }, { status: 'expired' }, { status: 'revoked' }]) {
         let count = 0;
         const { request, results } = setup(t, async () => ++count === 1 ? { status: 'pending' } : result);
         t.mock.timers.tick(1999);

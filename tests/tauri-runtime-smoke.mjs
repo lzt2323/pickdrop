@@ -80,10 +80,16 @@ try {
   await phone.getByLabel('邀请码',{exact:true}).fill(invite.code);
   await phone.getByRole('button',{name:'申请加入',exact:true}).click();
   await phone.getByRole('heading',{name:'等待加入确认'}).waitFor();
+  // The requester can close the panel while approving on another device.
+  // Core admission must continue, and the closed panel must not reopen.
+  await phone.locator('#close-panel').click();
   await waitFor(async()=>(await first('list_join_requests',{groupId})).length>0,'Join request missing');
   await desktop.locator('#members-button').click();
   await desktop.getByRole('button',{name:'允许',exact:true}).click();
   await desktop.locator('#close-panel').click();
+  await phone.getByRole('button',{name:'Rust 互通验收',exact:true}).waitFor({timeout:20000});
+  assert.equal(await phone.locator('#panel').evaluate(node=>node.open),false);
+  await phone.getByRole('button',{name:'Rust 互通验收',exact:true}).click();
   try { await phone.locator('#group-name').filter({hasText:'Rust 互通验收'}).waitFor({timeout:20000}); }
   catch(error) { console.error(await phone.evaluate(()=>({view:document.body.dataset.view,panel:document.querySelector('#panel').open,text:document.body.innerText})));throw error; }
   await phone.locator('#message-input').fill('手机通过 Tauri 共用界面发送');

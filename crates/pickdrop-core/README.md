@@ -16,6 +16,8 @@ Sync concurrency is bounded to four routes; known live routes have priority, fai
 
 ## Tests
 
+Outgoing admission tickets are atomically stored in `pending-joins.json`. While the node is active, the pairing worker checks them independently of the UI and established peer synchronization. Closing a waiting panel or restarting the requester does not discard admission. Approved snapshots merge into existing groups instead of replacing newer messages or permissions; repeat completion does not change an existing active selection. Terminal tickets are removed, and unreachable hosts are retried within their one-hour ticket retention window. Poll tokens remain local and are not included in bootstrap or group DTOs. Host-side invitations and approval tickets still live in memory, so restarting the approving host can require a fresh invitation.
+
 ```sh
 cargo test -p pickdrop-core
 ```

@@ -357,9 +357,13 @@ function joinWaiting(ticket) {
                 await selectGroup(result.group?.id || app.groups.at(-1)?.id);
                 return;
             }
-            if (result.status === 'denied') {
+            if (['denied', 'expired', 'revoked'].includes(result.status)) {
                 const restoreFocus = document.activeElement === retry || !$('panel').contains(document.activeElement);
-                status.textContent = '加入申请被拒绝。';
+                status.textContent = {
+                    denied: '加入申请被拒绝。',
+                    expired: '加入申请已过期，请重新填写邀请。',
+                    revoked: '加入授权已撤销，请重新填写邀请。',
+                }[result.status];
                 status.setAttribute('role', 'alert');
                 retry.remove();
                 const invitation = button('重新填写邀请', () => joinPanel());
@@ -372,8 +376,8 @@ function joinWaiting(ticket) {
             retry.hidden = true;
             if (!$('panel').contains(document.activeElement)) $('close-panel').focus();
         },
-        onError() {
-            status.textContent = '暂时无法检查加入状态，请重试。';
+        onError(failure) {
+            status.textContent = `暂时无法检查加入状态，请重试。${failure?.message || String(failure)}`;
             status.setAttribute('role', 'alert');
             retry.hidden = false;
         },

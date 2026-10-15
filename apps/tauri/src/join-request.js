@@ -26,7 +26,7 @@ export function createJoinRequest({ check, isCurrent, onResult, onError }, inter
                 const result = await check();
                 if (!active()) return;
                 await onResult(result);
-                if (result.group || ['approved', 'denied'].includes(result.status)) {
+                if (result.group || ['approved', 'denied', 'expired', 'revoked'].includes(result.status)) {
                     stop();
                 } else if (active()) {
                     schedule();
