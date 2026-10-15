@@ -7,10 +7,12 @@ import { once } from 'node:events';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { chromium } from 'playwright';
 
-const root = process.cwd();
+const root = fileURLToPath(new URL('../', import.meta.url));
+const output = path.join(root, '.build/reports/tauri-runtime');
 const temp = await mkdtemp(path.join(tmpdir(), 'pickdrop-tauri-smoke-'));
 const processes = [], connections = [];
 let browser, vite;
@@ -117,9 +119,9 @@ try {
     await desktop.locator('#message-input').fill('调整窗口后保留的草稿');
     assert.equal(await desktop.locator('#send-text').isVisible(),true,'Send stays visible after desktop resize');
   }
-  await mkdir('artifacts/tauri-runtime',{recursive:true});
-  await desktop.screenshot({path:'artifacts/tauri-runtime/desktop.png',fullPage:true});
-  await phone.screenshot({path:'artifacts/tauri-runtime/phone.png',fullPage:true});
+  await mkdir(output,{recursive:true});
+  await desktop.screenshot({path:path.join(output, 'desktop.png'),fullPage:true});
+  await phone.screenshot({path:path.join(output, 'phone.png'),fullPage:true});
   assert.deepEqual(pageErrors,[]);for(const page of [desktop,phone])assert.equal(await page.locator('#toast').isVisible(),false,'caught UI errors must not be hidden in toast');assert.equal(await phone.locator(`[data-message-id="${fileMessage.id}"]`).getByRole('button',{name:'保存',exact:true}).count(),1,'received file row must finish rendering');
   const click = (page, name) => page.locator('#panel').getByRole('button',{name,exact:true}).click();
   const settings = async page => { if(await page.locator('#panel').evaluate(n=>n.open))await page.keyboard.press('Escape');await page.locator('#settings-button').click(); };
@@ -150,7 +152,7 @@ try {
   await waitFor(async()=>(await first('bootstrap')).groups.length===0,'Owner leave did not finish');
   assert.deepEqual(pageErrors,[]);
   const report={version,realRustNodes:2,joinApproval:true,bidirectionalText:true,fileBytes:saved.length,fileSha256:createHash('sha256').update(saved).digest('hex'),typingPreservesRows:true,receiveRowRendered:true,deviceNamePersisted:true,groupNamePersisted:true,clearCacheCancelAndCommit:true,memberRemovalCancelAndCommit:true,revokedGroupForget:true,ownerLeave:true,uiErrorToasts:[],desktopResizeWidths:[300,380,320],phoneViewport:390,pageErrors};
-  await writeFile('artifacts/tauri-runtime/report.json',JSON.stringify(report,null,2)+'\n');
+  await writeFile(path.join(output, 'report.json'),JSON.stringify(report,null,2)+'\n');
   console.log(JSON.stringify(report));
 } finally {
   for(const abort of connections)abort.abort();

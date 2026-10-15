@@ -51,10 +51,10 @@ test('structure finds indirect frontend cycles and missing imports', () => {
   assert.ok(errors.some(error => error.includes('missing dependency')));
 });
 
-test('maintained links fail while historical local artifact evidence remains allowed', () => {
+test('maintained links fail while historical release evidence remains allowed', () => {
   const errors = check({
     'docs/README.md': '[Missing](missing.md)',
-    'docs/archive/report.md': '[Evidence](../../artifacts/not-in-git.png)',
+    'docs/releases/v0.1.0.md': '[Evidence](../../artifacts/not-in-git.png)',
   });
   assert.equal(errors.length, 1);
   assert.match(errors[0], /broken local documentation link/);
@@ -78,4 +78,10 @@ test('mjs and cjs modules also enforce boundaries and dependency cycles', () => 
   });
   assert.ok(errors.some(error => error.includes('frontend must use its bridge')));
   assert.ok(errors.some(error => error.includes('dependency cycle')));
+});
+
+test('obsolete archives and loose generated output cannot return', () => {
+  for (const file of ['docs/archive/report.md', 'docs/mini-group-design.html', 'artifacts/shot.png', 'apps/tauri/artifacts/shot.png', 'dist/old.exe']) {
+    assert.ok(check({ [file]: '' }).length > 0, file);
+  }
 });

@@ -1,1 +1,0 @@
-document.querySelectorAll('[data-size]').forEach(button=>button.addEventListener('click',()=>{const size=Number(button.dataset.size);document.querySelectorAll('[data-size]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));document.querySelectorAll('.animal-image img').forEach(img=>{img.style.width=size+'px';img.style.height=size+'px'});}));

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const output = path.join(root, 'artifacts/code-review-2026-10-13');
+const output = path.join(root, '.build/reports/file-window');
 await mkdir(output, { recursive: true });
 const url = 'http://127.0.0.1:1443';
 const server = spawn(process.execPath, [path.join(root, 'apps/tauri/node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', '1443', '--strictPort'], { cwd: path.join(root, 'apps/tauri'), stdio: 'ignore' });

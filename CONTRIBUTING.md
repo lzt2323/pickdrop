@@ -6,7 +6,7 @@
 
 阅读 [工程规则](AGENTS.md)、[项目边界](docs/PROJECT.md)、[当前状态](docs/STATUS.md) 和 [目录导航](docs/README.md)。主线源码为 `apps/tauri/` 与 `crates/pickdrop-core/`；协议夹具在 `tests/fixtures/`。旧运行实现只能从 Git 历史获取，不再增加 Electron/Expo/Node 服务/TUI 分支。
 
-`pnpm check` 校验目录、文档链接、前端字面量导入边界及循环和 JS 语法。新增根目录须说明职责并记录到 DECISIONS，再更新检查器。检查器不解析计算导入，不代替编译和行为验证。历史资料仅放 `docs/archive/`，发布记录放 `docs/releases/`，当前待办更新 STATUS。
+`pnpm check` 校验目录、文档链接、前端字面量导入边界及循环和 JS 语法。新增根目录须说明职责并记录到 DECISIONS，再更新检查器。检查器不解析计算导入，不代替编译和行为验证。过期方案和截图从当前分支删除，通过 Git 历史追溯；发布记录放 `docs/releases/`，当前待办更新 STATUS。验收输出统一写入仓库根 `.build/reports/`，发布汇总写入 `.build/release/`，工具链默认输出目录保持不变。
 
 Node 是前端与开发工具依赖，不是产品服务。工具入口见 [scripts/README.md](scripts/README.md)。
 

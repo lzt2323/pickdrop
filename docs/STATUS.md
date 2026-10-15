@@ -5,7 +5,7 @@
 ## 已完成
 
 - 前端传输、Rust 文件/网络/HTTP/迁移、宿主文件授权/系统文件/窗口命令按职责拆分；保持协议与数据格式。
-- 历史原型、设计材料、阶段验收与旧客户端指南统一归档。目录导航、工程决策、工具入口和结构检查已接入 CI。
+- 已失效的历史原型、设计材料、阶段评审与旧客户端指南及配套截图从当前分支删除，通过 Git 历史追溯。目录导航、工程决策、工具入口和结构检查已接入 CI。
 - 按用户 Rust-only 指令删除 Electron、Expo、Node 服务、旧共享运行代码、Node TUI，以及专属工具、旧回归测试、依赖和构建/发布任务。
 - 保留旧 JS 产生的签名 JSON fixtures，Rust 协议兼容测试和非破坏性旧桌面数据导入继续运行；不依赖旧服务源码。
 - Node 仅用于前端和开发工具，pnpm 工作区只包含根与 `apps/tauri`。主线构建不再安装 Electron、Expo 或 Node 服务依赖。
@@ -18,7 +18,7 @@
 - 宿主将窗口坐标、尺寸、缩放和边缘判定移入 docking/geometry.rs；原生窗口操作和持久化仍由 docking.rs 管理。
 - 前端拆出 join-request.js 管理入群轮询、并发去重与停止；页面保留 DOM、焦点和导航。修复审批和 bootstrap 迟到结果在面板关闭/替换后触发导航的问题。
 - 结构检查约束入群领域模块不能依赖页面或原生桥接；新增浏览器竞态回归并接入 CI。未新增依赖、公开命令或数据格式。
-- 清除已退役 apps/mobile、apps/tui 的忽略构建和依赖残留，apps 下只保留 tauri。原有移动端构建备份及 debug.keystore 保存在忽略目录 .build/retired-mobile-backup-20261015。
+- 清除已退役 apps/mobile、apps/tui 的忽略构建和依赖残留，apps 下只保留 tauri。原有移动端构建备份及 debug.keystore 保存在忽略目录 .build/history/workspace/retired-mobile-backup-20261015。
 
 ## 版本管理
 
@@ -43,3 +43,10 @@
 2. iOS 外部分享接收扩展仍未迁移，iOS 构建签名和真机验收仍需完成。
 3. 继续验证网络切换、大文件、扫码、前后台和原生窗口；优先对 alpha.2 同签名 APK 做安装升级及跨设备文件回归。
 4. 前端群组面板仍由 main.js 组装；整体抽取会增加大量回调，当前仅抽取可独立测试的生命周期。后续按具体维护问题继续收敛，不按行数机械拆分。
+
+## 目录清理补充
+
+- 删除 docs/archive 的 493 个历史文件及 docs/mini-group-design.html，共 494 个文件；维护文档不再链接已删除资料。
+- 浏览器报告固定到仓库根 .build/reports，发布输入和汇总改为 .build/release；已有散落输出移动至 .build/history。
+- 删除旧 Expo 路径忽略配置，禁止历史原型目录及根 artifacts/dist 回归。工具链默认 target、apps/tauri/dist、gen 保留。
+- 本轮只改资料、工具输出路径和检查规则，不修改产品行为。结构与链接检查、前端和改动脚本语法、版本检查、13 项工具测试通过；浏览器 smoke 与真实双 Rust 节点验收通过，新截图和报告确实写入 .build/reports，未重建散落 artifacts 目录。CI 发布路径已同步但未运行远端发布或重新签名 APK。

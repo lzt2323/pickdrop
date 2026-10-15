@@ -80,7 +80,7 @@ try {
   await page.evaluate(() => motion.dispose());
   assert.deepEqual(errors, []);
   const report = { passed: true, durationMs: 160, pointerEntry: true, rapidCancellation: true, queuedCloseSafe: true, programmaticImmediate: true, bodySwapImmediate: true, keyboardImmediate: true, frequentSurfaceImmediate: true, reducedMotion: true, livePreferenceChange: true, pageErrors: errors };
-  const output = new URL('../../../artifacts/ui-review/', import.meta.url);
+  const output = new URL('../../../.build/reports/ui-review/', import.meta.url);
   await mkdir(output, { recursive: true });
   await writeFile(new URL('dialog-motion.json', output), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report));

@@ -1,12 +1,6 @@
+/.build/
 node_modules/
-dist/
-.build/
-artifacts/
 .pickdrop/
-.expo/
-apps/mobile/android/
-apps/mobile/ios/
-apps/mobile/export-check/
 *.log
 .DS_Store
 .env
@@ -20,7 +14,6 @@ apps/tauri/src-tauri/gen/
 apps/tauri/src-tauri/plugins/*/android/build/
 apps/tauri/src-tauri/plugins/*/android/.gradle/
 apps/tauri/src-tauri/plugins/*/ios/.build/
-apps/mobile/export-check-ios/
 *.pem
 *.key
 *.p12
@@ -28,9 +21,6 @@ apps/mobile/export-check-ios/
 *.mobileprovision
 *.keystore
 *.jks
-apps/mobile/credentials.json
-apps/mobile/modules/*/android/build/
-apps/mobile/modules/*/android/.gradle/
 
 # Local design-tool session records
 /.hallmark/

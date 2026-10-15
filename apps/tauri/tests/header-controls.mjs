@@ -4,7 +4,7 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
 const root=fileURLToPath(new URL('../../../',import.meta.url));
-const output=root+'artifacts/header-controls-2026-10-14';await mkdir(output,{recursive:true});
+const output=root+'.build/reports/header-controls';await mkdir(output,{recursive:true});
 const server=spawn(process.execPath,[root+'apps/tauri/node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','1448','--strictPort'],{cwd:root+'apps/tauri',stdio:'ignore'});
 const browser=await chromium.launch({headless:true}),errors=[],checks=[];
 try {

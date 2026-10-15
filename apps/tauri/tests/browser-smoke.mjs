@@ -19,7 +19,8 @@ if (!uiUrl) {
     }
 }
 const browser = await chromium.launch({ headless: true });
-await mkdir('artifacts/tauri-frontend', { recursive: true });
+const output = fileURLToPath(new URL('../../../.build/reports/tauri-frontend/', import.meta.url));
+await mkdir(output, { recursive: true });
 try {
     for (const viewport of [{ width: 320, height: 640 }, { width: 360, height: 720 }, { width: 390, height: 844 }, { width: 1024, height: 768 }]) {
         const page = await browser.newPage({ viewport, ...(viewport.width < 600 ? { userAgent: 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36' } : {}) });
@@ -139,17 +140,17 @@ try {
             await page.locator('#mobile-transfers').click();
             assert.equal(await page.locator('#mobile-transfers').getAttribute('aria-current'), 'page');
             assert.equal(await page.locator('#queue').isVisible(), true, 'mobile transfer tab displays completed and cancelled tasks');
-            await page.screenshot({path:`artifacts/tauri-frontend/${viewport.width}-transfers.png`,fullPage:true});
+            await page.screenshot({path:`${output}/${viewport.width}-transfers.png`,fullPage:true});
             await page.locator('#mobile-profile').click();
             assert.equal(await page.locator('#mobile-profile').getAttribute('aria-current'), 'page');
-            await page.screenshot({path:`artifacts/tauri-frontend/${viewport.width}-profile.png`,fullPage:true});
+            await page.screenshot({path:`${output}/${viewport.width}-profile.png`,fullPage:true});
             await page.locator('#mobile-groups').click();
-            await page.screenshot({path:`artifacts/tauri-frontend/${viewport.width}-groups.png`,fullPage:true});
+            await page.screenshot({path:`${output}/${viewport.width}-groups.png`,fullPage:true});
             await page.getByRole('button',{name:'另一个群',exact:true}).click();
             assert.equal(await page.locator('#message-input').inputValue(), '返回后仍在的草稿', 'mobile navigation preserves per-group draft');
         }
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'no horizontal overflow');
-        await page.screenshot({ path: `artifacts/tauri-frontend/${viewport.width}.png`, fullPage: true });
+        await page.screenshot({ path: `${output}/${viewport.width}.png`, fullPage: true });
         assert.deepEqual(errors, []);
         await page.close();
     }

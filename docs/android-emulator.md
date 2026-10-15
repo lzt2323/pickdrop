@@ -28,6 +28,6 @@ APK 位于 `apps/tauri/src-tauri/gen/android/app/build/outputs/apk/universal/deb
 - 输入草稿 `Draft-after-reopen` 后停止并重启进程，重新进入群组，草稿与已发送历史均保留。
 - 页面无横向溢出，测试时段 logcat 未发现 fatal exception、native fatal signal 或 Rust panic。
 
-截图保存在 `artifacts/android-emulator/`。首次唤起输入法遇到 Gboard 手写引导，关闭后
+历史截图已随输出整理迁至 `.build/history/artifacts/android-emulator/`；新验收截图应写入 `.build/reports/android-emulator/`。首次唤起输入法遇到 Gboard 手写引导，关闭后
 临时启用普通软键盘进行验证，结束后恢复了模拟器的原有键盘系统设置。
 本次覆盖单设备本地交互；跨设备文件传输、扫码、系统分享仍需单独验收。

@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 const [input, output] = process.argv.slice(2);
 if (!input || !output) throw new Error('Usage: node scripts/sign-tauri-preview-apk.js unsigned.apk signed-preview.apk');
 const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
@@ -15,8 +16,8 @@ const expectedHash = '221e0a3106aa4c3ccc154e0a418b55020b3f9ea6e84f92e8749cd9e2f3
 if (createHash('sha256').update(certificate).digest('hex') !== expectedHash) {
   throw new Error('Public preview certificate changed; refusing to break installed preview upgrades');
 }
-mkdirSync('.build', { recursive: true });
-const key = path.resolve('.build/tauri-public-debug.keystore');
+const key = fileURLToPath(new URL('../.build/release/keys/tauri-public-debug.keystore', import.meta.url));
+mkdirSync(path.dirname(key), { recursive: true });
 writeFileSync(key, certificate, { mode: 0o600 });
 mkdirSync(path.dirname(output), { recursive: true });
 for (const args of [

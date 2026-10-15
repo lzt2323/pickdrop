@@ -94,7 +94,7 @@
 | `apps/tauri/tests/` | 前端单元测试、浏览器及交互回归脚本 |
 | `tests/` | 开发工具回归、协议兼容向量及真实 Rust 节点前端验收 |
 | `scripts/`、`.github/workflows/` | 开发检查、构建、版本管理与 CI |
-| `docs/`、`assets/brand/` | 当前规范、分区历史资料与品牌素材 |
+| `docs/`、`assets/brand/` | 当前规范、发布说明与品牌素材 |
 
 ### 模块归属与开发约束
 
@@ -181,4 +181,3 @@ pnpm tauri:test:runtime
 - [Tauri 迁移、验证记录与回退](tauri-migration.md)
 - [Rust 核心接口与协议](../crates/pickdrop-core/README.md)
 - [Tauri 原生接口与平台限制](../apps/tauri/src-tauri/README.md)
-- [退役旧版历史说明](archive/legacy/legacy-client.md)

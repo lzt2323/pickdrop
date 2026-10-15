@@ -15,9 +15,8 @@ const rootDirectories = new Set([
 const documentEntries = new Set([
   'README.md', 'PROJECT.md', 'STATUS.md', 'DECISIONS.md', 'tauri-migration.md',
   'android-emulator.md',
-  'mini-group-design.html',
 ]);
-const documentDirectories = new Set(['archive', 'releases']);
+const documentDirectories = new Set(['releases']);
 const frontend = 'apps/tauri/src/';
 const domainModules = new Set(['model', 'file-drafts', 'file-transfers', 'join-request']);
 
@@ -56,6 +55,9 @@ export function checkStructure(files, read, exists) {
   const graph = new Map();
   for (const file of files) {
     const parts = file.split('/');
+    if (parts.includes('artifacts')) {
+      errors.push(`${file}: generated reports belong in ignored .build/reports, not source directories`);
+    }
     if (/^(?:apps\/(?:desktop|mobile|tui)|server|shared)(?:\/|$)/.test(file)) {
       errors.push(`${file}: retired Node implementation must not return to the Rust-only workspace`);
     }
@@ -63,7 +65,7 @@ export function checkStructure(files, read, exists) {
       errors.push(`${file}: unexpected repository root entry; assign an existing owner or update the documented structure`);
     }
     if (parts[0] === 'docs' && (parts.length === 2 ? !documentEntries.has(parts[1]) : !documentDirectories.has(parts[1]))) {
-      errors.push(`${file}: document belongs in a maintained guide, releases/, or archive/`);
+      errors.push(`${file}: document belongs in a maintained guide, releases/; obsolete archives must remain in Git history`);
     }
     if (file.startsWith(frontend) && /\.(?:js|mjs|cjs)$/.test(file)) {
       const dependencies = [];
@@ -81,9 +83,9 @@ export function checkStructure(files, read, exists) {
       }
       graph.set(file, dependencies);
     }
-    // Archived evidence may point to ignored local artifacts; maintained guides may not.
+    // Release notes preserve historical references; maintained guides must resolve.
     const maintained = file === 'README.md' || file === 'CONTRIBUTING.md' ||
-      (file.startsWith('docs/') && !file.startsWith('docs/archive/') && !file.startsWith('docs/releases/'));
+      (file.startsWith('docs/') && !file.startsWith('docs/releases/'));
     if (maintained && file.endsWith('.md')) {
       const prose = read(file).replace(/```[\s\S]*?```/g, '');
       for (const match of prose.matchAll(/\]\(([^\s)]+)(?:\s+"[^"]*")?\)/g)) {

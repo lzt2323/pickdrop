@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const output = path.resolve(root, process.env.PICKDROP_GALLERY_DIR || 'artifacts/ui-review/full-audit');
+const output = path.resolve(root, process.env.PICKDROP_GALLERY_DIR || '.build/reports/ui-review/full-audit');
 const url = process.env.PICKDROP_UI_URL || 'http://127.0.0.1:1437';
 let server;
 if (!process.env.PICKDROP_UI_URL) {
