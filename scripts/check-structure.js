@@ -19,7 +19,7 @@ const documentEntries = new Set([
 ]);
 const documentDirectories = new Set(['archive', 'releases']);
 const frontend = 'apps/tauri/src/';
-const domainModules = new Set(['model', 'file-drafts', 'file-transfers']);
+const domainModules = new Set(['model', 'file-drafts', 'file-transfers', 'join-request']);
 
 // This checks literal JS dependencies, not computed imports or a security boundary.
 // Build/runtime tests remain responsible for language semantics and resolution.

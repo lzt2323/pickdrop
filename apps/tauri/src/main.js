@@ -1,6 +1,7 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { draftFile, snapshotFiles, removeDraft, acceptDrop } from './file-drafts.js';
 import { createFileTransfers } from './file-transfers.js';
+import { createJoinRequest } from './join-request.js';
 import { icon } from './icons.js';
 import './style.css';
 import packageInfo from '../package.json';
@@ -83,11 +84,11 @@ new MutationObserver(() => {
 }).observe($('panel-body'), { childList:true });
 function panelActions(...actions) { $('panel-actions').append(...actions); $('panel-actions').hidden = false; }
 
-function panel(title) { panelGeneration++; $('panel').removeAttribute('aria-describedby'); if (!$('panel').open) panelReturnFocus = document.activeElement; $('panel').dataset.kind = title.includes('文件') ? 'files' : 'settings'; $('panel').setAttribute('aria-labelledby','panel-title'); run(() => setWindowBusy('panel', true)); $('panel-title').textContent = title; parkQueue(); $('panel-body').replaceChildren(); $('panel-actions').replaceChildren(); $('panel-actions').hidden = true; dialogMotion.open({animate: !['我的群组','传输'].includes(title)}); queueMicrotask(() => { if($('panel').open) ([...$('panel-body').querySelectorAll('input,textarea,button')].find(control => !control.disabled && control.getClientRects().length) || $('close-panel')).focus(); }); return $('panel-body'); }
+function panel(title) { joinRequest?.stop(); panelGeneration++; $('panel').removeAttribute('aria-describedby'); if (!$('panel').open) panelReturnFocus = document.activeElement; $('panel').dataset.kind = title.includes('文件') ? 'files' : 'settings'; $('panel').setAttribute('aria-labelledby','panel-title'); run(() => setWindowBusy('panel', true)); $('panel-title').textContent = title; parkQueue(); $('panel-body').replaceChildren(); $('panel-actions').replaceChildren(); $('panel-actions').hidden = true; dialogMotion.open({animate: !['我的群组','传输'].includes(title)}); queueMicrotask(() => { if($('panel').open) ([...$('panel-body').querySelectorAll('input,textarea,button')].find(control => !control.disabled && control.getClientRects().length) || $('close-panel')).focus(); }); return $('panel-body'); }
 let fieldSequence = 0;
 function field(body, title, value = '', type = 'text') { const label = el('label'), caption = el('span', 'field-label', title), input = el('input'); caption.id = `field-label-${++fieldSequence}`; input.setAttribute('aria-labelledby', caption.id); label.append(caption); input.type = type; input.value = value; input.addEventListener('input', () => { input.removeAttribute('aria-invalid'); input.removeAttribute('aria-describedby'); label.querySelector('.panel-error')?.remove(); }); label.append(input); body.append(label); return input; }
 function note(body, text) { body.append(el('p', 'muted', text)); }
-function closePanel() { clearTimeout(joinTimer); dialogMotion.close(); }
+function closePanel() { joinRequest?.stop(); dialogMotion.close(); }
 $('close-panel').onclick = closePanel;
 $('panel').addEventListener('click', e => { if (e.target === $('panel')) {
     const r = $('panel').getBoundingClientRect();
@@ -337,28 +338,47 @@ function joinPanel(invite = '') {
         joinWaiting(result.ticket || result);
     }, 'primary'));
 }
-let joinTimer;
-function joinWaiting(ticket) { const body = panel('等待加入确认'), generation = panelGeneration; const status = el('p','muted','申请已发送，请在群内设备上允许加入。'); const retry = button('重试检查', () => check()); retry.hidden = true; body.append(status,retry); clearTimeout(joinTimer); const check = async () => { if (generation !== panelGeneration || !$('panel').open)
-    return; try {
-    const result = await call('check_join', { ticket }); if(generation !== panelGeneration || !$('panel').open)return;
-    if (result.group || result.status === 'approved') {
-        await loadBootstrap();
-        await selectGroup(result.group?.id || app.groups.at(-1)?.id);
-        return;
-    }
-    if (result.status === 'denied') {
-        const restoreFocus = document.activeElement === retry || !$('panel').contains(document.activeElement);
-        status.textContent = '加入申请被拒绝。'; status.setAttribute('role','alert'); retry.remove();
-        const invitation = button('重新填写邀请', () => joinPanel()); body.append(invitation); if (restoreFocus) invitation.focus();
-        return;
-    }
-    status.textContent = '申请已发送，请在群内设备上允许加入。'; status.removeAttribute('role'); retry.hidden = true;
-    if (!$('panel').contains(document.activeElement)) $('close-panel').focus();
-    joinTimer = setTimeout(check, 2000);
+let joinRequest;
+function joinWaiting(ticket) {
+    const body = panel('等待加入确认'), generation = panelGeneration;
+    const isCurrent = () => generation === panelGeneration && $('panel').open;
+    const status = el('p', 'muted', '申请已发送，请在群内设备上允许加入。');
+    const retry = button('重试检查', () => joinRequest.retry());
+    retry.hidden = true;
+    body.append(status, retry);
+    joinRequest?.stop();
+    joinRequest = createJoinRequest({
+        check: () => call('check_join', { ticket }),
+        isCurrent,
+        async onResult(result) {
+            if (result.group || result.status === 'approved') {
+                await loadBootstrap();
+                if (!isCurrent()) return;
+                await selectGroup(result.group?.id || app.groups.at(-1)?.id);
+                return;
+            }
+            if (result.status === 'denied') {
+                const restoreFocus = document.activeElement === retry || !$('panel').contains(document.activeElement);
+                status.textContent = '加入申请被拒绝。';
+                status.setAttribute('role', 'alert');
+                retry.remove();
+                const invitation = button('重新填写邀请', () => joinPanel());
+                body.append(invitation);
+                if (restoreFocus) invitation.focus();
+                return;
+            }
+            status.textContent = '申请已发送，请在群内设备上允许加入。';
+            status.removeAttribute('role');
+            retry.hidden = true;
+            if (!$('panel').contains(document.activeElement)) $('close-panel').focus();
+        },
+        onError() {
+            status.textContent = '暂时无法检查加入状态，请重试。';
+            status.setAttribute('role', 'alert');
+            retry.hidden = false;
+        },
+    });
 }
-catch (e) {
-    if (generation === panelGeneration && $('panel').open) { status.textContent = '暂时无法检查加入状态，请重试。'; status.setAttribute('role','alert'); retry.hidden = false; }
-} }; joinTimer = setTimeout(check, 2000); }
 async function invitePanel() { if (!app.groupId)
     return groupsPanel(); const body = panel('邀请设备'), generation = panelGeneration; note(body, '正在生成邀请…');
     try {
@@ -789,6 +809,6 @@ $('window-resize-handle').addEventListener('lostpointercapture', finishWindowRes
 window.addEventListener('blur', finishWindowResize);
 document.documentElement.addEventListener('pointerleave', () => { if (app.dockEdge && !$('panel').open && !resizing)
     run(() => native('window_action', { action: 'pointer-leave' })); });
-$('panel').addEventListener('close', () => { if ($('panel').open) return; clearTimeout(joinTimer); if(isMobile() && document.body.dataset.view === 'transfers' && !$('panel').open) { mobileHome.append($('queue')); renderQueue(); } if(panelReturnFocus?.isConnected)panelReturnFocus.focus(); run(() => setWindowBusy('panel', false)); });
-window.addEventListener('pagehide', () => { dialogMotion.dispose(); composerSize.disconnect(); window.removeEventListener('resize', syncComposerHeight); window.removeEventListener('resize',keepPanelFieldVisible); window.visualViewport?.removeEventListener('resize',keepPanelFieldVisible); cancelAnimationFrame(fieldVisibilityFrame); app.disposed = true; for(const reason of windowBusyReasons)native('window_protection',{reason,value:false}).catch(()=>{}); clearTimeout(draftTimer); persistDrafts(); persistFiles(); clearTimeout(app.refreshTimer); clearTimeout(joinTimer); progress.dispose(); app.unlisten?.(); app.unlistenDrop?.(); app.unlistenAnchorDrop?.(); app.unlistenWindow?.();app.unlistenBack?.();app.unlistenIncoming?.(); thumbnails.disconnect(); });
+$('panel').addEventListener('close', () => { if ($('panel').open) return; joinRequest?.stop(); if(isMobile() && document.body.dataset.view === 'transfers' && !$('panel').open) { mobileHome.append($('queue')); renderQueue(); } if(panelReturnFocus?.isConnected)panelReturnFocus.focus(); run(() => setWindowBusy('panel', false)); });
+window.addEventListener('pagehide', () => { dialogMotion.dispose(); composerSize.disconnect(); window.removeEventListener('resize', syncComposerHeight); window.removeEventListener('resize',keepPanelFieldVisible); window.visualViewport?.removeEventListener('resize',keepPanelFieldVisible); cancelAnimationFrame(fieldVisibilityFrame); app.disposed = true; for(const reason of windowBusyReasons)native('window_protection',{reason,value:false}).catch(()=>{}); clearTimeout(draftTimer); persistDrafts(); persistFiles(); clearTimeout(app.refreshTimer); joinRequest?.stop(); progress.dispose(); app.unlisten?.(); app.unlistenDrop?.(); app.unlistenAnchorDrop?.(); app.unlistenWindow?.();app.unlistenBack?.();app.unlistenIncoming?.(); thumbnails.disconnect(); });
 start();

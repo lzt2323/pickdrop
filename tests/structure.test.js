@@ -35,6 +35,13 @@ test('frontend cannot import legacy services or its domain import native bridge'
   assert.ok(errors.some(error => error.includes('domain logic')));
 });
 
+test('join request lifecycle cannot depend on page rendering or a native plugin', () => {
+  for (const specifier of ['./main.js', './bridge.js', '@tauri-apps/api/core']) {
+    const errors = check({ 'apps/tauri/src/join-request.js': `import '${specifier}';` });
+    assert.ok(errors.some(error => error.includes('domain logic')));
+  }
+});
+
 test('structure finds indirect frontend cycles and missing imports', () => {
   const errors = check({
     'apps/tauri/src/a.js': "import './b.js'; import './missing.js';",
