@@ -70,3 +70,11 @@ WiX MSI rejects the textual `alpha.1` prerelease identifier; NSIS retains the
 shared semantic version without inventing a separate application version.
 The native Windows executable compiled successfully in CI before that MSI-only
 packaging failure.
+
+Windows drag/drop regression must use Explorer and the real animal window:
+start the app, turn pinning off, collapse the panel, hover a regular file over
+the animal for over 250 ms, then release. Check that the panel opens with one
+unsent attachment and no message was sent. Cancel a drag, retry, and repeat after
+another collapse to cover reuse. Also check that creating the animal does not
+steal keyboard focus. Native helper calls and browser events do not verify OLE
+DropTarget registration in WebView2.

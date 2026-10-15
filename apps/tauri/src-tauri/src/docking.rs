@@ -421,7 +421,7 @@ fn show_anchor(w: &WebviewWindow, b: Bounds, scale: f64) -> Result<(), String> {
     let anchor = if let Some(anchor) = w.app_handle().get_webview_window(&label) {
         anchor
     } else {
-        tauri::WebviewWindowBuilder::new(
+        let builder = tauri::WebviewWindowBuilder::new(
             w.app_handle(),
             label,
             tauri::WebviewUrl::App("anchor.html".into()),
@@ -435,9 +435,14 @@ fn show_anchor(w: &WebviewWindow, b: Bounds, scale: f64) -> Result<(), String> {
         .always_on_top(true)
         .skip_taskbar(true)
         .visible(false)
-        .focused(false)
-        .build()
-        .map_err(|e| e.to_string())?
+        .focused(false);
+        // WebView2 may omit OLE drop targets for dynamically created hidden
+        // windows (tauri#14643). Start visible at the target position on Windows.
+        #[cfg(target_os = "windows")]
+        let builder = builder
+            .position(b.x as f64 / scale, b.y as f64 / scale)
+            .visible(true);
+        builder.build().map_err(|e| e.to_string())?
     };
     apply_at_scale(&anchor, b, scale)?;
     anchor.show().map_err(|e| e.to_string())

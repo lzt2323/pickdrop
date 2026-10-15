@@ -1,6 +1,6 @@
 [package]
 name = "tauri-plugin-pickdrop-native"
-version = "0.6.0-alpha.6"
+version = "0.6.0-alpha.7"
 edition = "2021"
 links = "tauri-plugin-pickdrop-native"
 [build-dependencies]

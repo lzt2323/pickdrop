@@ -1,6 +1,6 @@
 # 当前工程状态
 
-更新日期：2026-10-16。开发版本：`0.6.0-alpha.6`，Android `versionCode: 6005`。主线仅为 Rust/Tauri；目标与边界见 [PROJECT.md](PROJECT.md)，版本及回退见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
+更新日期：2026-10-16。开发版本：`0.6.0-alpha.7`，Android `versionCode: 6006`。主线仅为 Rust/Tauri；目标与边界见 [PROJECT.md](PROJECT.md)，版本及回退见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
 
 ## 已完成
 
@@ -22,7 +22,7 @@
 
 ## 版本管理
 
-当前工作分支为 `fix/animal-file-drop`。`b30873b` 是退役前完整源码回退点，`8bd412c` 完成 Rust-only 退役与 alpha.2 版本更新。本轮按宿主、核心、前端与文档分别提交，具体提交以 git log 为准。没有推送、合并、创建标签或发布安装包。
+当前工作分支为 `fix/windows-animal-drop`。`b30873b` 是退役前完整源码回退点，`8bd412c` 完成 Rust-only 退役与 alpha.2 版本更新。本轮按宿主、核心、前端与文档分别提交，具体提交以 git log 为准。没有推送、合并、创建标签或发布安装包。
 
 工作开始前已有的 AGENTS.md 修改保持原样，未纳入本轮提交。需要旧程序时在独立 worktree 检出回退提交；不要覆盖当前工作区或让旧版读取新版数据。
 
@@ -97,3 +97,12 @@
 - 浏览器文件/窗口回归、结构/链接/语法、版本一致性和前端构建通过；宿主 19 项测试及 macOS 原生窗口 24 项检查通过，含文件悬停期间保留图标、Drop 完成后的授权/转发与展开。新增原生测试首次因缺少闲置/失焦前置失败，补齐测试准备后通过；失败与最终结果均保存。Mac 已构建并覆盖安装 alpha.6，签名及安装/构建 SHA-256 校验通过，实际界面启动且原群组和历史保留。Windows 经 SSH 原生构建 NSIS 并覆盖安装 alpha.6，登录桌面进程版本正确、响应正常；安装程序仅 Tauri 包类型标记不同，归一化后 SHA-256 与构建一致。用户已在更新后的 Mac 实测确认：文件拖至收缩动物图标，松手后正常展开并出现待发送附件；此确认未覆盖发送和另一设备接收。Windows 资源管理器拖入仍待实机确认。
 
 - 证据保存于 .build/reports/animal-drop，安装包归档于 .build/release/assets；代码提交 0a07b6a。未推送、合并或创建标签，原有 AGENTS.md 修改未提交。
+
+## 2026-10-16：Windows 动物图标拖放初始化
+
+- 用户反馈 alpha.6 Mac 已解决，但 Windows 动物图标仍不能接收文件；前轮 Windows 仅验收安装启动，不视为拖放通过。
+- Review 锁定 wry 0.57.0 的 Windows 实现：创建 WebView2 后枚举现有子窗口注册 OLE DropTarget。动物窗口动态创建时为 visible(false) 且 focused(false)，与 [Tauri #14643](https://github.com/tauri-apps/tauri/issues/14643) / [wry #1639](https://github.com/tauri-apps/wry/issues/1639) 报告的缺失拖放初始化路径吻合。上游记录用于判断，不将其等同于本设备复现证据。
+- 采用最小应用侧规避：仅 Windows 在目标位置以可见状态创建动物窗口，保持不抢焦点；后续沿用原有坐标/缩放适配和 show/hide。其他平台创建路径不变，不升级依赖或引入第三方补丁。
+- 结构/链接/语法、版本检查和宿主 19 项测试通过；Windows 原生 release 构建及 NSIS 打包通过，已覆盖安装 alpha.7，桌面会话进程版本与响应正常，安装程序除 Tauri 包类型标记外与构建一致（归一化 SHA-256 相同）；用户先确认展开窗口可以拖入，再明确确认收缩后的动物图标也能接收文件、展开并出现待发送附件。此确认未覆盖点击发送及另一设备接收。Mac 保持用户确认可用的 alpha.6，手机保持 alpha.4；源码统一递增 alpha.7 / Android 6006。
+
+- 补充 Windows 实机回归步骤到宿主 README，区分真实 OLE 拖放与浏览器/原生辅助函数测试。构建和安装记录保存在 .build/reports/windows-animal-drop，安装包归 .build/release/assets；最终源码与候选归档的非 Markdown 输入逐文件核对一致。
