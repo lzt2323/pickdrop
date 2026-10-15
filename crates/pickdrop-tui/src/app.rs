@@ -9,7 +9,9 @@ use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 
 pub const HELP: &[&str] = &[
-    "直接输入文字并回车发送；Tab 切换群；↑/↓ 滚动；Esc 返回聊天",
+    "↑↓ 选择 · ←→ / Tab 切换面板 · Enter 确认 · Esc 返回",
+    "群聊中按 i 输入文字；/ 打开命令输入；输入时 Enter 提交、Esc 取消",
+    "宽屏左右两列，窄屏单栏；PageUp / PageDown 翻页；Ctrl+C 退出",
     "/create 群名 | /groups | /use 序号或群ID | /name 设备名",
     "/invite | /join 邀请链接 或 /join 地址 邀请码",
     "/requests | /approve 申请ID | /deny 申请ID | /devices",
@@ -28,6 +30,7 @@ pub struct Draft {
 pub struct App {
     pub boot: Value,
     pub state: Value,
+    pub requests: Value,
     pub drafts: Vec<Draft>,
     pub notice: String,
     pub detail: Option<Vec<String>>,
@@ -47,9 +50,10 @@ impl App {
         Ok(Self {
             boot: Value::Null,
             state: Value::Null,
+            requests: Value::Null,
             drafts,
             draft_file,
-            notice: "输入 /help 查看命令。文件使用 /file 暂存后 /send 确认。".into(),
+            notice: "↑↓ 选择菜单，→ / Enter 进入；文件暂存后需确认发送。".into(),
             detail: None,
             scroll: 0,
         })
@@ -75,7 +79,15 @@ impl App {
             }
             None => Value::Null,
         };
-        let changed = boot != self.boot || state != self.state;
+        let requests = match boot["activeGroupId"].as_str() {
+            Some(id) => {
+                core.dispatch("list_join_requests", json!({"groupId":id}))
+                    .await?
+            }
+            None => Value::Null,
+        };
+        let changed = boot != self.boot || state != self.state || requests != self.requests;
+        self.requests = requests;
         self.boot = boot;
         self.state = state;
         Ok(changed)
@@ -88,6 +100,10 @@ impl App {
     }
     pub fn stage(&mut self, path: &str) -> Result<()> {
         let group = self.group()?;
+        self.stage_for_group(path, group)
+    }
+    pub fn stage_for_group(&mut self, path: &str, group: String) -> Result<()> {
+        ensure!(!group.is_empty(), "请先新建或加入群");
         ensure!(
             !self.drafts.iter().any(|draft| draft.group == group),
             "当前群已有附件，请先 /send 或 /discard"

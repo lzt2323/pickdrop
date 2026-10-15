@@ -1,6 +1,6 @@
 # 拾传 · PickDrop 项目说明
 
-> 本文定义项目目标、功能范围和架构边界，供开发与产品决策参考。整理日期：2026-10-16。当前源码版本：`0.6.0-alpha.8`，处于 Tauri 迁移预览阶段。
+> 本文定义项目目标、功能范围和架构边界，供开发与产品决策参考。整理日期：2026-10-16。当前源码版本：`0.6.0-alpha.9`，处于 Tauri 迁移预览阶段。
 >
 > 本文定义项目目标与架构边界；当前进度、实际验证和未完成事项见 [STATUS.md](STATUS.md)，历史迁移与回退见 [迁移记录](tauri-migration.md)。
 
@@ -94,7 +94,7 @@
 | --- | --- |
 | `apps/tauri/src/` | 主线界面、状态模型、文件草稿与原生桥接 |
 | `apps/tauri/src-tauri/` | Tauri 宿主、平台适配、窗口与原生命令 |
-| `crates/pickdrop-tui/` | Linux 终端界面、终端命令、附件草稿与安全文件导出；复用核心业务 |
+| `crates/pickdrop-tui/` | Linux 双栏键盘工作区、宽窄布局、终端命令、附件草稿与安全文件导出；复用核心业务 |
 | `crates/pickdrop-core/` | 共享 Rust 核心、协议实现及核心集成测试 |
 | `apps/tauri/tests/` | 前端单元测试、浏览器及交互回归脚本 |
 | `tests/` | 开发工具回归、协议兼容向量及真实 Rust 节点前端验收 |
@@ -186,3 +186,7 @@ pnpm tauri:test:runtime
 - [Tauri 迁移、验证记录与回退](tauri-migration.md)
 - [Rust 核心接口与协议](../crates/pickdrop-core/README.md)
 - [Tauri 原生接口与平台限制](../apps/tauri/src-tauri/README.md)
+
+### Rust TUI 界面边界
+
+终端工作区沿用现有 crossterm：`terminal.rs` 负责终端生命周期与异步事件，`workspace.rs` 管菜单、稳定 ID 选择和列表，`interaction.rs` 将按键/表单转为核心调用，`view.rs` 管尺寸、绘制和 UTF-8 编辑，`app.rs` 保留命令/草稿/安全导出。宽屏左右分栏，窄屏单栏切换焦点。JSON Lines、核心接口与持久化身份格式保持兼容；不引入第二套协议或 Node 运行依赖。

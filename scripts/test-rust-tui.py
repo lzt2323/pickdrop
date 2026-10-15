@@ -82,7 +82,7 @@ def terminal_test(binary, work, report):
         def controlling_terminal():
             os.setsid()
             fcntl.ioctl(0, termios.TIOCSCTTY, 0)
-        process = subprocess.Popen([str(binary), '--data-dir', str(data)], stdin=slave, stdout=slave, stderr=slave, preexec_fn=controlling_terminal)
+        process = subprocess.Popen([str(binary), '--data-dir', str(data)], stdin=slave, stdout=slave, stderr=slave, cwd=work, preexec_fn=controlling_terminal)
         observed = bytearray()
         def read_until(expected, timeout=20, reuse=False):
             if reuse and expected in observed.decode('utf-8', errors='replace'):
@@ -112,40 +112,92 @@ def terminal_test(binary, work, report):
             report.write_bytes(transcript)
             if process.poll() is None:
                 process.kill()
-                process.wait()
             os.close(master)
             os.close(slave)
+            if process.poll() is None:
+                process.wait(timeout=5)
+
+    def keys(master, read_until, value, expected):
+        os.write(master, value)
+        return read_until(expected)
+
+    def paste(master, value):
+        os.write(master, ('\x1b[200~' + value + '\x1b[201~\r').encode())
+
+    def menu(master, read_until, index, expected):
+        # Return from detail/content, then select a menu without relying on old focus.
+        keys(master, read_until, b'\x1b[D\x1b[D\x1b[H' + b'\x1b[B' * index + b'\x1b[C', expected)
 
     def first(process, master, command, read_until):
-        command('/create TUI-验收', '操作完成')
-        command('/file ' + str(source), '附件已暂存')
+        # Real keyboard navigation creates the group; no slash command needed.
+        menu(master, read_until, 1, '[新建传输群]')
+        keys(master, read_until, b'\r', '输入新群名称')
+        paste(master, 'TUI-验收')
+        read_until('操作完成')
+        menu(master, read_until, 2, '[输入文件路径]')
+        keys(master, read_until, b'\r', '输入普通文件完整路径')
+        paste(master, str(source))
+        read_until('附件已暂存')
         snapshot = json.loads(next(data.glob('group_*.json')).read_text())
         assert len(snapshot['events']) == 0, 'Staging sent a file without confirmation'
-        command('/create TUI-另一群', '操作完成')
+        # Confirm dialog defaults to cancel: Enter alone must never send.
+        keys(master, read_until, b'\r', '发送附件到群')
+        keys(master, read_until, b'\r', '[发送 / 重试]')
+        snapshot = json.loads(next(data.glob('group_*.json')).read_text())
+        assert len(snapshot['events']) == 0, 'Default dialog choice sent the draft'
+        # Create a second group through the menu and switch by stable ID.
+        menu(master, read_until, 1, '[新建传输群]')
+        keys(master, read_until, b'\r', '输入新群名称')
+        paste(master, 'TUI-另一群')
+        read_until('操作完成')
         group = json.loads((data / 'tui-drafts.json').read_text())[0]['group']
         command('/use ' + group, '操作完成')
-        command('/help', '直接输入文字')
-        os.write(master, b'\t')
-        frame = read_until('TUI-另一群')
-        assert '直接输入文字' not in frame, 'Tab retained details from the previous group'
-        os.write(master, b'\t')
-        read_until('终端 有空格.txt')
+        command('/help', '群聊中按 i')
+        # Tab now changes panel focus, rather than accidentally changing groups.
+        frame = keys(master, read_until, b'\t', '焦点：菜单')
+        assert '群聊中按 i' not in frame, 'Tab retained old detail content'
+        assert json.loads((data / 'tui-drafts.json').read_text())[0]['group'] == group
+        # Message composition/editing remains Unicode-safe, Enter sends once.
+        menu(master, read_until, 0, '[发送文字]')
+        keys(master, read_until, b'i', '输入文字')
+        paste(master, '键盘消息中文')
+        read_until('操作完成')
         os.write(master, b'\x03')
     session(first)
 
     def second(process, master, command, read_until):
         read_until('终端 有空格.txt', reuse=True)
         group = json.loads((data / 'tui-drafts.json').read_text())[0]['group']
-        command('/send', '操作完成')
+        menu(master, read_until, 7, '[发送 / 重试]')
+        # Select send (cancel transfer is the first row), then explicitly choose confirm.
+        keys(master, read_until, b'\x1b[B\r', '发送附件到群')
+        keys(master, read_until, b'\x1b[C\r', '操作完成')
         snapshot = json.loads((data / ('group_' + group + '.json')).read_text())
-        assert len(snapshot['events']) == 1
+        assert len(snapshot['events']) == 2
         assert json.loads((data / 'tui-drafts.json').read_text()) == []
-        fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack('HHHH', 8, 24, 0, 0))
+        menu(master, read_until, 3, '终端 有空格.txt')
+        keys(master, read_until, b'\r', '输入保存文件的完整目标路径')
+        saved = work / '导出文件.txt'
+        paste(master, str(saved))
+        read_until('已校验并保存')
+        assert saved.read_bytes() == source.read_bytes()
+        # Directory list: path action, parent, terminal-data directory, saved file, source.
+        menu(master, read_until, 2, '[输入文件路径]')
+        keys(master, read_until, b'\x1b[B' * 4 + b'\r', '附件已暂存')
+        assert json.loads((data / 'tui-drafts.json').read_text())[0]['path'] == str(source)
+        assert len(json.loads((data / ('group_' + group + '.json')).read_text())['events']) == 2
+        for rows, columns, expected in [(20, 60, '单栏'), (24, 80, '双栏'), (12, 36, '单栏'), (8, 24, '终端至少需要'), (40, 120, '双栏')]:
+            fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack('HHHH', rows, columns, 0, 0))
+            os.kill(process.pid, signal.SIGWINCH)
+            read_until(expected)
+        # Narrow mode keeps both menu and content reachable with the same arrows.
+        fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack('HHHH', 20, 60, 0, 0))
         os.kill(process.pid, signal.SIGWINCH)
-        read_until('终端至少需要')
-        fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack('HHHH', 24, 80, 0, 0))
-        os.kill(process.pid, signal.SIGWINCH)
-        read_until('拾传')
+        read_until('单栏')
+        menu(master, read_until, 8, '[修改设备名称]')
+        keys(master, read_until, b'\r', '输入设备名称')
+        paste(master, '键盘验收设备')
+        read_until('操作完成')
         process.send_signal(signal.SIGTERM)
     session(second)
     report.write_bytes(transcript)
@@ -163,7 +215,7 @@ def main():
     checks = []
     # PTY first: preexec_fn is used before any reader threads are created.
     terminal_test(binary, work, output / 'terminal.ansi')
-    checks.append('PTY: UTF-8/space paths, stage without send, persisted draft, group switching clears old details and retains draft target, explicit send, resize, Ctrl+C/SIGTERM terminal restoration')
+    checks.append('PTY: arrow/Enter menus and forms, Unicode composition, safe default confirmation, group-bound persisted draft, explicit file send, Tab panel focus, 36/60/80/100/120-column layouts, narrow settings, Ctrl+C/SIGTERM restoration')
     a = b = None
     try:
         a = Node(binary, work / 'a', output / 'nodes.log')

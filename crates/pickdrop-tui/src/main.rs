@@ -1,5 +1,8 @@
 mod app;
+mod interaction;
 mod terminal;
+mod view;
+mod workspace;
 
 use anyhow::{bail, Context, Result};
 use pickdrop_core::Core;
