@@ -238,3 +238,10 @@ Rust-only 整理阶段的工作分支为 `feat/rust-tui`。`b30873b` 是退役�
 - 两次显式合并保留完整历史；仅 docs/STATUS.md 与 scripts/README.md 冲突，保留双方新增段落，当前版本以正式版 0.6.0 / Android 6015 为准。README、演示素材和发布配置均进入主线；所有维护文件中的仓库 URL 更新为新地址。
 - 合并后应用源码与 release/0.6.0 无差异；版本、结构/维护链接、前端语法检查与 Node 工具 14 项测试通过，git diff --check 通过。本次不重复原生编译；上一轮原生构建验证仍对应相同产品源码。
 - GitHub 公共 API 确认改名前后 Release ID、六个附件 ID/名称/SHA-256 一致；v0.6.0 标签不移动。完成提交后以正常快进方式推送 main，随后核对远端提交与 README；下一步基于 main 开展后续开发。
+
+## 2026-10-17：Linux 一键安装与远程分支清理
+
+- 新增 scripts/install-linux.sh：Linux x64 / glibc 2.35+，固定 0.6.0 已发布包及 SHA-256，HTTPS 下载、超时重试、哈希核验后提取单个程序，以同目录临时文件原子安装到 ~/.local/bin/pickdrop；不改 shell 配置、聊天记录或文件，不要求 sudo。不支持的系统/架构、缺少工具、下载/校验失败明确退出；拒绝覆盖符号链接或非普通文件。README 保留手动下载并新增一键命令及 PATH 说明，脚本指定版本随后续已验证发行更新。
+- Ubuntu 22.04 服务器隔离目录测试 5 项通过，覆盖安装/重复安装与数据保留、坏包、网络失败、架构/glibc 不匹配、已有符号链接。真实 Release 下载安装通过，安装后运行 --version 输出 pickdrop 0.6.0；未覆盖服务器现有安装与用户数据。CI 增加 Python 安装器测试。
+- 用户确认图标看错，现有 README 与应用图标保持一致，不替换或删除仍使用的图标。用户批准清理远程分支；确认 13 个非 main 分支全部已合入 main，保存 refs 清单及完整 Git bundle 并验证可读后，原子删除这 13 个远程分支。保留 main、全部版本标签、Release 与本地分支，备份位于 .build/reports/release-0.6.0/branches-before-cleanup.bundle。
+- 首次入群流程卡片动画被用户否定，不发布；生成稿移入 .build/reports/readme-onboarding/rejected。按用户反馈改为真实电脑与 Android 界面教程，目前 adb 未发现手机，已请用户连接；此录制仍未完成，不用示意卡片冒充实际界面。

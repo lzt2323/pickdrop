@@ -46,6 +46,18 @@ Mac、Windows 和 Android 正式版与 Preview 可以同时安装。首次打开
 
 </details>
 
+### Linux：一键安装或手动下载
+
+**方式一 · 一键安装**（Linux x64，glibc 2.35+，如 Ubuntu 22.04）：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/lzt2323/pickdrop/main/scripts/install-linux.sh | sh
+```
+
+需要 `curl`、`tar` 和 `sha256sum`。脚本下载并校验 v0.6.0，安装到 `~/.local/bin/pickdrop`，无需 `sudo`，不会修改聊天记录或文件。安装后运行 `pickdrop`；若提示找不到命令，可运行 `~/.local/bin/pickdrop`。重复执行会重装脚本指定的正式版本；后续发布升级版时会同步更新脚本。
+
+**方式二 · 手动安装**：下载上表中的 Linux 压缩包，解压后在该目录运行 `./pickdrop`。适合离线传入安装包或自行选择存放位置；可对照 [SHA256SUMS.txt](https://github.com/lzt2323/pickdrop/releases/download/v0.6.0/SHA256SUMS.txt) 检查下载文件。
+
 ## 开始使用
 
 让两台设备连接同一个可信 Wi-Fi 或彼此可访问的局域网，并打开拾传。首次出现局域网访问提示时允许访问；手机在传输期间保持前台运行。
@@ -55,7 +67,7 @@ Mac、Windows 和 Android 正式版与 Preview 可以同时安装。首次打开
 1. 在第一台设备点击 **创建群组**，填写群名并创建。
 2. 打开 **邀请设备**，显示二维码或点击 **复制邀请链接**。
 3. 在第二台设备点击 **加入群组**，粘贴链接；Android 也可选择 **扫描二维码**。
-4. 点击 **申请加入**，回到第一台设备批准申请。
+4. 点击 **申请加入**，回到第一台设备，在加入申请中点击 **允许**。
 
 两台设备进入同一个群后，就可以互发文字和文件。使用邀请码加入时，需要同时填写邀请页面提供的设备地址与端口。
 

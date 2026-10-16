@@ -31,3 +31,9 @@ Electron、Expo、Node TUI 的构建、验收与旧资源生成脚本已退役�
 ## README 示意动画
 
 `node scripts/render-readme-demo.mjs` 从 `assets/readme/demo.html` 的固定时间轴生成 GIF、MP4 和静态图。需要仓库 Playwright Chromium 与 FFmpeg（可用 `FFMPEG` 指定路径）；中间帧放在忽略的 `.build/reports/readme-demo/frames/`。分镜、尺寸与重现步骤见 [制作说明](../assets/readme/README.md)。此脚本不连接真实设备。
+
+## Linux 用户安装器
+
+`install-linux.sh` 支持 Linux x64 / glibc 2.35+，固定发布版本及经核实的 SHA-256；校验通过后仅提取程序，以同目录临时文件原子替换 `~/.local/bin/pickdrop`。不要求 sudo、不改 shell 配置或用户数据。发布新版本时一并更新脚本版本、文件名、摘要和 README；不随意切换到未验证的 latest 资产。
+
+Linux 下运行 `python3 tests/test_linux_installer.py`，覆盖安装/重复运行、数据保留、损坏下载、网络失败、不支持的平台及已有符号链接；CI 同步执行。
