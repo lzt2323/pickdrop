@@ -55,6 +55,7 @@ body[data-dock-edge=bottom] #dock-window svg { transform:rotate(90deg); }
 .connection-state:before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--success); }
 .connection-state.offline:before { background: #8e8e93; }
 .device-strip > svg { width: 12px; height: 12px; }
+#transfer-summary { align-self: flex-end; max-width: calc(100% - 28px); min-height: 30px; margin: 0 14px 4px; padding: 5px 10px; font-size: 12px; color: var(--accent); overflow-wrap: anywhere; }
 #viewbar { display: flex; align-items: center; flex-shrink: 0; gap: 3px; margin: 0 14px 10px; padding: 3px; border-radius: 9px; background: var(--recess); }
 #viewbar button { min-height: 30px; padding: 5px 12px; font-size: 12px; font-weight: 550; border-radius: 7px; color: var(--muted); }
 #viewbar button[aria-pressed=true] { background: var(--surface); color: #1d1d1f; font-weight: 600; }
@@ -115,7 +116,6 @@ body[data-desktop=false] .bubble { -webkit-user-select: text; user-select: text;
 textarea::placeholder { color: var(--muted); }
 #composer #send-text { border-radius: 50%; background: var(--primary); color: #fff; }
 #composer #choose-file { color: #424245; }
-#composer #transfer-summary { width: auto; max-width: 60px; font-size: 11px; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #composer svg { width: 19px; height: 19px; }
 #file-drafts { padding: 8px 16px; border-top: 1px solid var(--line); max-height: 140px; overflow: auto; }
 .file-draft { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; }
@@ -254,11 +254,12 @@ dialog[data-kind=preferences] .version { font-size: 11px; margin: 4px 0 0; }
 .empty-state { text-align: center; padding: 48px 16px; color: var(--muted); }
 body[data-desktop=true] #mobile-home { display: none; }
 body[data-desktop=false][data-view=chat] #mobile-home, body[data-desktop=false][data-view=chat] #mobile-nav { display: none; }
-body[data-desktop=false]:not([data-view=chat]) :is(#viewbar,#timeline,#composer,#file-drafts,#chat-back,#membership-notice), body[data-desktop=false]:not([data-view=chat]) #app > :is(header,.device-strip) { display: none; }
+body[data-desktop=false]:not([data-view=chat]) :is(#transfer-summary,#viewbar,#timeline,#composer,#file-drafts,#chat-back,#membership-notice), body[data-desktop=false]:not([data-view=chat]) #app > :is(header,.device-strip) { display: none; }
 
 /* Platform sizing: preserve the native phone hierarchy and compact desktop. */
 body[data-desktop=false] #app { max-width: 520px; border: 0; border-radius: 0; }
 body[data-desktop=false] button { min-height: 48px; }
+body[data-desktop=false] #transfer-summary { min-height: 48px; }
 body[data-desktop=false] .panel-heading button { width: 48px; height: 48px; }
 body[data-desktop=false] dialog { margin: auto; width: min(400px,calc(100vw - 32px)); border-radius: 20px; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px); padding: 16px; }
 body[data-desktop=false] #app > .titlebar { min-height: 62px; height: 62px; padding-inline: 4px; border-bottom: 1px solid var(--line); }
