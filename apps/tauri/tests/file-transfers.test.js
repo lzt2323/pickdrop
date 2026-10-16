@@ -1,16 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { draftFile } from '../src/file-drafts.js';
-import { createFileTransfers } from '../src/file-transfers.js';
+import { createFileTransfers, transferSpeedLabel } from '../src/file-transfers.js';
 
-function setup(handleCall = async () => ({})) {
+function setup(handleCall = async () => ({}), now) {
     const app = {
         groupId: 'a', groups: [{ id: 'a' }, { id: 'b' }], state: {},
         transfers: new Map(), fileDrafts: new Map(), files: new Map(),
     };
     const calls = [], protection = [], renders = { immediate: 0, deferred: 0, messages: 0 };
     const transfers = createFileTransfers({
-        app,
+        app, now,
         call: async (method, params) => { calls.push({ method, params }); return handleCall(method, params); },
         setWindowBusy: async (reason, value) => { protection.push({ reason, value }); },
         persistFiles() {}, renderQueue() {}, renderFileDrafts() {}, refresh: async () => {},
@@ -123,4 +123,26 @@ test('receiving records local files only on success and surfaces failures', asyn
     assert.equal(app.transfers.get('cancelled').status, '已取消');
     assert.equal(app.transfers.get('cancelled').error, '');
     assert.equal(renders.immediate, 3);
+});
+
+test('speed samples use byte deltas, reset on fallback, and disappear for terminal tasks', () => {
+    let time = 0;
+    const { app, transfers } = setup(undefined, () => time);
+    const update = (bytes, status = 'receiving') => transfers.updateProgress({ id: 'speed', bytes, total: 4096, status });
+    update(0);
+    assert.equal(transferSpeedLabel(app.transfers.get('speed')), '下载速度：计算中…');
+    time = 500; update(1024);
+    assert.equal(transferSpeedLabel(app.transfers.get('speed')), '下载速度：2.0 KiB/s');
+    time = 1000; update(1536);
+    assert.equal(app.transfers.get('speed').bytesPerSecond, 1024);
+    time = 1500; update(1536);
+    assert.equal(transferSpeedLabel(app.transfers.get('speed')), '下载速度：0 B/s');
+    time = 2000; update(0);
+    assert.equal(app.transfers.get('speed').bytesPerSecond, undefined);
+    time = 2500; update(1024, 'sending');
+    assert.equal(transferSpeedLabel(app.transfers.get('speed')), '准备速度：2.0 KiB/s');
+    for (const status of ['completed', 'failed', 'cancelled']) {
+        update(4096, status);
+        assert.equal(transferSpeedLabel(app.transfers.get('speed')), '');
+    }
 });

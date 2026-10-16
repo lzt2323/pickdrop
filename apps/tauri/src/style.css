@@ -219,6 +219,8 @@ dialog[data-kind=preferences] .version { font-size: 11px; margin: 4px 0 0; }
 #queue { padding: 8px 16px; border-top: 1px solid var(--line); max-height: 150px; overflow: auto; }
 #panel-body #queue, #mobile-home #queue { max-height: none; overflow: visible; border-top: 0; padding: 0; }
 .transfer { display: grid; gap: 8px; font-size: 13px; padding: 12px 0; overflow-wrap: anywhere; border-bottom: 1px solid var(--line); }
+.transfer-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.transfer-speed { color: var(--muted); font-variant-numeric: tabular-nums; }
 .transfer-name { font-weight: 600; min-width: 0; }
 .transfer-status { justify-self: start; border-radius: 999px; padding: 2px 7px; font-size: 12px; background: var(--recess); color: var(--muted); }
 .transfer[data-status=sending] .transfer-status, .transfer[data-status=receiving] .transfer-status { background: #edf4ff; color: var(--accent); }

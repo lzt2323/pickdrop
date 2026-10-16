@@ -14,7 +14,7 @@ function recordFailure(task, error) {
 // the host. Each send keeps its original group even when the user switches chats.
 export function createFileTransfers({
     app, call, setWindowBusy, persistFiles, addFileDrafts,
-    renderQueue, renderFileDrafts, renderMessages, refresh, progress,
+    renderQueue, renderFileDrafts, renderMessages, refresh, progress, now = () => performance.now(),
 }) {
     const removedDrafts = new Set();
     const inflightDrafts = new Set();
@@ -48,6 +48,7 @@ export function createFileTransfers({
                 const task = {
                     id, name: file.name || path.split(/[\\/]/).at(-1), status: '发送中',
                     progress: 0, path, groupId, draftId: file.draftId,
+                    speedSample: { bytes: 0, time: now() },
                 };
                 app.transfers.set(id, task);
                 renderQueue();
@@ -80,7 +81,7 @@ export function createFileTransfers({
 
     async function receive(message, groupId = app.groupId) {
         const id = message.id;
-        const task = { id, groupId, message, name: message.fileName, status: '接收中', progress: 0 };
+        const task = { id, groupId, message, name: message.fileName, status: '接收中', progress: 0, speedSample: { bytes: 0, time: now() } };
         app.transfers.set(id, task);
         renderQueue();
         try {
@@ -104,6 +105,16 @@ export function createFileTransfers({
         }
         // Delayed progress must not reopen a completed, failed, or cancelled task.
         if (terminalStatuses.has(task.status) && !isTerminalEvent(event.status)) return;
+        if (Number.isFinite(event.bytes) && event.bytes >= 0) {
+            const time = now(), previous = task.speedSample;
+            if (!previous || event.bytes < previous.bytes) {
+                task.speedSample = { bytes: event.bytes, time };
+                task.bytesPerSecond = undefined;
+            } else if (time - previous.time >= 250) {
+                task.bytesPerSecond = (event.bytes - previous.bytes) * 1000 / (time - previous.time);
+                task.speedSample = { bytes: event.bytes, time };
+            }
+        }
         task.progress = event.progress ?? (event.total ? event.bytes / event.total : 0);
         if (event.status) task.status = eventStatuses[event.status] || event.status;
         if (isTerminalEvent(event.status)) progress.flush();
@@ -115,4 +126,14 @@ export function createFileTransfers({
         isDraftInFlight: draftId => inflightDrafts.has(draftId),
         markDraftRemoved: draftId => removedDrafts.add(draftId),
     };
+}
+
+export function transferSpeedLabel(task) {
+    if (terminalStatuses.has(task.status)) return '';
+    const prefix = task.status === '发送中' ? '准备速度' : '下载速度';
+    if (!Number.isFinite(task.bytesPerSecond)) return `${prefix}：计算中…`;
+    const units = ['B/s', 'KiB/s', 'MiB/s', 'GiB/s'];
+    let speed = Math.max(0, task.bytesPerSecond), unit = 0;
+    while (speed >= 1024 && unit < units.length - 1) { speed /= 1024; unit++; }
+    return `${prefix}：${speed.toFixed(unit ? 1 : 0)} ${units[unit]}`;
 }

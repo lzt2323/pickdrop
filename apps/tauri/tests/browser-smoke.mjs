@@ -142,6 +142,18 @@ try {
         await page.screenshot({ path: `${output}/${viewport.width}-transfer-entry.png`, fullPage: true });
         await page.locator('#transfer-summary').click();
         assert.equal(await page.locator('#queue').isVisible(), true, 'relocated entry opens transfer records');
+        await page.evaluate(() => window.__emit({ type: 'transfer', id: 'speed-review', name: 'speed.bin', status: 'receiving', bytes: 0, total: 10485760 }));
+        const speedRow = page.locator('[data-transfer-id="speed-review"]');
+        await speedRow.getByText('下载速度：计算中…', { exact: true }).waitFor();
+        await page.waitForTimeout(300);
+        await page.evaluate(() => window.__emit({ type: 'transfer', id: 'speed-review', status: 'receiving', bytes: 1048576, total: 10485760 }));
+        await speedRow.locator('.transfer-speed').filter({ hasText: /下载速度：[0-9.]+ [KMG]?i?B\/s/ }).waitFor();
+        const speedBounds = await speedRow.locator('.transfer-speed').boundingBox();
+        assert.ok(speedBounds.x >= 0 && speedBounds.x + speedBounds.width <= viewport.width, 'live speed fits narrow transfer panel');
+        await page.screenshot({ path: `${output}/${viewport.width}-transfer-speed.png`, fullPage: true });
+        await page.evaluate(() => window.__emit({ type: 'transfer', id: 'speed-review', status: 'completed', bytes: 10485760, total: 10485760 }));
+        await page.waitForFunction(() => document.querySelector('[data-transfer-id="speed-review"] .transfer-speed').hidden);
+
         await page.locator('#close-panel').click();
         assert.equal(await page.locator('#transfer-summary').evaluate(node => node === document.activeElement), true, 'closing transfer records restores focus to relocated entry');
         await page.locator('#choose-file').click();await page.locator('.file-draft').first().waitFor();await page.locator('#send-text').click();await page.locator('#transfer-summary').click();const cancel=page.locator('#queue').getByRole('button',{name:'取消传输'}).first();await cancel.waitFor();const cancelledId=await cancel.locator('xpath=ancestor::*[@data-transfer-id]').getAttribute('data-transfer-id');await cancel.click();await page.waitForTimeout(750);const cancelledRow=page.locator(`[data-transfer-id="${cancelledId}"]`);await cancelledRow.getByRole('button',{name:'重试'}).click();await page.waitForTimeout(350);assert.equal(await page.locator(`[data-transfer-id="${cancelledId}"]`).count(),1,'retry reuses transfer queue id');assert.deepEqual(await page.evaluate(id=>window.__calls.filter(c=>c.method==='send_file'&&c.params.transferId===id).map(c=>c.params.groupId),cancelledId),['g2','g2'],'cancelled retry retains target');await page.locator('#close-panel').click();await page.locator('#message-input').fill('保留草稿');await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:888,membershipRevoked:true,messages:[],devices:[]}}));assert.equal(await page.locator('#send-text').isDisabled(),true);assert.equal(await page.locator('#message-input').inputValue(),'保留草稿');assert.equal(await page.locator('#membership-notice').isVisible(),true);await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:889,membershipRevoked:false,messages:[],devices:[]}}));

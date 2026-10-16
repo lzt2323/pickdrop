@@ -1,6 +1,6 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { draftFile, snapshotFiles, removeDraft, acceptDrop } from './file-drafts.js';
-import { createFileTransfers } from './file-transfers.js';
+import { createFileTransfers, transferSpeedLabel } from './file-transfers.js';
 import { createJoinRequest } from './join-request.js';
 import { icon } from './icons.js';
 import './style.css';
@@ -531,16 +531,17 @@ function renderQueue() {
     for (const task of app.transfers.values()) {
         let record = transferRows.get(task.id);
         if (!record) {
-            const row = el('div','transfer'), name = el('span','transfer-name'), status = el('span','transfer-status'), problem = el('p','transfer-error'), bar = el('progress'), actions = el('div','transfer-actions');
+            const row = el('div','transfer'), name = el('span','transfer-name'), meta = el('div','transfer-meta'), status = el('span','transfer-status'), speed = el('span','transfer-speed'), problem = el('p','transfer-error'), bar = el('progress'), actions = el('div','transfer-actions');
             row.dataset.transferId = task.id; bar.max = 1;
             const cancel = button('取消传输', async () => { const current = app.transfers.get(task.id); if(!current)return; const result = await call('cancel_transfer',{transferId:current.id}); if(result?.ok!==false && current.status!=='完成')current.status='已取消'; progress.flush(); });
             const retry = button('重试', () => { const current = app.transfers.get(task.id); if(current?.path)return retryFile(current); if(current?.message)return receive(current.message,current.groupId); });
             const clear = button('清除', () => { app.transfers.delete(task.id); renderQueue(); });
-            actions.append(cancel,retry,clear); row.append(name,status,problem,bar,actions); queue.append(row);
-            record = {row,name,status,problem,bar,cancel,retry,clear}; transferRows.set(task.id,record);
+            actions.append(cancel,retry,clear); meta.append(status,speed); row.append(name,meta,problem,bar,actions); queue.append(row);
+            record = {row,name,status,speed,problem,bar,cancel,retry,clear}; transferRows.set(task.id,record);
         }
         record.name.textContent = task.name || '文件'; record.status.textContent = task.status || '传输中'; record.problem.textContent = task.error || ''; record.problem.hidden = !task.error;
         record.row.dataset.status = ({'发送中':'sending','接收中':'receiving','完成':'completed','失败':'failed','已取消':'cancelled'})[task.status] || 'sending';
+        record.speed.textContent = transferSpeedLabel(task); record.speed.hidden = !record.speed.textContent;
         record.bar.value = task.progress || 0; record.bar.setAttribute('aria-label',`${task.name || '文件'}传输进度`);
         const terminal = ['完成','失败','已取消'].includes(task.status);
         const focusedAction = [record.cancel,record.retry,record.clear].find(control => control === document.activeElement);
