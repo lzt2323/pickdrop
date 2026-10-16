@@ -180,7 +180,7 @@ def terminal_test(binary, work, report):
         menu(master, read_until, 7, '[发送 / 重试]')
         # Select send (cancel transfer is the first row), then explicitly choose confirm.
         keys(master, read_until, b'\x1b[B\r', '发送附件到群')
-        keys(master, read_until, b'\x1b[C\r', '操作完成')
+        keys(master, read_until, b'\x1b[C\r', '未确认其他设备接收')
         snapshot = json.loads((data / ('group_' + group + '.json')).read_text())
         assert len(snapshot['events']) == 2
         assert json.loads((data / 'tui-drafts.json').read_text()) == []

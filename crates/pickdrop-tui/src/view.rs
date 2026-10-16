@@ -210,14 +210,19 @@ pub(crate) fn render(app: &App, editor: &Editor, ui: &Workspace, busy: bool) -> 
         0,
         1,
         &format!(
-            "{} · {} · {}",
+            "{} · {} · {}{}",
             if narrow { "单栏" } else { "双栏" },
             match ui.focus {
                 Focus::Menu => "焦点：菜单",
                 Focus::Content => "焦点：内容",
                 Focus::Input => "焦点：输入",
             },
-            MENUS[ui.menu]
+            MENUS[ui.menu],
+            if s(&app.boot["endpoint"], "baseUrl").starts_with("http://127.") {
+                " · 仅本机监听，其他设备无法直连下载"
+            } else {
+                ""
+            }
         ),
         w,
         false,
@@ -329,7 +334,13 @@ pub(crate) fn render(app: &App, editor: &Editor, ui: &Workspace, busy: bool) -> 
                     .to_string_lossy()
             )
         })
-        .unwrap_or_else(|| "文件先暂存，再确认发送；切群不改变附件目标".into());
+        .unwrap_or_else(|| {
+            if s(&app.boot["endpoint"], "baseUrl").starts_with("http://127.") {
+                "仅本机监听 127.0.0.1；其他设备无法直连下载".into()
+            } else {
+                "文件先暂存，再确认发送；切群不改变附件目标".into()
+            }
+        });
     paint(&mut output, 0, h - 5, &draft, w, false)?;
     paint(&mut output, 0, h - 4, &app.notice, w, false)?;
     paint(

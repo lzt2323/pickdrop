@@ -128,6 +128,12 @@ impl Core {
         if path.exists() && tokio::fs::metadata(&path).await?.len() == m["size"].as_u64().unwrap() {
             return Ok(json!({"path":path,"sha256":m["sha256"],"size":m["size"]}));
         }
+        ensure!(
+            !peers.is_empty(),
+            "当前没有可尝试的设备地址；请保持发送端在线并检查群组连接"
+        );
+        let attempted = peers.len();
+        let mut failures = Vec::new();
         for peer in peers {
             let proof = {
                 let data = self.0.data.lock().await;
@@ -139,12 +145,16 @@ impl Core {
             if token.is_cancelled() {
                 bail!("已取消");
             }
-            if outcome.is_ok() {
-                self.emit(json!({"type":"transfer","id":transfer_id,"messageId":id,"status":"completed","bytes":m["size"],"total":m["size"],"path":path}));
-                return Ok(json!({"path":path,"sha256":m["sha256"],"size":m["size"]}));
+            match outcome {
+                Ok(()) => {
+                    self.emit(json!({"type":"transfer","id":transfer_id,"messageId":id,"status":"completed","bytes":m["size"],"total":m["size"],"path":path}));
+                    return Ok(json!({"path":path,"sha256":m["sha256"],"size":m["size"]}));
+                }
+                Err(error) if failures.len() < 3 => failures.push(format!("{peer}: {error:#}")),
+                Err(_) => {}
             }
         }
-        bail!("没有在线设备持有该文件")
+        bail!("文件接收失败：已尝试 {attempted} 个设备地址。请检查发送端监听地址、网络连接及文件副本。详情：{}", failures.join("；"))
     }
     pub(super) async fn cache_stats(&self) -> Result<(usize, u64)> {
         let mut e = tokio::fs::read_dir(self.0.dir.join("files")).await?;

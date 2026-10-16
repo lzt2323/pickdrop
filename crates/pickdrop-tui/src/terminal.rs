@@ -90,7 +90,7 @@ pub async fn run(core: &Core, data: &Path) -> Result<()> {
                             app.detail=Some(result_lines(&finished.method,&value));app.scroll=0;ui.focus=Focus::Content;
                         }
                         if matches!(finished.method.as_str(),"select_group"|"create_group") {app.detail=None;app.scroll=0;ui.selected=None;}
-                        if finished.transfer.is_some(){ui.transfer="传输已完成；接收端按需保存文件".into();}
+                        if finished.transfer.is_some(){ui.transfer=if finished.method=="send_file" {"本机文件已准备；未确认其他设备接收"} else {"文件已校验并保存到本机"}.into();}
                         if finished.method=="join_group" {app.notice="申请已提交，核心会继续等待批准；无需保持此面板".into();}
                     }
                     Err(error)=>{app.notice=format!("错误：{error:#}；未发附件保留");if finished.transfer.is_some(){ui.transfer=app.notice.clone();}},
