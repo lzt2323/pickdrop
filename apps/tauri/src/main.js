@@ -534,21 +534,22 @@ function fileProgress(getTask, receiver) {
     svg.setAttribute('viewBox', '0 0 48 48'); svg.setAttribute('aria-hidden', 'true');
     for (const name of ['track','value']) {
         const circle = document.createElementNS(svg.namespaceURI, 'circle');
-        for (const [key,value] of Object.entries({cx:24,cy:24,r:20,fill:'none','stroke-width':3})) circle.setAttribute(key,value);
+        for (const [key,value] of Object.entries({cx:24,cy:24,r:20,fill:'none','stroke-width':5})) circle.setAttribute(key,value);
         circle.classList.add(`file-progress-${name}`); svg.append(circle);
     }
     ring.setAttribute('role','progressbar'); ring.setAttribute('aria-label','文件传输进度');
     ring.setAttribute('aria-valuemin','0'); ring.setAttribute('aria-valuemax','100'); ring.append(svg,percent);
     const info = el('div','file-transfer-info'), status = el('span','file-transfer-status'), speed = el('span','file-transfer-speed'); info.append(status,speed);
-    const cancel = fileIconButton('取消传输','close', async () => {
+    const cancel = button('取消传输', async () => {
         const task = getTask(); if (!task) return;
         const result = await call('cancel_transfer',{transferId:task.id});
         if (result?.ok !== false && task.status !== '完成') task.status = '已取消';
         renderTransfers();
-    });
+    }, 'file-transfer-cancel');
+    cancel.title = '取消传输'; cancel.replaceChildren(ring);
     const retry = button('重试', () => { const task = getTask(); if (task?.path) return retryFile(task); if (task?.message) return receive(task.message,task.groupId); }, 'file-transfer-retry');
     retry.updateDisabled = () => { const task = getTask(); retry.disabled = !!app.state?.membershipRevoked || !!(task?.draftId && fileTransfers.isDraftInFlight(task.draftId)); };
-    const problem = el('p','file-transfer-error'); host.append(ring,info,cancel,retry,problem);
+    const problem = el('p','file-transfer-error'); host.append(cancel,info,retry,problem);
     fileProgressViews.set(host, () => {
         const task = getTask(), wasHidden = host.hidden, previousStatus = host.dataset.status; host.hidden = !task;
         if (!task) return;
@@ -559,9 +560,14 @@ function fileProgress(getTask, receiver) {
         host.dataset.status = task.status === '失败' ? 'failed' : task.status === '完成' ? 'completed' : task.status === '已取消' ? 'cancelled' : 'active';
         ring.hidden = task.status === '失败' || task.status === '已取消';
         ring.setAttribute('aria-valuenow',String(value)); percent.textContent = `${value}%`;
+        percent.classList.add('sr-only');
+        host.hidden = task.status === '完成';
         svg.lastChild.style.strokeDashoffset = String(126*(1-value/100));
         status.textContent = task.status === '完成' ? (task.path ? '文件已准备' : '已接收') : task.status === '发送中' ? '准备中' : task.status || '接收中';
-        speed.textContent = transferSpeedLabel(task); speed.hidden = terminal;
+        const rate = transferSpeedLabel(task);
+        speed.textContent = rate.replace(/^(下载速度|准备速度)：/, ''); speed.title = rate; speed.hidden = terminal;
+        status.classList.toggle('sr-only', !terminal);
+        ring.setAttribute('aria-valuetext', `${status.textContent} ${value}%，${rate}`);
         problem.textContent = task.error || ''; problem.hidden = !task.error;
         cancel.hidden = terminal; retry.hidden = !(['失败','已取消'].includes(task.status) && (task.path || task.message));
         retry.updateDisabled();

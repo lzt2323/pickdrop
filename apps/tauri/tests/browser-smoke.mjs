@@ -141,7 +141,7 @@ try {
         await page.evaluate(id => window.__emit({type:'transfer',id,status:'sending',bytes:0,total:10485760}), sendingId);
         await page.waitForTimeout(300);
         await page.evaluate(id => window.__emit({type:'transfer',id,status:'sending',bytes:1048576,total:10485760}), sendingId);
-        await sending.locator('.file-transfer-speed').filter({hasText:/准备速度：[0-9.]+ [KMG]?i?B\/s/}).waitFor();
+        await sending.locator('.file-transfer-speed').filter({hasText:/[0-9.]+ [KMG]?i?B\/s/}).waitFor();
         await sending.getByRole('button',{name:'取消传输',exact:true}).focus();
         await page.evaluate(id => window.__emit({type:'transfer',id,status:'sending',bytes:2097152,total:10485760}), sendingId);
         await page.waitForTimeout(200);
@@ -162,8 +162,15 @@ try {
         await page.evaluate(() => window.__emit({type:'transfer',id:'card-download',status:'receiving',bytes:0,total:10485760}));
         await page.waitForTimeout(300);
         await page.evaluate(() => window.__emit({type:'transfer',id:'card-download',status:'receiving',bytes:4194304,total:10485760}));
-        await download.locator('.file-transfer-speed').filter({hasText:/下载速度：[0-9.]+ [KMG]?i?B\/s/}).waitFor();
+        await download.locator('.file-transfer-speed').filter({hasText:/[0-9.]+ [KMG]?i?B\/s/}).waitFor();
         assert.equal(await download.getByRole('progressbar').getAttribute('aria-valuenow'),'40');
+        const ringBounds = await download.getByRole('progressbar').boundingBox();
+        assert.ok(ringBounds.width <= 20 && ringBounds.height <= 20, 'file progress uses a small ring');
+        const transferBounds = await download.locator('.file-transfer').boundingBox();
+        assert.ok(transferBounds.height <= (viewport.width < 600 ? 44 : 32), 'active progress stays on one compact row');
+        assert.equal(await download.locator('.file-transfer-status').evaluate(node => node.classList.contains('sr-only')),true);
+        assert.ok((await download.locator('.file-transfer-speed').getAttribute('title')).startsWith('下载速度：'));
+
         const cardBounds = await download.locator('.file-card').boundingBox();
         assert.ok(cardBounds.x >= 0 && cardBounds.x+cardBounds.width <= viewport.width, 'file card stays within narrow chat');
         await page.locator('#toast').waitFor({state:'hidden'});
@@ -180,7 +187,7 @@ try {
         await download.getByRole('button',{name:'重试',exact:true}).click();
         await download.getByRole('button',{name:'保存',exact:true}).waitFor();
         assert.equal(await download.locator('.file-transfer-speed').isVisible(),false,'completed downloads hide speed');
-        assert.equal(await download.getByRole('progressbar').getAttribute('aria-valuenow'),'100');
+        assert.equal(await download.locator('.file-progress-ring').getAttribute('aria-valuenow'),'100');
         await page.locator('#toast').waitFor({state:'hidden'});
         await page.locator('#message-input').fill('保留草稿');await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:888,membershipRevoked:true,messages:[],devices:[]}}));assert.equal(await page.locator('#send-text').isDisabled(),true);assert.equal(await page.locator('#message-input').inputValue(),'保留草稿');assert.equal(await page.locator('#membership-notice').isVisible(),true);await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:889,membershipRevoked:false,messages:[],devices:[]}}));
         await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});await page.waitForTimeout(20);const paused=await page.evaluate(()=>window.__calls.filter(c=>c.method==='set_active'&&c.params.active===false).length);assert.equal(paused,viewport.width<600?1:0,'only mobile visibility pauses service');await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});document.dispatchEvent(new Event('visibilitychange'));});await page.evaluate(()=>window.__emit({type:'state',groupId:'g2',state:{revision:950,messages:[{id:'file-first',type:'file',fileName:'first.png',size:1,sequence:1000},{id:'file-middle',type:'file',fileName:'middle.png',size:1,sequence:1001},{id:'file-last',type:'file',fileName:'last.png',size:1,sequence:1002}],devices:[],history:{hasMore:false}}}));await page.locator('#files-tab').click();for(const id of ['file-first','file-middle','file-last']){const row=page.locator(`[data-message-id="${id}"]`);await row.getByRole('button',{name:'接收文件',exact:true}).click();await row.getByRole('button',{name:'保存',exact:true}).waitFor();await row.getByRole('button',{name:'更多',exact:true}).click();await page.getByRole('button',{name:'另存为',exact:true}).waitFor();await page.locator('#close-panel').click();assert.equal(await row.locator('.thumbnail').count(),1);assert.equal(await row.count(),1);}assert.equal(await page.locator('.message[data-message-id^="file-"]').count(),3,'receiving replaces first/middle/last rows without duplicating');assert.ok(!(await page.locator('#toast').isVisible()) || (await page.locator('#toast').innerText()).includes('个文件待发送'),'only explicit draft confirmation may remain in toast: '+await page.locator('#toast').innerText());await page.locator('#all-tab').click();await page.locator('#invite-button').click();

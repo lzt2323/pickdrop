@@ -1,6 +1,6 @@
 {
   "name": "pickdrop",
-  "version": "0.6.0-alpha.14",
+  "version": "0.6.0-alpha.15",
   "packageManager": "pnpm@11.19.0",
   "engines": {
     "node": ">=24"
