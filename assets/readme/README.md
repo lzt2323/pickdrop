@@ -34,7 +34,7 @@ FFmpeg 不在 PATH 时通过 `FFMPEG` 环境变量传入可执行文件路径。
 
 ## 真实界面首次入群教程
 
-`onboarding.gif` / `onboarding.mp4` 是 Mac 与 Android 正式版 0.6.0 的真实截图序列，24 秒展示创建群组、邀请入口、复制链接、手机加入入口、申请、成员入口、允许及收到消息。正文保留步骤说明；MP4 可暂停，减少动态效果时使用 `onboarding-poster.png` 静态回退。
+`onboarding.gif` / `onboarding.mp4` 是 Mac 与 Android 正式版 0.6.0 的真实截图序列，24 秒展示创建群组、邀请入口、复制链接、手机加入入口、申请、成员入口、允许及收到消息。每步静止展示 3 秒，直接切换截图，避免黑场淡入导致闪烁。正文保留步骤说明；MP4 可暂停，减少动态效果时使用 `onboarding-poster.png` 静态回退。
 
 截图通过 Mac 窗口截图及用户授权的 adb 截图取得；手机实际加入演示群并收到电脑消息，不是重绘 UI。临时二维码、邀请码、地址及邀请链接在导出前遮挡，原图与 UI 层级只保存在忽略目录 `.build/reports/readme-onboarding/real/`，不上传。
 

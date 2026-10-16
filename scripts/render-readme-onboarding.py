@@ -72,12 +72,12 @@ def main():
         filters.append('scale=590:740:force_original_aspect_ratio=decrease')
         graph = '[1:v]' + ','.join(filters) + '[screen];[0:v][screen]overlay=x=650+(590-overlay_w)/2:y=130+(740-overlay_h)/2'
         ffmpeg(['-i', str(base), '-i', str(source), '-filter_complex', graph, '-frames:v', '1', str(WORK / f'step-{index+1}.png')])
-    # Readable holds; short opacity fades introduce each screenshot without moving controls.
+    # Hold each screenshot, then cut directly: fading from black flashes between steps.
     clips = []
     for index in range(len(SCENES)):
         clip = WORK / f'clip-{index}.mp4'
         ffmpeg(['-loop', '1', '-i', str(WORK / f'step-{index+1}.png'), '-t', '3', '-r', '20',
-                '-vf', 'fade=t=in:st=0:d=0.15', '-c:v', 'libx264', '-crf', '20', '-pix_fmt', 'yuv420p', str(clip)])
+                '-c:v', 'libx264', '-crf', '20', '-pix_fmt', 'yuv420p', str(clip)])
         clips.append(f"file '{clip.name}'")
     playlist = WORK / 'clips.txt'
     playlist.write_text('\n'.join(clips) + '\n')
