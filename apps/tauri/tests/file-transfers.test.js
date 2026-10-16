@@ -13,7 +13,7 @@ function setup(handleCall = async () => ({}), now) {
         app, now,
         call: async (method, params) => { calls.push({ method, params }); return handleCall(method, params); },
         setWindowBusy: async (reason, value) => { protection.push({ reason, value }); },
-        persistFiles() {}, renderQueue() {}, renderFileDrafts() {}, refresh: async () => {},
+        persistFiles() {}, renderTransfers() {}, renderFileDrafts() {}, refresh: async () => {},
         renderMessages() { renders.messages++; },
         addFileDrafts(files, groupId) { app.fileDrafts.set(groupId, [...(app.fileDrafts.get(groupId) || []), ...files]); },
         progress: { flush() { renders.immediate++; }, push() { renders.deferred++; } },
@@ -145,4 +145,20 @@ test('speed samples use byte deltas, reset on fallback, and disappear for termin
         update(4096, status);
         assert.equal(transferSpeedLabel(app.transfers.get('speed')), '');
     }
+});
+
+
+test('duplicate receives share the active task and do not start a second download', async () => {
+    const started = deferred(), finish = deferred();
+    const { transfers, calls } = setup(async method => {
+        if (method === 'receive_file') { started.resolve(); await finish.promise; return {path:'/received'}; }
+        return {};
+    });
+    const message = {id:'shared-download',fileName:'file.zip'};
+    const first = transfers.receive(message);
+    await started.promise;
+    await transfers.receive(message);
+    assert.equal(calls.filter(call => call.method === 'receive_file').length,1);
+    finish.resolve();
+    await first;
 });

@@ -116,7 +116,7 @@ try {
   assert.equal(createHash('sha256').update(saved).digest('hex'),createHash('sha256').update(content).digest('hex'));
   // run() deliberately catches UI exceptions and displays a toast, so pageerror
   // alone cannot detect a failed keyed row replacement after receiving a file.
-  assert.doesNotMatch(await phone.locator('#queue').innerText(), /NotFoundError|insertBefore|失败|错误/);
+  assert.doesNotMatch(await phone.locator('.file-transfer').first().innerText(), /NotFoundError|insertBefore|失败|错误/);
   assert.doesNotMatch(await phone.locator('#toast').innerText(), /NotFoundError|insertBefore|Failed to execute/);
   assert.equal(await phone.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Phone horizontal overflow');
   for (const width of [300, 380, 320]) {

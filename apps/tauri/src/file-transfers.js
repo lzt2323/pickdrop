@@ -14,7 +14,7 @@ function recordFailure(task, error) {
 // the host. Each send keeps its original group even when the user switches chats.
 export function createFileTransfers({
     app, call, setWindowBusy, persistFiles, addFileDrafts,
-    renderQueue, renderFileDrafts, renderMessages, refresh, progress, now = () => performance.now(),
+    renderTransfers, renderFileDrafts, renderMessages, refresh, progress, now = () => performance.now(),
 }) {
     const removedDrafts = new Set();
     const inflightDrafts = new Set();
@@ -51,10 +51,11 @@ export function createFileTransfers({
                     speedSample: { bytes: 0, time: now() },
                 };
                 app.transfers.set(id, task);
-                renderQueue();
+                renderTransfers();
                 renderFileDrafts();
                 try {
-                    await call('send_file', { groupId, path, transferId: id });
+                    const message = await call('send_file', { groupId, path, transferId: id });
+                    task.messageId = message?.id || task.messageId;
                     Object.assign(task, { status: '完成', progress: 1 });
                     const drafts = app.fileDrafts.get(groupId);
                     if (drafts) app.fileDrafts.set(groupId, removeDraft(drafts, file.draftId));
@@ -81,9 +82,11 @@ export function createFileTransfers({
 
     async function receive(message, groupId = app.groupId) {
         const id = message.id;
+        const existing = app.transfers.get(id);
+        if (existing && !terminalStatuses.has(existing.status)) return;
         const task = { id, groupId, message, name: message.fileName, status: '接收中', progress: 0, speedSample: { bytes: 0, time: now() } };
         app.transfers.set(id, task);
-        renderQueue();
+        renderTransfers();
         try {
             const result = await call('receive_file', { groupId, id, transferId: id });
             app.files.set(id, typeof result === 'string' ? result : result.path || result.localPath);
@@ -115,6 +118,7 @@ export function createFileTransfers({
                 task.speedSample = { bytes: event.bytes, time };
             }
         }
+        if (event.messageId) task.messageId = event.messageId;
         task.progress = event.progress ?? (event.total ? event.bytes / event.total : 0);
         if (event.status) task.status = eventStatuses[event.status] || event.status;
         if (isTerminalEvent(event.status)) progress.flush();

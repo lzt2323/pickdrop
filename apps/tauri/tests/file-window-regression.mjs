@@ -92,7 +92,7 @@ try {
   await a.evaluate(()=>emitReview('tauri://drag-drop',{paths:['/review/main.txt'],position:{x:120,y:100}}));
   assert.equal(await a.locator('.file-draft').count(),1);
   assert.equal(await a.evaluate(()=>reviewCalls.filter(c=>c.method==='send_file').length),0);
-  await a.locator('.file-draft button').click();
+  await a.locator('.file-draft').getByRole('button',{name:'移除',exact:true}).click();
   await a.locator('#choose-file').click(); assert.equal(await a.locator('.file-draft').count(),1);
   assert.equal(await a.evaluate(()=>reviewCalls.filter(c=>c.method==='send_file').length),0);
   findings.push({id:'F3',passed:true,checks:['main drop stages','picker stages','target and count visible']});
@@ -107,7 +107,7 @@ try {
   await a.reload();await a.waitForFunction(()=>reviewListenersReady());
   assert.ok(await a.locator('.file-draft').innerText().then(t=>t.includes('second.txt')));
   findings.push({id:'F5',passed:true,checks:['new draft retained while A awaits','unsent B not transmitted','B restored after reload']});
-  await a.locator('.file-draft button').click();
+  await a.locator('.file-draft').getByRole('button',{name:'移除',exact:true}).click();
   await a.evaluate(()=>{nextPicked=[{path:'/review/one.txt'},{path:'/review/two.txt'},{path:'/review/three.txt'}];});
   await a.locator('#choose-file').click();await a.evaluate(()=>{holdSends=true;reviewCalls.length=0;});
   await a.locator('#send-text').click();await a.waitForFunction(()=>pendingSends.length===1);

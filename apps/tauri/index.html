@@ -4,13 +4,12 @@
 <div id="app">
 <header class="titlebar"><button id="chat-back" class="mobile-only" aria-label="返回群组">返回</button><button id="groups-button" class="group-title" aria-label="选择群组"><img id="group-animal" src="/assets/app-icon.svg" alt=""><strong id="group-name">拾传</strong><span class="group-chevron" aria-hidden="true"></span></button><div class="header-actions"><button id="dock-window" class="desktop-only" aria-label="自动贴边" title="自动贴边已开启" aria-pressed="true" type="button">贴边</button><button id="pin-window" class="desktop-only" aria-label="窗口长驻" title="开启长驻：保持展开并置顶" aria-pressed="false">置顶</button><button id="settings-button" aria-label="设置">设置</button></div></header>
 <button id="members-button" class="device-strip" aria-label="成员"><span id="device-summary">本群设备</span><span id="connection-status" class="connection-state" hidden></span></button>
-<button id="transfer-summary" type="button" aria-label="查看传输" hidden></button>
 <nav id="viewbar" aria-label="内容视图"><button id="all-tab" aria-pressed="true">全部</button><button id="files-tab" aria-pressed="false">文件 <span id="file-count" class="file-count">0</span></button><button id="invite-button">邀请 +</button></nav>
 <aside id="membership-notice" hidden><span>你已离开此群，草稿已保留。</span><button id="rejoin-button">重新加入</button></aside>
 <main id="timeline" aria-label="群聊记录"><button id="load-history" hidden>加载更早的消息</button><button id="newer-history" hidden>返回较新的消息</button><button id="latest-history" hidden>回到最新消息</button><p id="empty">正在打开…</p><div id="messages"></div></main>
-<section id="file-drafts" aria-label="待发送文件" hidden></section><section id="queue" aria-label="文件传输队列" hidden></section>
+<section id="file-drafts" aria-label="待发送文件" hidden></section>
 <form id="composer"><button id="choose-file" type="button" aria-label="选择文件">文件</button><label class="sr-only" for="message-input">消息内容</label><textarea id="message-input" rows="1"></textarea><span id="draft-note" class="sr-only"></span><button id="send-text" disabled aria-label="发送消息" class="primary" type="submit">发送</button></form>
-<nav id="mobile-nav" class="mobile-only" aria-label="主导航"><button id="mobile-groups" aria-current="page">群组</button><button id="mobile-transfers">传输</button><button id="mobile-profile">我的</button></nav>
+<nav id="mobile-nav" class="mobile-only" aria-label="主导航"><button id="mobile-groups" aria-current="page">群组</button><button id="mobile-profile">我的</button></nav>
 <div id="window-resize-handle" class="desktop-only" role="separator" aria-label="调整窗口大小" title="拖动调整窗口大小"></div>
 </div>
 <dialog id="panel"><div class="panel-heading"><h2 id="panel-title"></h2><button id="close-panel" aria-label="关闭">×</button></div><div id="panel-body"></div><div id="panel-actions" class="panel-actions" hidden></div></dialog><div id="toast" role="status" aria-live="polite" hidden></div><script type="module" src="/src/main.js"></script>

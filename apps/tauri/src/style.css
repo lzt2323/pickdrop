@@ -55,7 +55,6 @@ body[data-dock-edge=bottom] #dock-window svg { transform:rotate(90deg); }
 .connection-state:before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--success); }
 .connection-state.offline:before { background: #8e8e93; }
 .device-strip > svg { width: 12px; height: 12px; }
-#transfer-summary { align-self: flex-end; max-width: calc(100% - 28px); min-height: 30px; margin: 0 14px 4px; padding: 5px 10px; font-size: 12px; color: var(--accent); overflow-wrap: anywhere; }
 #viewbar { display: flex; align-items: center; flex-shrink: 0; gap: 3px; margin: 0 14px 10px; padding: 3px; border-radius: 9px; background: var(--recess); }
 #viewbar button { min-height: 30px; padding: 5px 12px; font-size: 12px; font-weight: 550; border-radius: 7px; color: var(--muted); }
 #viewbar button[aria-pressed=true] { background: var(--surface); color: #1d1d1f; font-weight: 600; }
@@ -118,7 +117,7 @@ textarea::placeholder { color: var(--muted); }
 #composer #choose-file { color: #424245; }
 #composer svg { width: 19px; height: 19px; }
 #file-drafts { padding: 8px 16px; border-top: 1px solid var(--line); max-height: 140px; overflow: auto; }
-.file-draft { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; }
+.file-draft { display: grid; grid-template-columns: minmax(0,1fr) auto; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; }
 .file-draft span { min-width: 0; overflow-wrap: anywhere; }
 .file-draft button { color: var(--muted); }
 
@@ -137,7 +136,7 @@ dialog[data-kind=image] .panel-actions > button { flex: 1 1 0; white-space: nowr
 label { display: grid; gap: 6px; font-size: 13px; font-weight: 550; }
 input, select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--rule); border-radius: var(--radius-control); padding: 10px; color: inherit; background: var(--surface); }
 input[aria-invalid=true], select[aria-invalid=true] { border-color: var(--danger); }
-.panel-error, .field-error, .transfer-error { margin: 0; color: var(--danger); font-size: 13px; line-height: 1.5; text-align: left; overflow-wrap: anywhere; font-weight: 400; }
+.panel-error, .field-error { margin: 0; color: var(--danger); font-size: 13px; line-height: 1.5; text-align: left; overflow-wrap: anywhere; font-weight: 400; }
 .stack { display: grid; gap: 8px; }
 .muted { color: var(--muted); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; margin: 0; }
 .group-option { display: flex; align-items: center; gap: 12px; text-align: left; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 10px 4px; }
@@ -210,29 +209,12 @@ dialog[data-kind=groups] .group-option img { width: 34px; height: 34px; flex-shr
 dialog[data-kind=preferences] .version { font-size: 11px; margin: 4px 0 0; }
 :is(.group-option,.setting-row,.group-shortcuts > button):focus-visible { outline-offset: -2px; outline-width: 2px; }
 
-/* Members and transfers separate the content, state, and actions. */
+/* Member details and actions. */
 .member-heading { font-size: 13px; margin: 8px 0 0; color: var(--muted); }
 .member { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .member > span { flex: 1 1 130px; min-width: 0; overflow-wrap: anywhere; }
-.member-actions, .transfer-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.member-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .member button { padding-inline: 8px; }
-#queue { padding: 8px 16px; border-top: 1px solid var(--line); max-height: 150px; overflow: auto; }
-#panel-body #queue, #mobile-home #queue { max-height: none; overflow: visible; border-top: 0; padding: 0; }
-.transfer { display: grid; gap: 8px; font-size: 13px; padding: 12px 0; overflow-wrap: anywhere; border-bottom: 1px solid var(--line); }
-.transfer-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.transfer-speed { color: var(--muted); font-variant-numeric: tabular-nums; }
-.transfer-name { font-weight: 600; min-width: 0; }
-.transfer-status { justify-self: start; border-radius: 999px; padding: 2px 7px; font-size: 12px; background: var(--recess); color: var(--muted); }
-.transfer[data-status=sending] .transfer-status, .transfer[data-status=receiving] .transfer-status { background: #edf4ff; color: var(--accent); }
-.transfer[data-status=completed] .transfer-status { background: #eef7ee; color: var(--success); }
-.transfer[data-status=failed] .transfer-status { background: var(--danger-surface); color: var(--danger); }
-.transfer progress { width: 100%; height: 4px; display: block; accent-color: var(--accent); border: 0; border-radius: 999px; overflow: hidden; }
-.transfer progress::-webkit-progress-bar { background: var(--recess); border-radius: 999px; }
-.transfer progress::-webkit-progress-value { background: var(--accent); border-radius: 999px; }
-.transfer[data-status=failed] progress, .transfer[data-status=cancelled] progress { display: none; }
-.transfer[data-status=completed] progress { accent-color: var(--success); }
-.transfer[data-status=completed] progress::-webkit-progress-value { background: var(--success); }
-.transfer button { color: var(--accent); }
 #toast { position: fixed; bottom: calc(100px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); background: #202938; color: white; padding: 12px 16px; border-radius: 10px; max-width: calc(100vw - 32px); font-size: 14px; z-index: 10; }
 
 /* Mobile landing pages and bottom navigation. */
@@ -256,12 +238,11 @@ dialog[data-kind=preferences] .version { font-size: 11px; margin: 4px 0 0; }
 .empty-state { text-align: center; padding: 48px 16px; color: var(--muted); }
 body[data-desktop=true] #mobile-home { display: none; }
 body[data-desktop=false][data-view=chat] #mobile-home, body[data-desktop=false][data-view=chat] #mobile-nav { display: none; }
-body[data-desktop=false]:not([data-view=chat]) :is(#transfer-summary,#viewbar,#timeline,#composer,#file-drafts,#chat-back,#membership-notice), body[data-desktop=false]:not([data-view=chat]) #app > :is(header,.device-strip) { display: none; }
+body[data-desktop=false]:not([data-view=chat]) :is(#viewbar,#timeline,#composer,#file-drafts,#chat-back,#membership-notice), body[data-desktop=false]:not([data-view=chat]) #app > :is(header,.device-strip) { display: none; }
 
 /* Platform sizing: preserve the native phone hierarchy and compact desktop. */
 body[data-desktop=false] #app { max-width: 520px; border: 0; border-radius: 0; }
 body[data-desktop=false] button { min-height: 48px; }
-body[data-desktop=false] #transfer-summary { min-height: 48px; }
 body[data-desktop=false] .panel-heading button { width: 48px; height: 48px; }
 body[data-desktop=false] dialog { margin: auto; width: min(400px,calc(100vw - 32px)); border-radius: 20px; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px); padding: 16px; }
 body[data-desktop=false] #app > .titlebar { min-height: 62px; height: 62px; padding-inline: 4px; border-bottom: 1px solid var(--line); }
@@ -366,3 +347,26 @@ body[data-dock-edge=bottom] #window-resize-handle:after { top: 3px; bottom: auto
 }
 @media(prefers-reduced-motion:reduce) { * { scroll-behavior: auto !important; } }
 .draft-target {font-size:11px;color:var(--muted);margin:4px 0;}
+
+/* Progress belongs to its file; stable controls remain usable during updates. */
+.file-transfer { display: grid; grid-template-columns: 44px minmax(0,1fr) auto auto; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.image-card .file-transfer { margin: 4px 10px 10px; }
+.file-draft .file-transfer { grid-column: 1 / -1; width: 100%; }
+.file-progress-ring { position: relative; width: 44px; height: 44px; color: var(--accent); }
+.file-progress-ring svg { width: 44px; height: 44px; transform: rotate(-90deg); }
+.file-progress-track { stroke: var(--line); }
+.file-progress-value { stroke: currentColor; stroke-dasharray: 126; stroke-linecap: round; }
+.file-progress-percent { position: absolute; inset: 0; display: grid; place-items: center; font-size: 10px; font-variant-numeric: tabular-nums; }
+.file-transfer-info { min-width: 0; min-height: 32px; display: grid; gap: 3px; grid-column: 2; }
+.file-transfer-status { font-size: 12px; }
+.file-transfer-speed { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.file-transfer button { color: var(--accent); padding: 4px; min-width: 30px; font-size: 12px; }
+.file-transfer .icon-action { display: grid; place-items: center; grid-column: 3 / -1; }
+.file-transfer-retry { grid-column: 3 / -1; }
+.file-transfer-error { grid-column: 1 / -1; color: var(--danger); margin: 0; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.file-transfer[data-status=completed] .file-progress-ring { color: var(--success); }
+.file-transfer[data-status=failed] .file-transfer-status { color: var(--danger); }
+
+.file-transfer:is([data-status=failed],[data-status=cancelled]) { grid-template-columns: minmax(0,1fr) auto; }
+.file-transfer:is([data-status=failed],[data-status=cancelled]) .file-transfer-info { grid-column: 1; }
+.file-transfer:is([data-status=failed],[data-status=cancelled]) .file-transfer-retry { grid-column: 2; }

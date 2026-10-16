@@ -84,7 +84,7 @@ new MutationObserver(() => {
 }).observe($('panel-body'), { childList:true });
 function panelActions(...actions) { $('panel-actions').append(...actions); $('panel-actions').hidden = false; }
 
-function panel(title) { joinRequest?.stop(); panelGeneration++; $('panel').removeAttribute('aria-describedby'); if (!$('panel').open) panelReturnFocus = document.activeElement; $('panel').dataset.kind = title.includes('文件') ? 'files' : 'settings'; $('panel').setAttribute('aria-labelledby','panel-title'); run(() => setWindowBusy('panel', true)); $('panel-title').textContent = title; parkQueue(); $('panel-body').replaceChildren(); $('panel-actions').replaceChildren(); $('panel-actions').hidden = true; dialogMotion.open({animate: !['我的群组','传输'].includes(title)}); queueMicrotask(() => { if($('panel').open) ([...$('panel-body').querySelectorAll('input,textarea,button')].find(control => !control.disabled && control.getClientRects().length) || $('close-panel')).focus(); }); return $('panel-body'); }
+function panel(title) { joinRequest?.stop(); panelGeneration++; $('panel').removeAttribute('aria-describedby'); if (!$('panel').open) panelReturnFocus = document.activeElement; $('panel').dataset.kind = title.includes('文件') ? 'files' : 'settings'; $('panel').setAttribute('aria-labelledby','panel-title'); run(() => setWindowBusy('panel', true)); $('panel-title').textContent = title; $('panel-body').replaceChildren(); $('panel-actions').replaceChildren(); $('panel-actions').hidden = true; dialogMotion.open({animate: !['我的群组','传输'].includes(title)}); queueMicrotask(() => { if($('panel').open) ([...$('panel-body').querySelectorAll('input,textarea,button')].find(control => !control.disabled && control.getClientRects().length) || $('close-panel')).focus(); }); return $('panel-body'); }
 let fieldSequence = 0;
 function field(body, title, value = '', type = 'text') { const label = el('label'), caption = el('span', 'field-label', title), input = el('input'); caption.id = `field-label-${++fieldSequence}`; input.setAttribute('aria-labelledby', caption.id); label.append(caption); input.type = type; input.value = value; input.addEventListener('input', () => { input.removeAttribute('aria-invalid'); input.removeAttribute('aria-describedby'); label.querySelector('.panel-error')?.remove(); }); label.append(input); body.append(label); return input; }
 function note(body, text) { body.append(el('p', 'muted', text)); }
@@ -194,6 +194,9 @@ else {
         const receiver = button('接收文件', () => receive(m), 'file-receive'); receiver.disabled = !!app.state?.membershipRevoked; actions.append(receiver);
     }
     card.append(actions);
+    const groupId = app.groupId;
+    const getTask = () => [...app.transfers.values()].find(task => task.groupId === groupId && (task.id === m.id || task.messageId === m.id));
+    card.append(fileProgress(getTask, actions.querySelector('.file-receive')));
     row.append(card);
 } return row; }
 function fileIconButton(label, glyph, action, extra = '') {
@@ -246,7 +249,7 @@ function renderMessages() { const timeline = $('timeline'), nearBottom = timelin
         $('messages').insertBefore(record.node, cursor);
     cursor = record.node.nextSibling;
 } $('empty').hidden = visible.length > 0; $('empty').textContent = app.groupId ? (app.filter === 'files' ? '这里还没有文件' : '还没有消息') : '还没有群组'; if (!app.groupId) $('empty').append(button('创建群组',createPanel,'primary'),button('加入群组',joinPanel)); $('load-history').hidden = !app.state?.history?.hasMore; $('newer-history').hidden = !app.historical; $('latest-history').hidden = !app.historical; if (nearBottom)
-    timeline.scrollTop = timeline.scrollHeight; }
+    timeline.scrollTop = timeline.scrollHeight; renderTransfers(); }
 async function refresh({ older = false, newer = false, latest = false } = {}) { if (!app.groupId || app.disposed)
     return; const groupId = app.groupId, generation = app.generation; const params = { groupId, limit: PAGE_SIZE }; if (older) {
     const cursor = app.state?.history?.before ?? app.messages[0]?.sequence;
@@ -511,47 +514,75 @@ function renderFileDrafts() {
     if (files.length) body.append(el('p', 'draft-target', `${app.groups.find(g => g.id === groupId)?.name || '目标不可用'} · ${files.length} 个文件待发送${app.state?.membershipRevoked ? ' · 请重新加入后发送' : ''}`));
     for (const file of files) {
         const row = el('div', 'file-draft'); row.dataset.draftId = file.draftId;
-        const task = [...app.transfers.values()].find(t => t.draftId === file.draftId && fileTransfers.isDraftInFlight(file.draftId));
-        row.append(el('span', null, file.name || file.path.split(/[\\/]/).at(-1)), button(task ? '取消传输' : '移除', async () => {
-            if (task) { const result = await call('cancel_transfer', {transferId:task.id}); if(result?.ok !== false && task.status !== '完成') task.status = '已取消'; renderQueue(); return; }
+        const task = [...app.transfers.values()].find(t => t.draftId === file.draftId);
+        const remove = button('移除', async () => {
             fileTransfers.markDraftRemoved(file.draftId);
             app.fileDrafts.set(groupId, removeDraft(app.fileDrafts.get(groupId) || [], file.draftId)); renderFileDrafts();
-        })); body.append(row);
+        }); remove.hidden = task && !['完成','失败','已取消'].includes(task.status);
+        row.append(el('span', 'file-name', file.name || file.path.split(/[\\/]/).at(-1)), remove);
+        const getTask = () => [...app.transfers.values()].find(t => t.draftId === file.draftId && t.groupId === groupId);
+        row.append(fileProgress(getTask)); body.append(row);
     }
-    syncSendButton();
+    renderTransfers(); syncSendButton();
 }
-const progress = progressScheduler(renderQueue);
-const transferRows = new Map();
-function renderQueue() {
-    const queue = $('queue'); queue.hidden = !app.transfers.size;
-    const active = [...app.transfers.values()].filter(t => !['完成','失败','已取消'].includes(t.status));
-    const summary = $('transfer-summary'); summary.hidden = !app.transfers.size; summary.textContent = active.length ? `${active.length} 传输中` : '传输记录';
-    if ($('transfer-empty')) $('transfer-empty').hidden = !!app.transfers.size;
-    for (const [id, record] of transferRows) if (!app.transfers.has(id)) { record.row.remove(); transferRows.delete(id); }
-    for (const task of app.transfers.values()) {
-        let record = transferRows.get(task.id);
-        if (!record) {
-            const row = el('div','transfer'), name = el('span','transfer-name'), meta = el('div','transfer-meta'), status = el('span','transfer-status'), speed = el('span','transfer-speed'), problem = el('p','transfer-error'), bar = el('progress'), actions = el('div','transfer-actions');
-            row.dataset.transferId = task.id; bar.max = 1;
-            const cancel = button('取消传输', async () => { const current = app.transfers.get(task.id); if(!current)return; const result = await call('cancel_transfer',{transferId:current.id}); if(result?.ok!==false && current.status!=='完成')current.status='已取消'; progress.flush(); });
-            const retry = button('重试', () => { const current = app.transfers.get(task.id); if(current?.path)return retryFile(current); if(current?.message)return receive(current.message,current.groupId); });
-            const clear = button('清除', () => { app.transfers.delete(task.id); renderQueue(); });
-            actions.append(cancel,retry,clear); meta.append(status,speed); row.append(name,meta,problem,bar,actions); queue.append(row);
-            record = {row,name,status,speed,problem,bar,cancel,retry,clear}; transferRows.set(task.id,record);
-        }
-        record.name.textContent = task.name || '文件'; record.status.textContent = task.status || '传输中'; record.problem.textContent = task.error || ''; record.problem.hidden = !task.error;
-        record.row.dataset.status = ({'发送中':'sending','接收中':'receiving','完成':'completed','失败':'failed','已取消':'cancelled'})[task.status] || 'sending';
-        record.speed.textContent = transferSpeedLabel(task); record.speed.hidden = !record.speed.textContent;
-        record.bar.value = task.progress || 0; record.bar.setAttribute('aria-label',`${task.name || '文件'}传输进度`);
+const progress = progressScheduler(renderTransfers);
+const fileProgressViews = new Map();
+function fileProgress(getTask, receiver) {
+    const host = el('div', 'file-transfer'); host.hidden = true;
+    const ring = el('div', 'file-progress-ring'), percent = el('span', 'file-progress-percent');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 48 48'); svg.setAttribute('aria-hidden', 'true');
+    for (const name of ['track','value']) {
+        const circle = document.createElementNS(svg.namespaceURI, 'circle');
+        for (const [key,value] of Object.entries({cx:24,cy:24,r:20,fill:'none','stroke-width':3})) circle.setAttribute(key,value);
+        circle.classList.add(`file-progress-${name}`); svg.append(circle);
+    }
+    ring.setAttribute('role','progressbar'); ring.setAttribute('aria-label','文件传输进度');
+    ring.setAttribute('aria-valuemin','0'); ring.setAttribute('aria-valuemax','100'); ring.append(svg,percent);
+    const info = el('div','file-transfer-info'), status = el('span','file-transfer-status'), speed = el('span','file-transfer-speed'); info.append(status,speed);
+    const cancel = fileIconButton('取消传输','close', async () => {
+        const task = getTask(); if (!task) return;
+        const result = await call('cancel_transfer',{transferId:task.id});
+        if (result?.ok !== false && task.status !== '完成') task.status = '已取消';
+        renderTransfers();
+    });
+    const retry = button('重试', () => { const task = getTask(); if (task?.path) return retryFile(task); if (task?.message) return receive(task.message,task.groupId); }, 'file-transfer-retry');
+    retry.updateDisabled = () => { const task = getTask(); retry.disabled = !!app.state?.membershipRevoked || !!(task?.draftId && fileTransfers.isDraftInFlight(task.draftId)); };
+    const problem = el('p','file-transfer-error'); host.append(ring,info,cancel,retry,problem);
+    fileProgressViews.set(host, () => {
+        const task = getTask(), wasHidden = host.hidden, previousStatus = host.dataset.status; host.hidden = !task;
+        if (!task) return;
+        host.dataset.transferId = task.id;
         const terminal = ['完成','失败','已取消'].includes(task.status);
-        const focusedAction = [record.cancel,record.retry,record.clear].find(control => control === document.activeElement);
-        record.cancel.hidden = terminal; record.retry.hidden = !(['失败','已取消'].includes(task.status) && (task.path || task.message)); record.clear.hidden = !terminal;
-        if (focusedAction?.hidden) [record.retry,record.clear,record.cancel].find(control => !control.hidden && !control.disabled)?.focus({preventScroll:true});
+        const value = Math.round(Math.max(0,Math.min(1,task.progress || 0))*100);
+        const focused = [cancel,retry].find(node => node === document.activeElement);
+        host.dataset.status = task.status === '失败' ? 'failed' : task.status === '完成' ? 'completed' : task.status === '已取消' ? 'cancelled' : 'active';
+        ring.hidden = task.status === '失败' || task.status === '已取消';
+        ring.setAttribute('aria-valuenow',String(value)); percent.textContent = `${value}%`;
+        svg.lastChild.style.strokeDashoffset = String(126*(1-value/100));
+        status.textContent = task.status === '完成' ? (task.path ? '文件已准备' : '已接收') : task.status === '发送中' ? '准备中' : task.status || '接收中';
+        speed.textContent = transferSpeedLabel(task); speed.hidden = terminal;
+        problem.textContent = task.error || ''; problem.hidden = !task.error;
+        cancel.hidden = terminal; retry.hidden = !(['失败','已取消'].includes(task.status) && (task.path || task.message));
+        retry.updateDisabled();
+        if (receiver) receiver.hidden = true;
+        if ((wasHidden || previousStatus !== host.dataset.status) && host.closest('#timeline')) {
+            const card = host.closest('.file-card').getBoundingClientRect(), timeline = $('timeline').getBoundingClientRect();
+            if (card.top < timeline.bottom && card.bottom > timeline.top) host.scrollIntoView({block:'nearest',inline:'nearest'});
+        }
+        if (focused?.hidden && !retry.hidden && !retry.disabled) retry.focus({preventScroll:true});
+    });
+    return host;
+}
+function renderTransfers() {
+    for (const [host,update] of fileProgressViews) {
+        if (!host.isConnected) { fileProgressViews.delete(host); continue; }
+        update();
     }
 }
 const fileTransfers = createFileTransfers({
     app, call, setWindowBusy, persistFiles, addFileDrafts,
-    renderQueue, renderFileDrafts, renderMessages, refresh, progress,
+    renderTransfers, renderFileDrafts, renderMessages, refresh, progress,
 });
 const { sendFiles, receive, retryFile } = fileTransfers;
 let pinned = false, dockingEnabled = true;
@@ -691,35 +722,28 @@ function incomingPanel() { const items = app.pendingIncoming || []; if (!items.l
 else
     closePanel(); await refresh(); }, 'primary'), button('取消', () => { app.pendingIncoming = []; persistFiles(); closePanel(); })); }
 
-const queueParking = el('div'); queueParking.hidden = true; document.body.append(queueParking); queueParking.append($('queue'));
-function parkQueue() { if($('queue')) queueParking.append($('queue')); }
 for (const [id, name] of [['choose-file','plus'],['send-text','send'],['pin-window','pin'],['dock-window','dock'],['settings-button','settings'],['close-panel','close'],['chat-back','back']]) { const node = $(id); if(node) node.replaceChildren(icon(name)); }
 $('groups-button').querySelector('.group-chevron').append(icon('down'));
 $('members-button').append(icon('arrow'));
-for(const [id,name] of [['mobile-groups','people'],['mobile-transfers','transfer'],['mobile-profile','user']]) $(id)?.prepend(icon(name));
+for(const [id,name] of [['mobile-groups','people'],['mobile-profile','user']]) $(id)?.prepend(icon(name));
 const mobileHome = el('section', 'mobile-home'); mobileHome.id = 'mobile-home'; mobileHome.hidden = true; $('app').append(mobileHome);
 function homeView(view) {
-    closePanel(); document.body.dataset.view = view; mobileHome.hidden = false; parkQueue(); mobileHome.replaceChildren();
-    for (const name of ['groups','transfers','profile']) $('mobile-' + name)?.setAttribute('aria-current', name === view ? 'page' : 'false');
+    closePanel(); document.body.dataset.view = view; mobileHome.hidden = false; mobileHome.replaceChildren();
+    for (const name of ['groups','profile']) $('mobile-' + name)?.setAttribute('aria-current', name === view ? 'page' : 'false');
     if (view === 'groups') {
         const heading = el('div','home-heading'); const brand = el('div','home-brand'); const mark = el('img'); mark.src = '/assets/app-icon.svg'; mark.alt = ''; brand.append(mark, el('h1',null,'拾传')); heading.append(brand, button('＋ 新建', createPanel, 'primary')); mobileHome.append(heading, el('p','section-title','我的群组'));
         const list = el('div','group-list');
         for (const group of app.groups) { const row = button(group.name, () => selectGroup(group.id), 'group-option'); row.setAttribute('aria-label', group.name); const img = el('img'); img.src = asset(group.animalId); img.alt = ''; row.prepend(img); list.append(row); }
         if (!app.groups.length) list.append(el('p','empty-state','还没有群组'));
         mobileHome.append(list, button('加入群组', joinPanel,'join-group-link'));
-    } else if (view === 'transfers') {
-        mobileHome.append(el('h1',null,'传输')); attachQueue(mobileHome);
+
     } else {
         mobileHome.append(el('h1',null,'我的'), el('h2','profile-card',app.device.name || '此设备'), button('存储与缓存', storagePanel,'setting-row'), button('设备设置',settingsPanel,'setting-row'), el('p','version',`拾传 ${packageInfo.version}`));
     }
 }
-function attachQueue(body) { const empty = el('p','empty-state','没有传输任务'); empty.id = 'transfer-empty'; body.append(empty, $('queue')); renderQueue(); }
-function transfersPanel() { attachQueue(panel('传输')); }
 $('mobile-groups')?.addEventListener('click', () => homeView('groups'));
-$('mobile-transfers')?.addEventListener('click', () => homeView('transfers'));
 $('mobile-profile')?.addEventListener('click', () => homeView('profile'));
 $('chat-back')?.addEventListener('click', () => homeView('groups'));
-$('transfer-summary')?.addEventListener('click', transfersPanel);
 
 function onEvent(event) {if(event.type==='back'){if(isScanningInvite()){run(cancelInviteScan);return;}if($('panel').open)closePanel();else if(app.historical)run(()=>refresh({latest:true}));else if(isMobile() && document.body.dataset.view==='chat')homeView('groups');else{persistDrafts();persistFiles();run(()=>native('native_back_default'));}return;} if (event.type === 'transfer_progress' || event.type === 'transfer') {
     fileTransfers.updateProgress(event);
@@ -835,6 +859,6 @@ $('window-resize-handle').addEventListener('lostpointercapture', finishWindowRes
 window.addEventListener('blur', finishWindowResize);
 document.documentElement.addEventListener('pointerleave', () => { if (app.dockEdge && !$('panel').open && !resizing)
     run(() => native('window_action', { action: 'pointer-leave' })); });
-$('panel').addEventListener('close', () => { if ($('panel').open) return; joinRequest?.stop(); if(isMobile() && document.body.dataset.view === 'transfers' && !$('panel').open) { mobileHome.append($('queue')); renderQueue(); } if(panelReturnFocus?.isConnected)panelReturnFocus.focus(); run(() => setWindowBusy('panel', false)); });
+$('panel').addEventListener('close', () => { if ($('panel').open) return; joinRequest?.stop(); if(panelReturnFocus?.isConnected)panelReturnFocus.focus(); run(() => setWindowBusy('panel', false)); });
 window.addEventListener('pagehide', () => { dialogMotion.dispose(); composerSize.disconnect(); window.removeEventListener('resize', syncComposerHeight); window.removeEventListener('resize',keepPanelFieldVisible); window.visualViewport?.removeEventListener('resize',keepPanelFieldVisible); cancelAnimationFrame(fieldVisibilityFrame); app.disposed = true; for(const reason of windowBusyReasons)native('window_protection',{reason,value:false}).catch(()=>{}); clearTimeout(draftTimer); persistDrafts(); persistFiles(); clearTimeout(app.refreshTimer); joinRequest?.stop(); progress.dispose(); app.unlisten?.(); app.unlistenDrop?.(); app.unlistenAnchorDrop?.(); app.unlistenWindow?.();app.unlistenBack?.();app.unlistenIncoming?.(); thumbnails.disconnect(); });
 start();
