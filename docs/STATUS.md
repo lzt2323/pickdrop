@@ -218,7 +218,7 @@ Rust-only 整理阶段的工作分支为 `feat/rust-tui`。`b30873b` 是退役�
 ## 2026-10-17：0.6.0 正式发布与面向使用者的 README
 
 - 用户授权统一四端为 0.6.0，直接发布安装包，不走应用商店。独立 worktree 的 release/0.6.0 分支及 v0.6.0 标签已推送，发布源码 e0d795c；没有推送本 README 分支或修改远程 main。本分支产品源码仍为 alpha.15，正式构建源码位于 release/0.6.0，不将文档分支版本误当发布输入。
-- https://github.com/lzt2323/shichuan/releases/tag/v0.6.0 已发布为非预发布的 Latest。Mac arm64 ZIP、Windows x64 安装器、Android arm64 APK、Linux x64 TUI 压缩包，以及签名报告、SHA256SUMS 共六个附件；GitHub API 的六个大小及 SHA-256 与本地产物逐一一致，发布页确认标签指向 e0d795c。
+- https://github.com/lzt2323/pickdrop/releases/tag/v0.6.0 已发布为非预发布的 Latest。Mac arm64 ZIP、Windows x64 安装器、Android arm64 APK、Linux x64 TUI 压缩包，以及签名报告、SHA256SUMS 共六个附件；GitHub API 的六个大小及 SHA-256 与本地产物逐一一致，发布页确认标签指向 e0d795c。
 - Android 使用仓库外专用私钥，v2/v3 签名通过；Mac ad-hoc 签名、未公证，Windows 无可信签名，发布说明及 README 已说明。桌面/Android 正式应用标识与 Preview 隔离，旧数据不删除，首次重新入群。私钥及密码不提交或上传，需用户安全备份。
 - 发布验证：四端重新构建；Node 工具 14、前端 19、Rust 核心/TUI 52、宿主 19 项通过；四尺寸浏览器流程、真实双 Rust 节点文字/512 KiB 文件校验、Linux PTY 验收通过。Mac 首屏及签名、Windows 版本、Android 元数据/签名/扫码保留检查通过。未完成新版四台实机全链路验收。
 - README 按用户指南改为简介、四端动画、功能、四端直接下载、入群与首次文件传输、Linux 使用及常见问题；移除源码编译和架构内容，精简媒体制作说明。核对实际 UI 名称、TUI 菜单、本地资源与锚点；下载地址与已发布附件匹配。保留既有示意动画，不作为实测性能证明。
@@ -231,3 +231,10 @@ Rust-only 整理阶段的工作分支为 `feat/rust-tui`。`b30873b` 是退役�
 - 简介压缩为产品类别、用途与网络条件；保留现有四端动画及单一视频入口。功能采用短标签，四端表格直达已发布 0.6.0 安装包；安装拦截、Preview 旧数据及 Linux 操作折叠展示。使用教程核对实际“创建群组 / 邀请设备 / 申请加入 / 接收文件 / 保存”名称，明确接收后保存并打开的成功结果。README 不包含源码构建、架构、测试记录或媒体制作说明。
 - 公开 Release API 再核对非草稿、非预发布及四个下载 URL；本地资源、内部锚点、全仓库结构与维护链接、git diff --check 通过。重新生成 HTML 审阅稿；沿用已验证的动画，无新媒体产物。本轮未进行浏览器视觉复验，之前 file:// 预览安全策略限制仍不绕过。
 - 仅提交 README 与本状态记录，不推送；下一步由用户审核文案与阅读层次。
+
+## 2026-10-17：仓库改名与主线合并
+
+- 用户批准将现有 GitHub 仓库改名为 lzt2323/pickdrop，并将 release/0.6.0 与 docs/readme-multiplatform-demo 合入 main；仓库改名完成，本地 origin 已更新。采用独立整合 worktree，保留原工作区未提交的 AGENTS.md 与 README_GUIDELINE.md，不清理旧分支或重写历史。
+- 两次显式合并保留完整历史；仅 docs/STATUS.md 与 scripts/README.md 冲突，保留双方新增段落，当前版本以正式版 0.6.0 / Android 6015 为准。README、演示素材和发布配置均进入主线；所有维护文件中的仓库 URL 更新为新地址。
+- 合并后应用源码与 release/0.6.0 无差异；版本、结构/维护链接、前端语法检查与 Node 工具 14 项测试通过，git diff --check 通过。本次不重复原生编译；上一轮原生构建验证仍对应相同产品源码。
+- GitHub 公共 API 确认改名前后 Release ID、六个附件 ID/名称/SHA-256 一致；v0.6.0 标签不移动。完成提交后以正常快进方式推送 main，随后核对远端提交与 README；下一步基于 main 开展后续开发。

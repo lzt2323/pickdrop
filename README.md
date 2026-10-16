@@ -25,12 +25,12 @@
 
 | 平台 | 下载 | 安装方式 |
 | --- | --- | --- |
-| macOS · Apple 芯片 | [下载 Mac 版](https://github.com/lzt2323/shichuan/releases/download/v0.6.0/PickDrop-0.6.0-macOS-arm64.zip) | 解压，将“拾传.app”拖到“应用程序”后打开 |
-| Windows · x64 | [下载安装程序](https://github.com/lzt2323/shichuan/releases/download/v0.6.0/PickDrop-0.6.0-Windows-x64-setup.exe) | 打开安装程序，按向导完成安装 |
-| Android · ARM64 | [下载 APK](https://github.com/lzt2323/shichuan/releases/download/v0.6.0/PickDrop-0.6.0-Android-arm64.apk) | 在手机上打开 APK，按系统提示允许该来源安装 |
-| Linux · x64 | [下载终端版](https://github.com/lzt2323/shichuan/releases/download/v0.6.0/PickDrop-0.6.0-Linux-x64-tui.tar.gz) | 解压，在该目录打开终端并运行 `./pickdrop` |
+| macOS · Apple 芯片 | [下载 Mac 版](https://github.com/lzt2323/pickdrop/releases/download/v0.6.0/PickDrop-0.6.0-macOS-arm64.zip) | 解压，将“拾传.app”拖到“应用程序”后打开 |
+| Windows · x64 | [下载安装程序](https://github.com/lzt2323/pickdrop/releases/download/v0.6.0/PickDrop-0.6.0-Windows-x64-setup.exe) | 打开安装程序，按向导完成安装 |
+| Android · ARM64 | [下载 APK](https://github.com/lzt2323/pickdrop/releases/download/v0.6.0/PickDrop-0.6.0-Android-arm64.apk) | 在手机上打开 APK，按系统提示允许该来源安装 |
+| Linux · x64 | [下载终端版](https://github.com/lzt2323/pickdrop/releases/download/v0.6.0/PickDrop-0.6.0-Linux-x64-tui.tar.gz) | 解压，在该目录打开终端并运行 `./pickdrop` |
 
-Android 需要 7.0 或更新版本；Linux 包已在 Ubuntu 22.04 x64 验证。暂不提供 iPhone、Intel Mac 和 Linux ARM64 安装包。[发布说明与文件校验值](https://github.com/lzt2323/shichuan/releases/tag/v0.6.0)
+Android 需要 7.0 或更新版本；Linux 包已在 Ubuntu 22.04 x64 验证。暂不提供 iPhone、Intel Mac 和 Linux ARM64 安装包。[发布说明与文件校验值](https://github.com/lzt2323/pickdrop/releases/tag/v0.6.0)
 
 <details>
 <summary>首次安装遇到系统提示？</summary>
@@ -89,6 +89,6 @@ Mac、Windows 和 Android 正式版与 Preview 可以同时安装。首次打开
 
 ## 反馈与许可
 
-遇到问题，请在 [Issues](https://github.com/lzt2323/shichuan/issues) 提供系统、应用版本、操作步骤和错误提示，注意去除个人信息。版本更新见 [Releases](https://github.com/lzt2323/shichuan/releases)。
+遇到问题，请在 [Issues](https://github.com/lzt2323/pickdrop/issues) 提供系统、应用版本、操作步骤和错误提示，注意去除个人信息。版本更新见 [Releases](https://github.com/lzt2323/pickdrop/releases)。
 
 拾传采用 [MIT 许可证](LICENSE)。
