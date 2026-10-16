@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>拾传 · 四端互联功能示意</title>
+<style>
+
+*{box-sizing:border-box}
+body{margin:0;
+  background:#e9edf2;
+  color:#20252d;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}
+#viewport{width:100%;
+  overflow:hidden}
+#scene{width:1440px;
+  height:900px;
+  position:relative;
+  transform-origin:top left;
+  background:#f5f5f7;
+  overflow:hidden;
+  padding:52px 64px}
+.brand{display:flex;
+  align-items:center;
+  gap:12px;
+  font-size:24px;
+  font-weight:650}
+.brand img{width:42px;
+  height:42px}
+.tag{position:absolute;
+  right:64px;
+  top:61px;
+  font-size:17px;
+  color:#68686e;
+  letter-spacing:2px}
+h1{font-size:53px;
+  letter-spacing:-2px;
+  margin:30px 0 10px;
+  font-weight:700}
+.intro{font-size:23px;
+  color:#68686e;
+  margin:0}
+.workspace{position:absolute;
+  left:64px;
+  top:253px;
+  width:1312px;
+  height:500px;
+  transform-origin:top left}
+.device{position:absolute;
+  border:1px solid #dfe3e8;
+  border-radius:16px;
+  background:#fff;
+  overflow:hidden;
+  box-shadow:0 14px 35px #152c4510}
+.mac{left:0;
+  top:0;
+  width:480px;
+  height:300px}
+.windows{left:510px;
+  top:0;
+  width:480px;
+  height:300px}
+.android{left:1020px;
+  top:0;
+  width:292px;
+  height:500px;
+  border:5px solid #252a32;
+  border-radius:30px}
+.linux{left:0;
+  top:320px;
+  width:990px;
+  height:180px;
+  background:#202833;
+  color:#e5ebf3;
+  border-color:#202833}
+.bar{height:43px;
+  background:#f9fafb;
+  border-bottom:1px solid #ebedf0;
+  display:flex;
+  align-items:center;
+  padding:0 18px;
+  gap:13px;
+  font-size:16px;
+  font-weight:600}
+.dots{font-size:21px;
+  letter-spacing:1px;
+  color:#bcc5d1}
+.platform{margin-left:auto;
+  color:#68686e;
+  font-weight:500;
+  font-size:14px}
+.group{display:flex;
+  gap:10px;
+  align-items:center;
+  font-size:17px;
+  padding:9px 20px}
+.avatar{width:29px;
+  height:29px;
+  border-radius:10px;
+  background:#eaf3ff;
+  display:grid;
+  place-items:center;
+  color:#0066cc;
+  font-weight:700}
+.online{margin-left:auto;
+  font-size:13px;
+  color:#56836c}
+.content{padding:0 20px}
+.hint{font-size:14px;
+  color:#8a9098;
+  margin-bottom:7px}
+.file{background:#f5f7fa;
+  border:1px solid #e6eaf0;
+  border-radius:11px;
+  padding:10px;
+  display:flex;
+  gap:13px;
+  align-items:center;
+  min-height:68px}
+.fileicon{width:35px;
+  height:42px;
+  background:#e2edff;
+  color:#0066cc;
+  border-radius:5px;
+  display:grid;
+  place-items:center;
+  font-size:11px;
+  font-weight:700}
+.filename{font-size:17px;
+  font-weight:600}
+.state{font-size:13px;
+  color:#68686e;
+  margin-top:5px}
+.status{margin-left:auto;
+  color:#0066cc;
+  font-size:14px;
+  white-space:nowrap}
+.composer{position:absolute;
+  bottom:13px;
+  left:20px;
+  right:20px;
+  border-top:1px solid #edf0f4;
+  padding-top:10px;
+  display:flex;
+  align-items:center;
+  color:#8a9098;
+  font-size:14px;
+  gap:10px}
+.send{margin-left:auto;
+  color:white;
+  background:#0071e3;
+  border-radius:7px;
+  padding:6px 15px}
+.bubble{font-size:15px;
+  background:#eaf3ff;
+  border-radius:10px;
+  padding:10px 13px;
+  display:inline-block;
+  margin-top:12px;
+  color:#15518e}
+.android .bar{height:49px;
+  background:white;
+  font-size:14px}
+.android .group{padding:20px 15px;
+  flex-wrap:wrap}
+.android .online{margin-left:39px}
+.android .content{padding:0 15px}
+.android .file{flex-wrap:wrap;
+  gap:10px}
+.android .filename{font-size:16px}
+.android .status{margin-left:45px}
+.android .bubble{margin-top:22px;
+  font-size:16px}
+.linux .bar{background:#293442;
+  border:0;
+  color:#cbd6e5}
+.linux .platform{color:#b8c4d3}
+.terminal{padding:10px 23px;
+  line-height:1.7;
+  font-family:Menlo,monospace;
+  font-size:15px}
+.terminal .green{color:#a3d7b8}
+.terminal .dim{color:#a2b0c2}
+.terminal .blue{color:#8cbeff}
+.floatfile{position:absolute;
+  left:350px;
+  top:20px;
+  background:white;
+  box-shadow:0 10px 35px #20477433;
+  border:1px solid #9bc4ff;
+  border-radius:12px;
+  padding:16px 20px;
+  color:#0066cc;
+  font-size:20px;
+  z-index:5}
+.focus-note{position:absolute;
+  right:74px;
+  top:360px;
+  width:430px;
+  opacity:0}
+.focus-note strong{display:block;
+  font-size:39px;
+  line-height:1.35;
+  letter-spacing:-1px}
+.focus-note p{font-size:23px;
+  line-height:1.7;
+  color:#68686e}
+.footer{position:absolute;
+  bottom:40px;
+  left:64px;
+  right:64px;
+  display:flex;
+  align-items:center;
+  gap:18px}
+.number{border-radius:50%;
+  width:42px;
+  height:42px;
+  background:#0071e3;
+  color:white;
+  display:grid;
+  place-items:center;
+  font-size:18px}
+.caption{font-size:23px;
+  font-weight:600}
+.steps{margin-left:auto;
+  display:flex;
+  gap:7px}
+.step{height:4px;
+  width:48px;
+  background:#d7dee8;
+  border-radius:2px}
+.step.active{background:#0071e3}
+.progress{height:3px;
+  background:#0071e3;
+  position:absolute;
+  bottom:0;
+  left:0;
+  width:100%;
+  transform-origin:left}
+.controls{display:flex;
+  gap:14px;
+  align-items:center;
+  max-width:900px;
+  margin:20px auto;
+  padding:0 20px}
+button{border:1px solid #c8d0db;
+  background:white;
+  border-radius:7px;
+  padding:10px 16px;
+  font:inherit;
+  color:#20252d;
+  cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid #0071e3;
+  outline-offset:3px}
+input{flex:1;
+  min-width:40px;
+  accent-color:#0071e3}
+.description{max-width:900px;
+  padding:0 20px;
+  margin:0 auto 30px;
+  color:#56616f;
+  line-height:1.7;
+  font-size:14px}
+@media(hover:hover){button:hover{background:#f5f7fa}
+}
+
+</style>
+<div id="viewport"><main id="scene" aria-label="四端互联功能示意动画">
+<div class="brand"><img src="../brand/app-icon.svg" alt="">拾传 <span style="font-weight:400;color:#747d88">/ PickDrop</span></div><div class="tag">功能示意动画 · 非实机录屏</div>
+<h1>一份文件，连接你的每一台设备。</h1><p class="intro">macOS · Windows · Android · Linux 终端　/　同群交流，按需接收。</p>
+<div class="workspace" id="workspace">
+<div class="device mac" id="mac"></div><div class="device windows" id="windows"></div><div class="device android" id="android"></div>
+<div class="device linux" id="linux"><div class="bar"><span class="dots">● ● ●</span>pickdrop<span class="platform">Linux / Rust TUI</span></div><div class="terminal"><div class="dim">四端文件工作台　 ·　 4 台设备</div><div id="terminal-file" class="blue"></div><div id="terminal-reply" class="green"></div><div class="dim">↑↓ 选择　 Enter 确认　 i 发消息</div></div></div>
+<div class="floatfile" id="floatfile">↗　协作清单.txt</div></div>
+<aside class="focus-note" id="focus-note"><strong id="focus-title"></strong><p id="focus-description"></p></aside>
+<div class="footer"><span class="number" id="number">01</span><span class="caption" id="caption"></span><div class="steps" aria-hidden="true"><i class="step"></i><i class="step"></i><i class="step"></i><i class="step"></i></div></div><div class="progress" id="progress"></div>
+</main></div>
+<div class="controls"><button id="play">播放</button><button id="replay">重播</button><input id="seek" aria-label="动画时间" type="range" min="0" max="18" step="0.1" value="0"><output id="time">0 / 18 秒</output></div>
+<p class="description">流程：四端加入同群 → Mac 将文件暂存并确认发送 → 其他设备看到文件卡片，分别确认接收并完成校验 → Android 回复文字。界面经过简化，时间经过压缩；不代表真实传输速度。Linux 使用终端客户端。减少动态效果设置下默认展示最终状态，点击播放可主动观看。</p>
+<script>
+const $ = id => document.getElementById(id);
+for (const [id,label] of [['mac','macOS'],['windows','Windows'],['android','Android']]) {
+  $(id).innerHTML = `<div class="bar"><span class="dots">${id==='android'?'9:41':'● ● ●'}</span><span class="platform">${label}</span></div><div class="group"><span class="avatar">拾</span>四端文件工作台<span class="online">● 4 台设备</span></div><div class="content"><div class="hint">${id==='mac'?'发送给这个群组':'来自 Mac'}</div><div class="file" id="${id}-file"><span class="fileicon">TXT</span><div><div class="filename">协作清单.txt</div><div class="state" id="${id}-state"></div></div><span class="status" id="${id}-status"></span></div><div class="bubble" id="${id}-reply">${id==='android'?'我：':'Android：'}收到了，手机上也能看。</div></div><div class="composer"><span id="${id}-draft">输入消息…</span><span class="send" id="${id}-send">发送</span></div>`;
+}
+const clamp = value => Math.max(0, Math.min(1, value));
+// Browser-native easing supplies the same deterministic curve for preview and export.
+const zoom = $('workspace').animate([{transform:'scale(1)'},{transform:'scale(1.7)'}],{duration:500,easing:'cubic-bezier(0.23,1,0.32,1)',fill:'both'});zoom.pause();
+function reveal(id, amount) { const el=$(id);el.style.opacity=amount;el.style.transform=`translateY(${(1-amount)*8}px)`; }
+let current = 0;
+let playing = false;
+let last = 0;
+let animationFrame = 0;
+window.renderFrame = function(seconds) {
+ current=Math.max(0,Math.min(18,seconds));const t=current;
+ const focus=clamp((t-3)/.5)*(1-clamp((t-6.5)/.5));zoom.currentTime=focus*500;
+ for(const id of ['windows','android','linux']) $(id).style.opacity=1-focus;
+ $('focus-note').style.opacity=focus;
+ $('focus-title').textContent=t<5.6?'先暂存，再确认。':'发送到指定群组。';
+ $('focus-description').textContent=t<5.6?'拖入文件只是准备草稿，\n发送由你决定。':'文件消息发布后，\n其他设备可以按需接收。';
+ reveal('floatfile',clamp((t-3.4)/.25)*(1-clamp((t-4.3)/.25)));
+ $('floatfile').style.transform=`translate(${-190*clamp((t-3.4)/.8)}px,${105*clamp((t-3.4)/.8)}px)`;
+ for(const id of ['mac','windows','android']) {
+ const sender=id==='mac', available=sender?4.3:7.2;
+ reveal(`${id}-file`,clamp((t-available)/.25));
+ $(`${id}-state`).textContent=sender?(t<5.6?'待发送草稿':'文件消息已发布'):(t<9?'等待接收':t<11?'下载与校验中':'已保存到此设备');
+ $(`${id}-status`).textContent=sender?(t<5.6?'待确认':'已发送'):(t<9?'接收':t<11?'◌':'✓');
+ reveal(`${id}-reply`,clamp((t-(id==='android'?12.5:13.3))/.25));
+ $(`${id}-draft`).textContent=sender&&t>=4.3&&t<5.6?'1 个文件待发送':'输入消息…';
+ $(`${id}-send`).style.transform=sender&&t>=5.3&&t<5.6?'scale(.94)':'scale(1)';
+ }
+ $('terminal-file').textContent=t<7.2?'等待群内消息…':t<9?'› 协作清单.txt　 [Enter 接收]':t<11?'› 协作清单.txt　 下载与校验中…':'✓ 协作清单.txt　 已保存 · SHA-256 校验通过';
+ $('terminal-reply').textContent=t>=13.3?'Android › 收到了，手机上也能看。':'';
+ const chapter=t<3?0:t<7?1:t<12?2:3;
+ $('number').textContent=`0${chapter+1}`;
+ $('caption').textContent=['四台设备，加入同一个群。','拖入暂存，确认后发送。',t<9?'文件消息同步到其他设备。':t<11?'各端确认接收，下载并校验。':'接收完成，文件保存在各端。','手机回复，电脑和终端都能看到。'][chapter];
+ document.querySelectorAll('.step').forEach((el,i)=>el.classList.toggle('active',i===chapter));
+ $('progress').style.transform=`scaleX(${t/18})`;$('seek').value=t;$('time').textContent=`${t.toFixed(1)} / 18 秒`;
+};
+function setPlaying(value) {
+  cancelAnimationFrame(animationFrame);
+  playing = value;
+  last = 0;
+  $('play').textContent = playing ? '暂停' : '播放';
+  if (playing) animationFrame = requestAnimationFrame(tick);
+}
+function tick(now) {
+  if (!playing) return;
+  if (last) renderFrame(current + (now - last) / 1000);
+  last = now;
+  if (current >= 18) setPlaying(false);
+  else animationFrame = requestAnimationFrame(tick);
+}
+$('play').onclick=()=>{if(current>=18)renderFrame(0);setPlaying(!playing);};
+$('replay').onclick=()=>{renderFrame(0);if(!playing)setPlaying(true);};
+$('seek').oninput=()=>{setPlaying(false);renderFrame(Number($('seek').value));};
+function resize(){const scale=Math.min(1,innerWidth/1440);$('scene').style.transform=`scale(${scale})`;$('viewport').style.height=`${900*scale}px`;}
+addEventListener('resize',resize);resize();
+renderFrame(matchMedia('(prefers-reduced-motion: reduce)').matches?18:0);
+</script>
+</html>

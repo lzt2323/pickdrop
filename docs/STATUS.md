@@ -1,6 +1,6 @@
 # 当前工程状态
 
-更新日期：2026-10-16。开发版本：`0.6.0-alpha.8`，Android `versionCode: 6007`。主线为 Rust 核心、Tauri 与 Rust TUI；目标与边界见 [PROJECT.md](PROJECT.md)，版本及回退见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
+更新日期：2026-10-17。开发版本：`0.6.0-alpha.15`，Android `versionCode: 6014`。主线为 Rust 核心、Tauri 与 Rust TUI；目标与边界见 [PROJECT.md](PROJECT.md)，版本及回退见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
 
 ## 已完成
 
@@ -22,7 +22,7 @@
 
 ## 版本管理
 
-当前工作分支为 `feat/rust-tui`。`b30873b` 是退役前完整源码回退点，`8bd412c` 完成 Rust-only 退役与 alpha.2 版本更新。本轮按宿主、核心、前端与文档分别提交，具体提交以 git log 为准。没有推送、合并、创建标签或发布安装包。
+Rust-only 整理阶段的工作分支为 `feat/rust-tui`。`b30873b` 是退役前完整源码回退点，`8bd412c` 完成 Rust-only 退役与 alpha.2 版本更新。本轮按宿主、核心、前端与文档分别提交，具体提交以 git log 为准。没有推送、合并、创建标签或发布安装包。
 
 工作开始前已有的 AGENTS.md 修改保持原样，未纳入本轮提交。需要旧程序时在独立 worktree 检出回退提交；不要覆盖当前工作区或让旧版读取新版数据。
 
@@ -195,3 +195,13 @@
 - 前端 19 项单元测试、320/360/390/1024px 浏览器完整流程、文件/窗口回归、6 种卡片布局检查通过；进度数值、取消/重试和完成隐藏仍验证，结构/链接、前端语法、版本一致性及 diff 检查通过。本轮仅调整呈现与取消点击区域，未重跑上一轮真实节点链路或宣称新吞吐量基准。
 - Mac 与 Windows 已构建、覆盖安装并启动 alpha.15。Mac 签名校验和构建/安装 SHA-256 一致，6 个数据文件及 1 个缓存条目保留；Windows 在登录桌面 Session 1 运行、响应正常，7 个数据/缓存条目保留，安装二进制与预期 NSIS 包类型标记一致。255 个非 Markdown 输入逐文件核对，安装包哈希核对。沿用既有 Windows Node 22 构建环境的引擎提示，不在此布局任务中升级工具链。
 - 源码 alpha.15 / Android 源码 6014，手机及 Linux TUI 不重装；安装包归 .build/release/assets，报告、安装回执及 6 尺寸预览归 .build/reports/compact-file-progress，完整浏览器截图仍归 tauri-frontend。没有清理真实数据；原有 AGENTS.md 改动保留。不推送、合并、打标签或发布。下一步由用户观察新版卡片右下角的实际显示效果。
+
+
+## 2026-10-17：README 与四端功能示意动画
+
+- 在 `docs/readme-multiplatform-demo` 完成 README 全文重排：用途、四端动画、功能、平台与版本、源码启动、首次入群与文件接收、更多用法、边界、贡献和许可证。明确 Linux 为 Rust TUI、iOS 未完成验收；2026-10-17 查询公开 Releases 最新为历史 v0.5.1，不冒充当前 alpha.15 的下载入口。
+- 按用户选择采用 HTML 功能示意，暂停四端实机录制路线。`assets/readme/demo.html` 提供 18 秒可暂停、重播和拖动时间轴的动画；聚焦 Mac 草稿与发送，再呈现 Windows、Android、Linux 主动接收与手机回复。持续标明“非实机录屏”，不展示真实设备地址、私有记录或虚构速率。
+- 已输出 README GIF（960×600 / 10 fps，约 1.3 MB）、MP4（1440×900 / 20 fps，约 466 KB）和静态图。`scripts/render-readme-demo.mjs` 使用既有 Playwright、外部 FFmpeg 固定时间采帧；无需新增产品依赖，中间帧与预览仅存忽略目录 `.build/reports/readme-demo/`。制作说明在 assets/readme/README.md。
+- 为用户提供的 `docs/README_GUIDELINE.md` 添加精确目录允许项并覆盖原有结构接受测试；该指南内容与原有 AGENTS.md 修改保持原样，不纳入本次提交。文档导航补充长期维护的演示资产职责。
+- 验证通过：7 个分镜时间点截图与排布检查；草稿/接收状态、播放/暂停/重播、390px 无横向溢出、减少动态效果默认静态终态、浏览器无页面异常。MP4 全部 360 帧解码，GIF 全部 180 帧解码，均为 18 秒。README 本地 Markdown 预览在 1100px 与 390px 检查图片加载及横向边界；本地链接、图片和内部锚点通过。此预览不是 GitHub 线上渲染验收。
+- 结构回归 10 项、全仓库结构/维护文档链接、版本一致性与 diff 检查通过。没有修改产品业务代码，未重跑原生构建或将示意动画声称为真实四端验收。未推送、合并或发布；下一步可审阅文案与动画，真实四端验收保持独立待办。

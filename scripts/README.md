@@ -21,3 +21,7 @@
 Electron、Expo、Node TUI 的构建、验收与旧资源生成脚本已退役；品牌素材本身保留。CI 与发布只调用当前工具。`test-rust-tui.py` 通过真实 PTY 和两个生产 Rust 进程验证终端、审批、消息、文件哈希及重启，输出到 .build/reports/rust-tui。
 
 浏览器截图与报告统一保存到仓库根 `.build/reports/`，发布流水线输入与安装包汇总使用 `.build/release/`。既有输出备份位于 `.build/history/`，不作为当前验收结果。
+
+## README 示意动画
+
+`node scripts/render-readme-demo.mjs` 从 `assets/readme/demo.html` 的固定时间轴生成 GIF、MP4 和静态图。需要仓库 Playwright Chromium 与 FFmpeg（可用 `FFMPEG` 指定路径）；中间帧放在忽略的 `.build/reports/readme-demo/frames/`。分镜、尺寸与重现步骤见 [制作说明](../assets/readme/README.md)。此脚本不连接真实设备。
