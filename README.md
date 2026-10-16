@@ -30,6 +30,13 @@
 | Android · ARM64 | [下载 APK](https://github.com/lzt2323/pickdrop/releases/download/v0.6.0/PickDrop-0.6.0-Android-arm64.apk) | 在手机上打开 APK，按系统提示允许该来源安装 |
 | Linux · x64 | [下载终端版](https://github.com/lzt2323/pickdrop/releases/download/v0.6.0/PickDrop-0.6.0-Linux-x64-tui.tar.gz) | 解压，在该目录打开终端并运行 `./pickdrop` |
 
+> [!TIP]
+> Linux 也可以一键安装：
+> ```sh
+> curl -fsSL https://raw.githubusercontent.com/lzt2323/pickdrop/main/scripts/install-linux.sh | sh
+> ```
+> 默认安装到 `~/.local/bin/pickdrop`。指定安装目录时，将命令末尾的 `sh` 改为 `sh -s -- --install-dir "$HOME/apps"`。
+
 Android 需要 7.0 或更新版本；Linux 包已在 Ubuntu 22.04 x64 验证。暂不提供 iPhone、Intel Mac 和 Linux ARM64 安装包。[发布说明与文件校验值](https://github.com/lzt2323/pickdrop/releases/tag/v0.6.0)
 
 <details>
@@ -45,18 +52,6 @@ Mac 包尚未经过 Apple 公证，Windows 包没有可信发布者签名，系�
 Mac、Windows 和 Android 正式版与 Preview 可以同时安装。首次打开正式版需要重新入群，旧聊天记录仍在旧应用中，不会自动迁移。请保留旧应用和数据，先保存需要的文件。
 
 </details>
-
-### Linux：一键安装或手动下载
-
-**方式一 · 一键安装**（Linux x64，glibc 2.35+，如 Ubuntu 22.04）：
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/lzt2323/pickdrop/main/scripts/install-linux.sh | sh
-```
-
-需要 `curl`、`tar` 和 `sha256sum`。脚本下载并校验 v0.6.0，安装到 `~/.local/bin/pickdrop`，无需 `sudo`，不会修改聊天记录或文件。安装后运行 `pickdrop`；若提示找不到命令，可运行 `~/.local/bin/pickdrop`。重复执行会重装脚本指定的正式版本；后续发布升级版时会同步更新脚本。
-
-**方式二 · 手动安装**：下载上表中的 Linux 压缩包，解压后在该目录运行 `./pickdrop`。适合离线传入安装包或自行选择存放位置；可对照 [SHA256SUMS.txt](https://github.com/lzt2323/pickdrop/releases/download/v0.6.0/SHA256SUMS.txt) 检查下载文件。
 
 ## 开始使用
 

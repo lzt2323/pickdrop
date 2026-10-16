@@ -45,8 +45,8 @@ class InstallerTest(unittest.TestCase):
         p.write_text('#!/bin/sh\n' + body + '\n')
         p.chmod(0o755)
 
-    def run_install(self):
-        return subprocess.run(['sh', str(self.script)], env=self.env, capture_output=True, text=True)
+    def run_install(self, *args):
+        return subprocess.run(['sh', str(self.script), *args], env=self.env, capture_output=True, text=True)
 
     def existing(self):
         self.target.parent.mkdir(parents=True)
@@ -62,6 +62,35 @@ class InstallerTest(unittest.TestCase):
             self.assertTrue(os.access(self.target, os.X_OK))
             self.assertEqual(data.read_text(), 'keep me')
         self.assertEqual(list(self.target.parent.glob('.pickdrop-install.*')), [])
+
+    def test_custom_directory_through_stdin(self):
+        destination = self.root / 'custom apps'
+        self.env.pop('HOME')
+        for _ in range(2):
+            result = subprocess.run(
+                ['sh', '-s', '--', '--install-dir', str(destination)],
+                input=self.script.read_text(), env=self.env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(os.access(destination / 'pickdrop', os.X_OK))
+            self.assertIn(str(destination), result.stdout)
+        self.assertFalse(self.target.exists())
+        self.assertEqual(list(destination.glob('.pickdrop-install.*')), [])
+
+    def test_invalid_arguments_preserve_existing(self):
+        self.existing()
+        for args in [('--install-dir',), ('--install-dir', ''),
+                     ('--install-dir', 'relative/path'), ('--unknown',)]:
+            with self.subTest(args=args):
+                result = self.run_install(*args)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('拾传安装失败', result.stderr)
+                self.assertEqual(self.target.read_text(), 'old version')
+
+    def test_help_does_not_install(self):
+        result = self.run_install('--help')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('--install-dir', result.stdout)
+        self.assertFalse(self.target.exists())
 
     def test_checksum_failure_preserves_existing(self):
         self.existing()

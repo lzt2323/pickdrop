@@ -34,8 +34,8 @@ Electron、Expo、Node TUI 的构建、验收与旧资源生成脚本已退役�
 
 ## Linux 用户安装器
 
-`install-linux.sh` 支持 Linux x64 / glibc 2.35+，固定发布版本及经核实的 SHA-256；校验通过后仅提取程序，以同目录临时文件原子替换 `~/.local/bin/pickdrop`。不要求 sudo、不改 shell 配置或用户数据。发布新版本时一并更新脚本版本、文件名、摘要和 README；不随意切换到未验证的 latest 资产。
+`install-linux.sh` 支持 Linux x64 / glibc 2.35+，固定发布版本及经核实的 SHA-256；校验通过后仅提取程序，以同目录临时文件原子替换 `~/.local/bin/pickdrop`。可通过 `--install-dir /绝对路径` 指定目录（支持空格），启动提示会使用实际安装位置。不要求 sudo、不改 shell 配置或用户数据。发布新版本时一并更新脚本版本、文件名、摘要和 README；不随意切换到未验证的 latest 资产。
 
-Linux 下运行 `python3 tests/test_linux_installer.py`，覆盖安装/重复运行、数据保留、损坏下载、网络失败、不支持的平台及已有符号链接；CI 同步执行。
+Linux 下运行 `python3 tests/test_linux_installer.py`，覆盖默认及自定义目录安装/重复运行、标准输入参数传递、无效参数、帮助信息、数据保留、损坏下载、网络失败、不支持的平台及已有符号链接；CI 同步执行。
 
 `render-readme-onboarding.py` 将已授权采集的真实 Mac/Android 页面截图合成为首次入群教程；原图不提交。输入、脱敏和输出说明见 [README 媒体](../assets/readme/README.md)。
