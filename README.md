@@ -1,130 +1,86 @@
 <div align="center">
   <img src="assets/brand/app-icon.png" width="80" height="80" alt="拾传 Logo">
   <h1>拾传 · PickDrop</h1>
-  <p><strong>像聊天一样，在你的设备之间传文字和文件。</strong></p>
+  <p><strong>像聊天一样，在电脑、手机和服务器之间传文件。</strong></p>
   <p>macOS · Windows · Android · Linux 终端</p>
-  <p><a href="#快速开始">快速开始</a> · <a href="crates/pickdrop-tui/README.md">Linux TUI</a> · <a href="docs/README.md">文档</a> · <a href="CONTRIBUTING.md">参与开发</a></p>
+  <p><a href="#下载安装">下载安装</a> · <a href="#开始使用">开始使用</a> · <a href="#常见问题">常见问题</a></p>
 </div>
 
-把电脑、手机和 Linux 终端加入同一个群：从 Mac 发一份文件，在 Windows 或手机上接收，也可以把服务器上的文件直接发到群里。文字和历史保存在本地，文件由接收端按需下载。
+拾传是一款局域网文件传输工具，支持在电脑、手机和 Linux 终端之间发送文件与文字。把常用设备加入同一个群，随时传递资料、照片和消息。
 
-[![四端互联功能示意：Mac 暂存并确认发送文件，Windows、Android 和 Linux 分别接收，Android 回复文字。](assets/readme/demo.gif)](assets/readme/demo.mp4)
+[![四端互联示意：Mac 暂存并发送文件，Windows、Android 和 Linux 接收，手机回复文字。](assets/readme/demo.gif)](assets/readme/demo.mp4)
 
-<p align="center"><a href="assets/readme/demo.mp4">观看清晰版视频 · 18 秒</a> · <a href="assets/readme/poster.png">查看静态图</a> · <a href="assets/readme/README.md">动画源码与制作说明</a></p>
+<p align="center"><a href="assets/readme/demo.mp4">观看视频 · 18 秒</a></p>
 
-> **功能示意动画，非实机录屏。** 界面经过简化，时间经过压缩，不代表实测速度。流程为：加入同群 → 文件暂存 → 确认发送 → 各端确认接收、下载并校验 → 手机回复文字。Linux 展示的是终端客户端。
+## 让设备之间的传递更顺手
 
-## 可以用它做什么
+- **群组互传**：文件和文字放在同一个群，发资料时也可以附上一句说明。
+- **确认发送**：选择文件、拖入窗口或粘贴图片后，确认目标群组再发送。
+- **按需接收**：在需要的设备上下载文件，接收后可打开、另存或分享。
+- **多端使用**：桌面窗口可固定或贴边收起；手机全屏使用；Linux 可以通过 SSH 操作。
 
-- **把多台设备当作一个收件箱。** 文字、图片和文件在同一个群里交流；不同场景可以建立不同群组。
-- **确认之后再发送。** 选择、拖入或粘贴的附件先进入草稿。确认发送后才发布文件消息，发送期间切群不会改变目标。
-- **在需要的设备上接收。** 查看传输状态，下载后校验文件大小与 SHA-256，再打开、另存为或交给系统分享。
-- **让窗口适应你的工作。** 桌面支持固定窗口、贴边收起和恢复；手机使用全屏界面；Linux 使用键盘操作，无需图形桌面。
+## 下载安装
 
-## 平台与版本
+**当前版本：v0.6.0。** 在需要互传的设备上分别安装对应版本，无需安装开发工具。
 
-当前源码为 **0.6.0-alpha.15**，处于 Rust / Tauri 迁移预览阶段。以下是当前主线的实现范围，具体平台验收记录见 [工程状态](docs/STATUS.md)。
-
-| 平台 | 客户端 | 获取与运行 |
+| 设备 | 下载 | 安装方式 |
 | --- | --- | --- |
-| macOS | Tauri 桌面应用 | 从源码运行或构建桌面预览包 |
-| Windows | Tauri 桌面应用 | 从源码运行或构建 NSIS 安装包 |
-| Android | Tauri 手机应用 | 从源码运行或构建 ARM64 APK |
-| Linux | Rust TUI 终端客户端 | Cargo 构建；可通过 SSH 操作 |
-| iOS | 保留工程入口 | 构建、签名及真机验收未完成；暂不作为可用版本推荐 |
+| Mac · Apple 芯片 | [下载 ZIP](https://github.com/lzt2323/shichuan/releases/download/v0.6.0/PickDrop-0.6.0-macOS-arm64.zip) | 解压，将“拾传.app”拖到“应用程序”，然后打开 |
+| Windows · x64 | [下载安装程序](https://github.com/lzt2323/shichuan/releases/download/v0.6.0/PickDrop-0.6.0-Windows-x64-setup.exe) | 双击安装程序，按向导完成安装 |
+| Android · ARM64 | [下载 APK](https://github.com/lzt2323/shichuan/releases/download/v0.6.0/PickDrop-0.6.0-Android-arm64.apk) | 在手机上打开 APK，按系统提示允许该来源安装 |
+| Linux · x64 | [下载终端版](https://github.com/lzt2323/shichuan/releases/download/v0.6.0/PickDrop-0.6.0-Linux-x64-tui.tar.gz) | 解压后在该目录打开终端，运行 `./pickdrop` |
 
-**下载前请确认版本：** 截至 2026-10-17，[公开 Releases](https://github.com/lzt2323/shichuan/releases) 最新为历史版本 `v0.5.1`，不对应本页的当前预览实现。体验当前主线请按下面的源码步骤启动；CI 构建产物不等于已经发布的安装包。
+[全部下载与更新说明](https://github.com/lzt2323/shichuan/releases/tag/v0.6.0) · [文件校验值](https://github.com/lzt2323/shichuan/releases/download/v0.6.0/SHA256SUMS.txt)
 
-## 快速开始
+Android 需要 7.0 或更新版本；Linux 包已在 Ubuntu 22.04 x64 验证。当前没有 iPhone、Intel Mac 或 Linux ARM64 安装包。
 
-### 1. 启动客户端
+**首次安装提示：** Mac 包尚未经过 Apple 公证，Windows 包没有可信发布者签名，系统可能提示未知开发者或阻止打开。请确认文件来自上面的项目 Release；Mac 可在“系统设置 → 隐私与安全性”查看该应用的打开选项，Windows 可在提示中查看“更多信息”。Android 包使用项目专用密钥签名，不需要开启开发者调试。
 
-**macOS / Windows**：准备 Git、Node.js 24 或更新版本、`pnpm 11.19.0`、仓库指定的 Rust 工具链，以及 [Tauri 对应系统的构建依赖](https://v2.tauri.app/start/prerequisites/)。这些是开发环境依赖，安装后的应用不需要 Node 服务。
+**用过预览版？** Mac、Windows 和 Android 的 v0.6.0 与“拾传 Preview”可以同时安装。首次打开正式版需要重新加入群，旧聊天记录仍在旧应用中，不会自动搬过来；请保留旧应用和数据，确认需要的文件已保存后再自行整理。
 
-```sh
-git clone https://github.com/lzt2323/shichuan.git
-cd shichuan
-pnpm install --frozen-lockfile
-pnpm start
-```
+## 开始使用
 
-成功启动后会打开拾传预览窗口。Rust 版本由仓库的 `rust-toolchain.toml` 指定，首次构建需要下载依赖。
+### 1. 让两台设备连上同一个网络
 
-**Android**：在同一源码目录完成依赖安装，准备 JDK 17、SDK 36、NDK `27.2.12479018`，连接已授权 USB 调试的手机，然后运行：
+电脑和手机连接同一个可信 Wi-Fi，或使用彼此可访问的局域网。打开两端拾传，先让手机保持在前台。首次出现局域网访问提示时允许访问；电脑防火墙需允许拾传在可信网络中通信。
 
-```sh
-pnpm tauri:android:init
-pnpm mobile:start
-```
+### 2. 创建群，邀请另一台设备
 
-**Linux 终端**：准备 Git 和 Rust 工具链，克隆仓库后在仓库根目录运行；仅构建 TUI 不需要 Node 或图形桌面。
+1. 在第一台设备点击 **创建群组**，给群起名，例如“我的设备”。
+2. 打开 **邀请设备**，显示邀请二维码，也可选择 **复制邀请链接**。
+3. 在第二台设备点击 **加入群组**，粘贴邀请链接；Android 也可点击 **扫描二维码**。使用邀请码时，需同时填写第一台设备的地址与端口。
+4. 点击 **申请加入**，回到第一台设备批准申请。
+5. 在群里发送一句“你好”，确认另一端也能看到。
 
-```sh
-cargo build --release -p pickdrop-tui --locked
-./target/release/pickdrop --data-dir "$HOME/.local/share/pickdrop"
-```
+### 3. 发送并接收第一个文件
 
-成功启动后进入终端菜单。方向键选择，Enter 确认，`i` 输入文字，Ctrl+C 退出。文件路径属于运行 TUI 的机器；通过 SSH 使用时分配 TTY（`ssh -t`）。详见 [TUI 使用说明](crates/pickdrop-tui/README.md)。
+1. 在电脑上拖入一个小文件，或使用文件选择入口；手机也可以选择文件。
+2. 文件先进入草稿。确认当前群组，再点击 **发送**。
+3. 在另一台设备点击文件卡片的接收或保存操作，等待下载和校验完成。
+4. 打开保存的文件，确认内容正确。
 
-### 2. 将两台设备加入同群
+**另一台设备已经保存并能打开文件，就完成了第一次传输。** “已发送”表示文件消息已经发布，接收端仍需要主动下载。接收完成前，请保持持有文件的设备在线。
 
-1. 让两台设备接入可互通的可信局域网，并保持客户端运行。
-2. 在第一台设备创建群组，从邀请入口取得邀请链接或邀请码。
-3. 在第二台设备加入该群，回到第一台设备批准加入申请。
-4. 在群内发送一条文字，确认另一台设备也能看到。
+### Linux 终端怎么操作
 
-### 3. 完成第一次文件传输
+在解压目录运行 `./pickdrop` 后，用 **↑ / ↓** 选择菜单，**Enter** 确认，**Esc** 返回，**i** 输入文字，**Ctrl+C** 退出。
 
-1. 在发送端选择一个小文件。桌面也可以直接拖入窗口；文件先出现在待发草稿中。
-2. 确认当前群组，点击发送。TUI 从「发送文件」暂存，再到「传输 / 草稿」确认发送。
-3. 在另一台设备打开文件消息，选择接收或保存位置，等待下载与校验完成。
-4. 打开接收后的文件，检查内容。
+从「邀请 / 加入」进入同一个群；发送文件时先在「发送文件」中暂存，再到「传输 / 草稿」确认发送。接收时在「群内文件」选择文件并确认保存路径。通过 SSH 操作时，看到和保存的文件都在服务器上。
 
-**完成标志：接收端已经保存并能打开文件。** 发送端显示已发送，表示文件消息已发布，不等于其他设备已下载。下载期间请保持发送端运行，且至少有一个文件副本可达。
+## 常见问题
 
-## 更多用法
+**找不到设备，或一直连不上？** 先确认双方客户端都在运行、处于同一可互通网络，并已批准入群。访客 Wi-Fi 的设备隔离、VPN 或防火墙可能阻止连接；同一个 Wi-Fi 名称不一定代表设备能互相访问。已加入同群时，可以在设备连接入口尝试手动填写对方地址。
 
-| 你想做的事 | 入口或说明 |
-| --- | --- |
-| 建立多个传输场景 | 创建不同群组，在群列表中切换；发送前确认目标 |
-| 从手机其他应用分享文件 | Android 系统分享中选择拾传，进入草稿后确认发送 |
-| 找不到同群设备 | 检查局域网、应用监听地址及防火墙；在设备连接入口尝试手动填写同群设备地址 |
-| 在 Linux 上选择文件与保存目录 | [TUI 菜单、按键、监听设置与保存路径](crates/pickdrop-tui/README.md) |
-| 导入旧桌面数据或回退 | [显式导入与迁移说明](docs/tauri-migration.md)；源数据不改写 |
-| 构建安装包、运行测试 | [开发命令](scripts/README.md)与[贡献指南](CONTRIBUTING.md) |
+**看到了文件消息，为什么还接收不了？** 文件没有存到云端。需要至少一台持有文件副本的设备在线，并允许接收端连接；发送端退出、缓存被清理或网络被阻断，都可能使下载失败。恢复连接后可重试。
 
-## 当前边界
+**手机锁屏后还能继续传吗？** 不保证后台长期在线。传输时建议保持拾传在前台，完成后再离开。
 
-拾传面向**可信局域网内的个人多设备和小范围协作**。设备发现使用 mDNS 等本地发现机制；跨网段需要自行保证路由和文件服务可达。能够 SSH 登录不等于文件传输端口可达。
+**可以给不同场景建立不同群吗？** 可以。例如分别建立“我的设备”和“临时协作”；发送前检查当前群组。已开始的发送不会因为切群而改变目标。
 
-- 当前协议有设备签名，**没有 TLS 或端到端加密**，不适合直接暴露到不可信网络。
-- 没有云中继、云备份或断点续传，也不保证离线送达、手机后台长期在线。
-- 接收由用户主动触发，不会自动下载群里的全部文件；只有消息同步成功不能证明文件下载方向可达。
-- iOS 外部分享接收扩展尚未迁移，构建签名和真机能力仍待验证。
-- 当前应用使用预览标识 `app.pickdrop.tauri.preview` 和隔离数据目录。升级、导入旧数据前请阅读迁移说明。
+**能在公网或不可信 Wi-Fi 上传敏感文件吗？** 当前没有 TLS 或端到端加密，只适合可信局域网；也没有云中继、云备份或断点续传。
 
-## 开发与贡献
+## 反馈与许可
 
-当前主线采用 **共享 Rust 核心 + Tauri 2 客户端 + Rust TUI**。Electron、Expo、Node 服务和旧 Node TUI 已从当前分支退役，历史实现可通过 Git 历史追溯。
+遇到问题可在 [Issues](https://github.com/lzt2323/shichuan/issues) 告诉我们你的设备系统、应用版本、操作步骤和错误提示，请先去除个人信息。更新内容见 [Releases](https://github.com/lzt2323/shichuan/releases)。
 
-| 目录 | 职责 |
-| --- | --- |
-| [`crates/pickdrop-core/`](crates/pickdrop-core) | 群组、身份、消息同步、文件与协议 |
-| [`apps/tauri/`](apps/tauri) | 桌面和手机界面、原生系统适配 |
-| [`crates/pickdrop-tui/`](crates/pickdrop-tui) | Linux 终端交互与文件操作 |
-| [`assets/readme/`](assets/readme) | 本页示意动画、视频与可复现源码 |
-
-提交改动前请阅读 [贡献指南](CONTRIBUTING.md)，按改动范围运行检查。基础入口：
-
-```sh
-pnpm check
-pnpm version:check
-pnpm test
-cargo test -p pickdrop-core -p pickdrop-tui --locked
-```
-
-浏览器测试不能代替原生文件提供商、系统分享、手机前后台与桌面窗口的真机验收。完整验证要求见贡献指南。
-
-遇到问题请在 [Issues](https://github.com/lzt2323/shichuan/issues) 提供系统、应用版本、复现步骤和去除隐私的错误信息。项目目标见 [PROJECT.md](docs/PROJECT.md)，待办和验证记录见 [STATUS.md](docs/STATUS.md)，本次开发版本变更见 [alpha.15 说明](docs/releases/v0.6.0-alpha.15.md)。
-
-采用 [MIT 许可证](LICENSE)。
+拾传采用 [MIT 许可证](LICENSE)。
