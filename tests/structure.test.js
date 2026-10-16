@@ -9,6 +9,7 @@ function check(contents) {
 test('structure accepts domain dependencies and maintained documentation', () => {
   assert.deepEqual(check({
     'README.md': '[Project](docs/PROJECT.md)', 'docs/PROJECT.md': 'Project',
+    'docs/README_GUIDELINE.md': 'README authoring guide',
     'apps/tauri/src/main.js': "import { model } from './model.js';",
     'apps/tauri/src/model.js': 'export const model = {};',
   }), []);

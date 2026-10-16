@@ -14,7 +14,7 @@ const rootDirectories = new Set([
 ]);
 const documentEntries = new Set([
   'README.md', 'PROJECT.md', 'STATUS.md', 'DECISIONS.md', 'tauri-migration.md',
-  'android-emulator.md',
+  'android-emulator.md', 'README_GUIDELINE.md',
 ]);
 const documentDirectories = new Set(['releases']);
 const frontend = 'apps/tauri/src/';

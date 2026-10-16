@@ -22,7 +22,7 @@
 
 ## 版本管理
 
-当前工作分支为 `feat/rust-tui`。`b30873b` 是退役前完整源码回退点，`8bd412c` 完成 Rust-only 退役与 alpha.2 版本更新。本轮按宿主、核心、前端与文档分别提交，具体提交以 git log 为准。没有推送、合并、创建标签或发布安装包。
+Rust-only 整理阶段的工作分支为 `feat/rust-tui`。`b30873b` 是退役前完整源码回退点，`8bd412c` 完成 Rust-only 退役与 alpha.2 版本更新。本轮按宿主、核心、前端与文档分别提交，具体提交以 git log 为准。没有推送、合并、创建标签或发布安装包。
 
 工作开始前已有的 AGENTS.md 修改保持原样，未纳入本轮提交。需要旧程序时在独立 worktree 检出回退提交；不要覆盖当前工作区或让旧版读取新版数据。
 
@@ -205,3 +205,29 @@
 - Mac arm64、Windows x64、Android arm64、Linux x64 均从相同产品源码重新构建。Mac codesign --verify --deep --strict 通过且正式应用首屏加载；Windows 包与主程序版本 0.6.0，Authenticode 为 NotSigned；Linux 在 Ubuntu 22.04 构建并通过终端和双节点真实文件 SHA-256 验收。Mac 使用 ad-hoc 且未公证，Windows 无可信证书；这是用户确认的 GitHub 直接下载发行方式，不声称平台认证。
 - Node 工具 14 项、前端单元 19 项、Rust 核心/TUI 完整测试、宿主 19 项、四尺寸浏览器 smoke 与真实双 Rust 节点前端验收通过。首次 Android 构建因两套 SDK 环境变量不一致失败，统一后重建通过；首次 runtime 测试因独立 worktree 下缺少 target 路径失败，映射共享编译目录后通过，映射仅用于本地验收且已移除。没有把这些失败记为通过，也没有声称新版四个实机之间已经完成全链路验收。
 - 安装包与 SHA256SUMS.txt、ANDROID-SIGNATURE.txt 放在忽略的 .build/release/0.6.0；无私钥、口令或用户数据。待上传后记录线上校验结果。下一步为发布 Release，随后仅在本地重写并预览 README，等待用户审阅。
+
+## 2026-10-17：README 与四端功能示意动画
+
+- 在 `docs/readme-multiplatform-demo` 完成 README 全文重排：用途、四端动画、功能、平台与版本、源码启动、首次入群与文件接收、更多用法、边界、贡献和许可证。明确 Linux 为 Rust TUI、iOS 未完成验收；2026-10-17 查询公开 Releases 最新为历史 v0.5.1，不冒充当前 alpha.15 的下载入口。
+- 按用户选择采用 HTML 功能示意，暂停四端实机录制路线。`assets/readme/demo.html` 提供 18 秒可暂停、重播和拖动时间轴的动画；聚焦 Mac 草稿与发送，再呈现 Windows、Android、Linux 主动接收与手机回复。持续标明“非实机录屏”，不展示真实设备地址、私有记录或虚构速率。
+- 已输出 README GIF（960×600 / 10 fps，约 1.3 MB）、MP4（1440×900 / 20 fps，约 466 KB）和静态图。`scripts/render-readme-demo.mjs` 使用既有 Playwright、外部 FFmpeg 固定时间采帧；无需新增产品依赖，中间帧与预览仅存忽略目录 `.build/reports/readme-demo/`。制作说明在 assets/readme/README.md。
+- 为用户提供的 `docs/README_GUIDELINE.md` 添加精确目录允许项并覆盖原有结构接受测试；该指南内容与原有 AGENTS.md 修改保持原样，不纳入本次提交。文档导航补充长期维护的演示资产职责。
+- 验证通过：7 个分镜时间点截图与排布检查；草稿/接收状态、播放/暂停/重播、390px 无横向溢出、减少动态效果默认静态终态、浏览器无页面异常。MP4 全部 360 帧解码，GIF 全部 180 帧解码，均为 18 秒。README 本地 Markdown 预览在 1100px 与 390px 检查图片加载及横向边界；本地链接、图片和内部锚点通过。此预览不是 GitHub 线上渲染验收。
+- 结构回归 10 项、全仓库结构/维护文档链接、版本一致性与 diff 检查通过。没有修改产品业务代码，未重跑原生构建或将示意动画声称为真实四端验收。未推送、合并或发布；下一步可审阅文案与动画，真实四端验收保持独立待办。
+
+## 2026-10-17：0.6.0 正式发布与面向使用者的 README
+
+- 用户授权统一四端为 0.6.0，直接发布安装包，不走应用商店。独立 worktree 的 release/0.6.0 分支及 v0.6.0 标签已推送，发布源码 e0d795c；没有推送本 README 分支或修改远程 main。本分支产品源码仍为 alpha.15，正式构建源码位于 release/0.6.0，不将文档分支版本误当发布输入。
+- https://github.com/lzt2323/shichuan/releases/tag/v0.6.0 已发布为非预发布的 Latest。Mac arm64 ZIP、Windows x64 安装器、Android arm64 APK、Linux x64 TUI 压缩包，以及签名报告、SHA256SUMS 共六个附件；GitHub API 的六个大小及 SHA-256 与本地产物逐一一致，发布页确认标签指向 e0d795c。
+- Android 使用仓库外专用私钥，v2/v3 签名通过；Mac ad-hoc 签名、未公证，Windows 无可信签名，发布说明及 README 已说明。桌面/Android 正式应用标识与 Preview 隔离，旧数据不删除，首次重新入群。私钥及密码不提交或上传，需用户安全备份。
+- 发布验证：四端重新构建；Node 工具 14、前端 19、Rust 核心/TUI 52、宿主 19 项通过；四尺寸浏览器流程、真实双 Rust 节点文字/512 KiB 文件校验、Linux PTY 验收通过。Mac 首屏及签名、Windows 版本、Android 元数据/签名/扫码保留检查通过。未完成新版四台实机全链路验收。
+- README 按用户指南改为简介、四端动画、功能、四端直接下载、入群与首次文件传输、Linux 使用及常见问题；移除源码编译和架构内容，精简媒体制作说明。核对实际 UI 名称、TUI 菜单、本地资源与锚点；下载地址与已发布附件匹配。保留既有示意动画，不作为实测性能证明。
+- 已生成本地 HTML 审阅稿；本轮浏览器安全策略拒绝 file:// 预览，未绕过，故不声称完成新版桌面/手机视觉复验。既有动画视觉验收记录见上一节。发布 API 记录与截图在 .build/reports/release-0.6.0，预览在 .build/reports/readme-demo/readme-preview.html。
+- README 与状态仅本地提交，待用户审阅后再推送；原有 AGENTS.md 和用户 README_GUIDELINE.md 不纳入。下一步审阅 README，以及独立安排正式版四端实机互传验收。
+
+## 2026-10-17：按 README 指南重新整理介绍与首次使用
+
+- 本轮开始时工作区 README 已恢复为带源码启动步骤的旧稿，与 9b2423f 不同；按用户明确要求重写，编辑前副本保存在 .build/reports/readme-demo/readme-before-guideline-rewrite.md。未改动用户 AGENTS.md 或 README_GUIDELINE.md。
+- 简介压缩为产品类别、用途与网络条件；保留现有四端动画及单一视频入口。功能采用短标签，四端表格直达已发布 0.6.0 安装包；安装拦截、Preview 旧数据及 Linux 操作折叠展示。使用教程核对实际“创建群组 / 邀请设备 / 申请加入 / 接收文件 / 保存”名称，明确接收后保存并打开的成功结果。README 不包含源码构建、架构、测试记录或媒体制作说明。
+- 公开 Release API 再核对非草稿、非预发布及四个下载 URL；本地资源、内部锚点、全仓库结构与维护链接、git diff --check 通过。重新生成 HTML 审阅稿；沿用已验证的动画，无新媒体产物。本轮未进行浏览器视觉复验，之前 file:// 预览安全策略限制仍不绕过。
+- 仅提交 README 与本状态记录，不推送；下一步由用户审核文案与阅读层次。

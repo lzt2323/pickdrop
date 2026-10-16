@@ -9,6 +9,8 @@
 - [迁移与回退](tauri-migration.md)、[Android 模拟器](android-emulator.md)。
 - [Rust TUI](../crates/pickdrop-tui/README.md)、[Rust 核心](../crates/pickdrop-core/README.md)、[Tauri 宿主](../apps/tauri/src-tauri/README.md)。
 
+- [README 动画源码与制作说明](../assets/readme/README.md)。
+
 ## 目录职责
 
 | 路径 | 职责 |
@@ -18,7 +20,7 @@
 | `crates/pickdrop-core/` | Rust 同步核心及集成测试 |
 | `tests/` | 开发工具回归、真实双节点前端验收、旧 JS 协议兼容向量 |
 | `scripts/`、`.github/` | 主线检查、构建与发布工具 |
-| `assets/`、`vendor/` | 品牌资源与原生依赖补丁及来源 |
+| `assets/`、`vendor/` | 品牌与 README 演示资源、原生依赖补丁及来源 |
 | `docs/releases/` | 各版本说明；旧说明保持当时事实 |
 
 `apps/desktop/`、`apps/mobile/`、`apps/tui/`、`server/`、`shared/` 已退役，不能重新加入工作区。Node 仅用于网页前端和开发工具，不运行产品服务。旧源码回退提交是 `b30873b`。

@@ -1,62 +1,94 @@
-# 拾传 · PickDrop
+<div align="center">
+  <img src="assets/brand/app-icon.png" width="80" height="80" alt="拾传 Logo">
+  <h1>拾传 · PickDrop</h1>
+  <p>在你的设备之间，像聊天一样传文件。</p>
+  <p>macOS · Windows · Android · Linux 终端</p>
+  <p><a href="#下载安装">下载安装</a> · <a href="#开始使用">开始使用</a> · <a href="#常见问题">常见问题</a></p>
+</div>
 
-<img src="assets/brand/app-icon.png" width="96" height="96" alt="拾传 Logo">
+拾传是一款局域网文件传输工具，支持在电脑、手机和 Linux 终端之间发送文件、图片与文字。
 
-局域网文件群聊。桌面与手机共用 Tauri 2 客户端和 Rust 核心，支持文字、文件、多群、邀请审批及本地历史。当前开发版本 **0.6.0-alpha.15**，仅维护 Rust 核心、Tauri 与 Rust TUI 实现。
+[![Mac 发送文件，Windows、Android 和 Linux 接收，手机回复文字。](assets/readme/demo.gif)](assets/readme/demo.mp4)
 
-[文档导航](docs/README.md) · [项目范围](docs/PROJECT.md) · [当前进度](docs/STATUS.md) · [开发命令](scripts/README.md) · [版本管理](CONTRIBUTING.md)
+<p align="center"><a href="assets/readme/demo.mp4">观看视频</a></p>
 
-## 运行
+## 主要功能
 
-开发需要 Node.js 24、仓库指定的 pnpm、Rust 和对应系统的 Tauri 依赖。Node 仅用于前端构建及测试，安装后的应用没有 Node 服务或 Electron/Expo 运行时。
+- **群组互传**：把常用设备加入同一个群，集中收发资料与消息。
+- **确认发送**：拖入文件或粘贴图片后，先检查附件和目标群组，再发送。
+- **按需接收**：在需要的设备上下载文件，接收后可打开、另存或分享。
+- **随手使用**：桌面窗口可固定或贴边收起，手机全屏操作，Linux 通过终端使用。
 
-```sh
-pnpm install --frozen-lockfile
-pnpm check
-pnpm start
-```
+## 下载安装
 
-Android 使用 JDK 17、SDK 36、NDK 27.2.12479018；iOS 需要完整 Xcode 与签名。
+在需要互传的设备上分别安装 **v0.6.0**。
 
-```sh
-pnpm tauri:android:init
-pnpm mobile:start
-pnpm tauri:android:build
-pnpm tauri:ios:init
-pnpm tauri:ios:build
-```
+| 平台 | 下载 | 安装方式 |
+| --- | --- | --- |
+| macOS · Apple 芯片 | [下载 Mac 版](https://github.com/lzt2323/shichuan/releases/download/v0.6.0/PickDrop-0.6.0-macOS-arm64.zip) | 解压，将“拾传.app”拖到“应用程序”后打开 |
+| Windows · x64 | [下载安装程序](https://github.com/lzt2323/shichuan/releases/download/v0.6.0/PickDrop-0.6.0-Windows-x64-setup.exe) | 打开安装程序，按向导完成安装 |
+| Android · ARM64 | [下载 APK](https://github.com/lzt2323/shichuan/releases/download/v0.6.0/PickDrop-0.6.0-Android-arm64.apk) | 在手机上打开 APK，按系统提示允许该来源安装 |
+| Linux · x64 | [下载终端版](https://github.com/lzt2323/shichuan/releases/download/v0.6.0/PickDrop-0.6.0-Linux-x64-tui.tar.gz) | 解压，在该目录打开终端并运行 `./pickdrop` |
 
-## 使用与边界
+Android 需要 7.0 或更新版本；Linux 包已在 Ubuntu 22.04 x64 验证。暂不提供 iPhone、Intel Mac 和 Linux ARM64 安装包。[发布说明与文件校验值](https://github.com/lzt2323/shichuan/releases/tag/v0.6.0)
 
-设备接入可互通的可信局域网，创建群组，通过邀请和成员审批加入。选择、拖入或系统分享的文件先进入草稿，确认发送后传输；发送期间切群不会改变目标。接收文件校验后可打开、另存为或分享。
+<details>
+<summary>首次安装遇到系统提示？</summary>
 
-应用标识仍为 `app.pickdrop.tauri.preview`，使用隔离数据目录。旧桌面数据可以通过 Rust 工具显式导入，源数据不改写。迁移与回退见 [迁移说明](docs/tauri-migration.md)。
+Mac 包尚未经过 Apple 公证，Windows 包没有可信发布者签名，系统可能阻止打开。确认文件来自本项目的 Release 后，Mac 可在“系统设置 → 隐私与安全性”查看打开选项，Windows 可在提示中查看“更多信息”。Android 按系统提示允许安装即可，无需开启开发者调试。
 
-保留 `pickdrop-peer-v1` 签名协议；当前没有 TLS、端到端加密、云中继或断点续传，不保证手机后台长期在线。iOS 外部分享接收扩展仍未迁移，需另行开发与验收。
+</details>
 
-Electron、Expo、Node 服务和 Node Linux TUI 源码及发布入口已从当前分支退役。Linux 现在提供[轻量 Rust TUI](crates/pickdrop-tui/README.md)，直接复用共享核心，无 Node 或图形桌面依赖：
+<details>
+<summary>之前安装过“拾传 Preview”？</summary>
 
-```sh
-cargo build --release -p pickdrop-tui --locked
-./target/release/pickdrop --data-dir /path/to/data
-```
+Mac、Windows 和 Android 正式版与 Preview 可以同时安装。首次打开正式版需要重新入群，旧聊天记录仍在旧应用中，不会自动迁移。请保留旧应用和数据，先保存需要的文件。
 
-TUI 启动时自动选择私有局域网 IPv4，找不到合适网卡时仅监听本机；设置中可持久化选择 `auto` 或本机 IPv4，公网地址需明确选择。命令行 `--bind auto` 或指定 IPv4 可临时覆盖设置。SSH 文件路径属于服务器。界面以方向键选择、Enter 确认：宽屏左右分栏，窄屏切换单栏；从「发送文件」选择文件并暂存，再到「传输 / 草稿」确认发送。兼容命令仍保留。旧 TUI 数据不自动导入，旧运行源码不保留在当前分支。
+</details>
 
-## 验证与发布
+## 开始使用
 
-```sh
-pnpm test
-cargo test -p pickdrop-core --locked
-cargo test -p pickdrop-tauri --lib --locked
-cargo check -p pickdrop-tauri --locked
-pnpm --dir apps/tauri build
-pnpm --dir apps/tauri test:browser
-pnpm tauri:test:runtime
-```
+让两台设备连接同一个可信 Wi-Fi 或彼此可访问的局域网，并打开拾传。首次出现局域网访问提示时允许访问；手机在传输期间保持前台运行。
 
-协议兼容由保留的旧 JS 签名向量和 Rust 测试验证；真实双节点测试验证邀请、双向消息和文件 SHA-256。浏览器与编译不能代替手机扫码、文件提供商、相册、分享及桌面原生窗口验收。
+### 1. 连接另一台设备
 
-CI 构建 macOS、Windows、Android ARM64 预览包及 Linux x64 Rust TUI。iOS 构建签名和真机不在本次验证范围内。源码提交不会自动创建 Release；发布需单独审批和版本标签。
+1. 在第一台设备点击 **创建群组**，填写群名并创建。
+2. 打开 **邀请设备**，显示二维码或点击 **复制邀请链接**。
+3. 在第二台设备点击 **加入群组**，粘贴链接；Android 也可选择 **扫描二维码**。
+4. 点击 **申请加入**，回到第一台设备批准申请。
 
-MIT 许可证。[本次版本说明](docs/releases/v0.6.0-alpha.15.md)
+两台设备进入同一个群后，就可以互发文字和文件。使用邀请码加入时，需要同时填写邀请页面提供的设备地址与端口。
+
+### 2. 发送第一个文件
+
+1. 将一个小文件拖入电脑上的群聊，也可以使用文件选择入口。
+2. 检查待发附件和当前群组，点击 **发送**。
+3. 在另一台设备点击文件卡片上的 **接收文件**，等待接收完成。
+4. 点击 **保存** 选择位置，再打开保存的文件。
+
+**另一台设备能打开收到的文件，就完成了第一次传输。** 接收完成前，请保持持有文件的设备在线。
+
+<details>
+<summary>Linux 终端怎么操作？</summary>
+
+运行 `./pickdrop` 后，用 **↑ / ↓** 选择菜单，**Enter** 确认，**Esc** 返回，**i** 输入文字，**Ctrl+C** 退出。
+
+从「邀请 / 加入」加入群组。发送文件时先在「发送文件」中暂存，再到「传输 / 草稿」确认发送；接收时在「群内文件」选择文件并确认保存路径。通过 SSH 操作时，文件位于运行拾传的服务器上。
+
+</details>
+
+## 常见问题
+
+**设备连不上怎么办？** 先确认两端应用都在运行、已批准入群，并允许应用在可信网络中通过防火墙。访客 Wi-Fi 的设备隔离或 VPN 可能阻止连接；已加入同群时，可在设备连接入口尝试填写对方地址。
+
+**为什么看到文件消息，却不能下载？** 文件不会上传到云端。至少需要一台持有文件副本的设备在线且可连接。让该设备重新打开拾传、恢复网络后再试；如果文件副本已被清理，需要重新发送。
+
+**手机锁屏后还能继续传吗？** 不保证后台持续传输。请保持应用在前台，接收完成后再离开。
+
+**能传敏感文件吗？** 当前传输未加密，仅适合可信局域网，不建议发送敏感内容。拾传也不提供云备份或断点续传。
+
+## 反馈与许可
+
+遇到问题，请在 [Issues](https://github.com/lzt2323/shichuan/issues) 提供系统、应用版本、操作步骤和错误提示，注意去除个人信息。版本更新见 [Releases](https://github.com/lzt2323/shichuan/releases)。
+
+拾传采用 [MIT 许可证](LICENSE)。
