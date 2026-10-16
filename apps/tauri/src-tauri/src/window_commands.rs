@@ -104,7 +104,7 @@ pub(crate) async fn window_action(
                 label,
                 tauri::WebviewUrl::App(format!("index.html?group={group}").into()),
             )
-            .title("拾传 Preview")
+            .title("拾传")
             .inner_size(docking::PANEL_DEFAULT.0, docking::PANEL_DEFAULT.1)
             .min_inner_size(docking::PANEL_MIN.0, docking::PANEL_MIN.1)
             .max_inner_size(docking::PANEL_MAX.0, docking::PANEL_MAX.1)

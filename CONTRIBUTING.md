@@ -12,7 +12,7 @@ Node 是前端与开发工具依赖，不是产品服务。工具入口见 [scri
 
 ## 版本与回退
 
-当前开发版本为 `0.6.0-alpha.15`；预览标识和数据目录不变。版本同时更新根 package.json、apps/tauri/package.json、核心、Rust TUI、Tauri 宿主与内部 native 插件 Cargo.toml、Cargo.lock、tauri.conf.json。Android `bundle.android.versionCode` 必须显式递增：alpha.1 为 6000，alpha.2 为 6001，alpha.3 为 6002，alpha.4 为 6003，alpha.5 为 6004，alpha.6 为 6005，alpha.7 为 6006，alpha.8 为 6007，alpha.9 为 6008，alpha.10 为 6009，alpha.11 为 6010，alpha.12 为 6011，alpha.13 为 6012，alpha.14 为 6013，alpha.15 为 6014，不能仅依靠忽略预发布尾缀的默认换算。
+当前发行版本为 `0.6.0`；正式标识 `app.pickdrop` 与预览目录隔离。版本同时更新根 package.json、apps/tauri/package.json、核心、Rust TUI、Tauri 宿主与内部 native 插件 Cargo.toml、Cargo.lock、tauri.conf.json。Android `bundle.android.versionCode` 必须显式递增：alpha.1 为 6000，alpha.2 为 6001，alpha.3 为 6002，alpha.4 为 6003，alpha.5 为 6004，alpha.6 为 6005，alpha.7 为 6006，alpha.8 为 6007，alpha.9 为 6008，alpha.10 为 6009，alpha.11 为 6010，alpha.12 为 6011，alpha.13 为 6012，alpha.14 为 6013，alpha.15 为 6014，不能仅依靠忽略预发布尾缀的默认换算。
 
 版本变化新增 `docs/releases/v<版本>.md`，不覆盖旧说明。`pnpm version:check` 校验版本及 Android 构建号。依赖变化同步 pnpm-lock.yaml；Rust 包版本/依赖变化同步 Cargo.lock。安装包、target、gen、用户数据、私有证书及工具本地记录不纳入 Git。
 
@@ -49,3 +49,6 @@ CI 验证主线并构建 macOS、Windows、Android ARM64 和 Linux x64 Rust TUI�
 Android 预览继续使用同一公开测试证书和独立包名，以保留预览升级能力；测试证书明确标注来源，不能用于正式发布。macOS ad-hoc 签名不等于公证。
 
 发布前完成验证并合并 main，再由发布负责人创建附注 `v<版本>` 标签。Release 汇总上述 Tauri 包与 SHA256；已存在发布时拒绝覆盖。日常提交不打发布标签、不推送或发布，除非用户明确要求。
+
+
+0.6.0 通过 GitHub Release 直接分发。稳定版 Android CI 只生成 unsigned APK，必须使用仓库外专用私钥经 `scripts/sign-android-release.js` 签名验证，不能直接上传 unsigned 产物。旧自动发布仅处理预发布标签。所有平台安装包完成版本/签名/校验检查后统一上传，并附 SHA256SUMS.txt；具体签名限制见版本说明。

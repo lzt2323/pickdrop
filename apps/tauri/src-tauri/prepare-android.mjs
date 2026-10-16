@@ -12,7 +12,7 @@ if (existsSync(manifest)) {
   } else {
     xml = xml.replace('<activity', '<activity android:windowSoftInputMode="adjustResize"');
   }
-  copyFileSync(new URL('./android/MainActivity.kt', import.meta.url), new URL('app/src/main/java/app/pickdrop/tauri/preview/MainActivity.kt', base));
+  copyFileSync(new URL('./android/MainActivity.kt', import.meta.url), new URL('app/src/main/java/app/pickdrop/MainActivity.kt', base));
   if (!xml.includes('android.intent.action.SEND_MULTIPLE')) {
     xml = xml.replace('</activity>', `<intent-filter>
                 <action android:name="android.intent.action.SEND" />

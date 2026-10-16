@@ -21,3 +21,9 @@
 Electron、Expo、Node TUI 的构建、验收与旧资源生成脚本已退役；品牌素材本身保留。CI 与发布只调用当前工具。`test-rust-tui.py` 通过真实 PTY 和两个生产 Rust 进程验证终端、审批、消息、文件哈希及重启，输出到 .build/reports/rust-tui。
 
 浏览器截图与报告统一保存到仓库根 `.build/reports/`，发布流水线输入与安装包汇总使用 `.build/release/`。既有输出备份位于 `.build/history/`，不作为当前验收结果。
+
+## 0.6.0 直接下载发行
+
+稳定版使用独立 `app.pickdrop` 标识。`sign-android-release.js unsigned.apk release.apk` 要求 `ANDROID_HOME`、`PICKDROP_KEYSTORE`、`PICKDROP_KEYSTORE_PASSWORD_FILE`，别名 `pickdrop-release`。私钥及密码仅保存在仓库外，密码通过文件传给签名工具；签名后校验 APK，拒绝公开预览证书。不要上传 keystore 或密码文件，保留安全备份才能持续更新 APK。
+
+`sign-tauri-preview-apk.js` 仅允许隔离预览包。旧自动 Release 工作流仅处理含预发布后缀的标签，不能用公开测试密钥自动发布稳定版。0.6.0 的四端包在本地/远程原生构建与校验后手动上传；Mac 为 ad-hoc 签名、未公证，Windows 无可信签名，不能声称已取得操作系统发行者认证。

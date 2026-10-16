@@ -1,7 +1,7 @@
 name: PickDrop Unified Release
 on:
   push:
-    tags: ['v*']
+    tags: ['v*-*']
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,7 +22,10 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
           RELEASE_KIND: ${{ github.ref_type }}
         run: node scripts/verify-versions.js
+  # Stable releases use privately signed, locally verified artifacts.
+  # This legacy pipeline is deliberately limited to preview versions.
   tauri:
+    if: contains(github.ref_name, '-')
     needs: verify
     uses: ./.github/workflows/tauri.yml
   publish:

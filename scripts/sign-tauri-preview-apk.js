@@ -5,6 +5,10 @@ import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+const config = JSON.parse(readFileSync(new URL('../apps/tauri/src-tauri/tauri.conf.json', import.meta.url), 'utf8'));
+if (config.identifier !== 'app.pickdrop.tauri.preview' || !config.version.includes('-')) {
+  throw new Error('Public test signing is restricted to isolated preview builds');
+}
 const [input, output] = process.argv.slice(2);
 if (!input || !output) throw new Error('Usage: node scripts/sign-tauri-preview-apk.js unsigned.apk signed-preview.apk');
 const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;

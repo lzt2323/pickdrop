@@ -226,7 +226,7 @@ pub fn run() {
             }
         })
         .run(tauri::generate_context!())
-        .expect("无法启动拾传 Preview");
+        .expect("无法启动拾传");
 }
 
 #[cfg(desktop)]
@@ -239,7 +239,7 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &quit])?;
     let mut tray = TrayIconBuilder::new()
-        .tooltip("拾传 Preview")
+        .tooltip("拾传")
         .menu(&menu)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "show" => {

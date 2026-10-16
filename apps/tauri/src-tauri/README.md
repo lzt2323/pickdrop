@@ -1,3 +1,5 @@
+> 0.6.0 正式版使用 `app.pickdrop` 与专用 Android 私钥，和旧预览版隔离；以下预览标识描述保留为迁移背景。
+
 # Tauri native host
 
 The desktop and mobile hosts use the same Rust core and frontend. Preview identifier

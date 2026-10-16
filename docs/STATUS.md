@@ -1,6 +1,6 @@
 # 当前工程状态
 
-更新日期：2026-10-16。开发版本：`0.6.0-alpha.8`，Android `versionCode: 6007`。主线为 Rust 核心、Tauri 与 Rust TUI；目标与边界见 [PROJECT.md](PROJECT.md)，版本及回退见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
+更新日期：2026-10-17。发行版本：`0.6.0`，Android `versionCode: 6015`。主线为 Rust 核心、Tauri 与 Rust TUI；目标与边界见 [PROJECT.md](PROJECT.md)，版本及回退见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
 
 ## 已完成
 
@@ -195,3 +195,13 @@
 - 前端 19 项单元测试、320/360/390/1024px 浏览器完整流程、文件/窗口回归、6 种卡片布局检查通过；进度数值、取消/重试和完成隐藏仍验证，结构/链接、前端语法、版本一致性及 diff 检查通过。本轮仅调整呈现与取消点击区域，未重跑上一轮真实节点链路或宣称新吞吐量基准。
 - Mac 与 Windows 已构建、覆盖安装并启动 alpha.15。Mac 签名校验和构建/安装 SHA-256 一致，6 个数据文件及 1 个缓存条目保留；Windows 在登录桌面 Session 1 运行、响应正常，7 个数据/缓存条目保留，安装二进制与预期 NSIS 包类型标记一致。255 个非 Markdown 输入逐文件核对，安装包哈希核对。沿用既有 Windows Node 22 构建环境的引擎提示，不在此布局任务中升级工具链。
 - 源码 alpha.15 / Android 源码 6014，手机及 Linux TUI 不重装；安装包归 .build/release/assets，报告、安装回执及 6 尺寸预览归 .build/reports/compact-file-progress，完整浏览器截图仍归 tauri-frontend。没有清理真实数据；原有 AGENTS.md 改动保留。不推送、合并、打标签或发布。下一步由用户观察新版卡片右下角的实际显示效果。
+
+
+## 2026-10-17：0.6.0 直接下载发行准备
+
+- 用户要求先发布四端包，再审阅面向最终用户的 README，后者暂不推送。发行在独立 `release/0.6.0` 分支完成，不包含 README 演示提交；发布源码基于 c20ed6c。
+- 版本统一 0.6.0，Android 构建号 6015。名称“拾传”，正式 GUI 标识 app.pickdrop，与预览版隔离并存，旧数据不迁移、不删除。Android MainActivity 包路径同步变更。Linux 终端协议和数据目录选项不变。
+- Android 专用 RSA 4096 私钥在仓库外创建，权限 0600；APK v2/v3 签名验证通过，包名/版本/SDK 检查通过，三个扫码反射构造器保留。预览签名脚本拒绝稳定版，已实际验证拒绝且没有产物。稳定版 CI 只产出待私钥签名的 unsigned APK，旧自动发布限于预发布标签，防止公开测试证书误用于正式版。
+- Mac arm64、Windows x64、Android arm64、Linux x64 均从相同产品源码重新构建。Mac codesign --verify --deep --strict 通过且正式应用首屏加载；Windows 包与主程序版本 0.6.0，Authenticode 为 NotSigned；Linux 在 Ubuntu 22.04 构建并通过终端和双节点真实文件 SHA-256 验收。Mac 使用 ad-hoc 且未公证，Windows 无可信证书；这是用户确认的 GitHub 直接下载发行方式，不声称平台认证。
+- Node 工具 14 项、前端单元 19 项、Rust 核心/TUI 完整测试、宿主 19 项、四尺寸浏览器 smoke 与真实双 Rust 节点前端验收通过。首次 Android 构建因两套 SDK 环境变量不一致失败，统一后重建通过；首次 runtime 测试因独立 worktree 下缺少 target 路径失败，映射共享编译目录后通过，映射仅用于本地验收且已移除。没有把这些失败记为通过，也没有声称新版四个实机之间已经完成全链路验收。
+- 安装包与 SHA256SUMS.txt、ANDROID-SIGNATURE.txt 放在忽略的 .build/release/0.6.0；无私钥、口令或用户数据。待上传后记录线上校验结果。下一步为发布 Release，随后仅在本地重写并预览 README，等待用户审阅。

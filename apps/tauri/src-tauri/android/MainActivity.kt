@@ -1,4 +1,4 @@
-package app.pickdrop.tauri.preview
+package app.pickdrop
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
