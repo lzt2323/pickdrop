@@ -245,3 +245,11 @@ Rust-only 整理阶段的工作分支为 `feat/rust-tui`。`b30873b` 是退役�
 - Ubuntu 22.04 服务器隔离目录测试 5 项通过，覆盖安装/重复安装与数据保留、坏包、网络失败、架构/glibc 不匹配、已有符号链接。真实 Release 下载安装通过，安装后运行 --version 输出 pickdrop 0.6.0；未覆盖服务器现有安装与用户数据。CI 增加 Python 安装器测试。
 - 用户确认图标看错，现有 README 与应用图标保持一致，不替换或删除仍使用的图标。用户批准清理远程分支；确认 13 个非 main 分支全部已合入 main，保存 refs 清单及完整 Git bundle 并验证可读后，原子删除这 13 个远程分支。保留 main、全部版本标签、Release 与本地分支，备份位于 .build/reports/release-0.6.0/branches-before-cleanup.bundle。
 - 首次入群流程卡片动画被用户否定，不发布；生成稿移入 .build/reports/readme-onboarding/rejected。按用户反馈改为真实电脑与 Android 界面教程，目前 adb 未发现手机，已请用户连接；此录制仍未完成，不用示意卡片冒充实际界面。
+
+## 2026-10-17：真实 Mac / Android 入群截图教程
+
+- 用户要求以实际界面截图引导，弃用流程示意卡片。Android USB 授权后安装已发布 0.6.0 专用签名 APK，与原 Preview 并存；用户明确允许 adb 点击、输入和截图。Mac 使用正式版应用，创建独立演示群“我的设备”；手机实际申请、Mac 成员页允许后，手机成功收到“你好，手机！”，XML 及截图证据存于忽略目录。
+- 截取建群、邀请入口、邀请页、手机首页/申请、成员审批和成功消息，生成 24 秒真实截图教程 GIF（960×720，约 1.77 MB）、MP4（1280×960，约 470 KB）及静态回退。灰白背景/蓝色高亮延续首页风格，按钮与界面来自实际应用，不重绘。二维码、链接、地址、邀请码在生成前完整遮挡；原图和 UI 层级仅存 .build/reports/readme-onboarding/real，不提交。
+- README 将教程放在入群步骤旁，补全“邀请 +”与设备在线数量一栏进入成员页的真实入口；picture 提供减少动态效果静态回退，MP4 可暂停。生成脚本 scripts/render-readme-onboarding.py 使用 FFmpeg 合成，检查原截图尺寸避免错位脱敏；制作说明留在 assets/readme/README.md。
+- GIF 全部 240 帧解码、总时长 24000ms，MP4 全片解码通过；已查看邀请/申请脱敏及建群、入口、审批、成功画面，无敏感邀请信息露出。结构/维护链接及 diff 检查通过。此次验证为 Mac 与 Android 实际入群及单向消息，不扩大为文件传输或四端全链路验收。
+- Linux 安装器 7a2d9cd 已推送，线上 raw 脚本与本地逐字一致，远程 heads 已确认仅 main；本轮教程沿用 main 主线发布，不另保留远程开发分支。原有 AGENTS.md、用户 README_GUIDELINE.md 保持不提交。下一步按用户反馈调整真实截图教学节奏。

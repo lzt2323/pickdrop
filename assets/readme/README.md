@@ -31,3 +31,11 @@ node scripts/render-readme-demo.mjs
 FFmpeg 不在 PATH 时通过 `FFMPEG` 环境变量传入可执行文件路径。脚本以 HTML 的 `renderFrame(seconds)` 固定时间采帧，输出上述三种媒体；中间帧仅写入忽略的 `.build/reports/readme-demo/frames/`。不需要 OBS、手机、SSH 或真实聊天数据。
 
 修改分镜后先检查草稿、发送、接收、回复四个时点；确认文字不重叠、不越界，再重新生成。预览与导出使用相同时间轴，窗口聚焦使用 transform，淡入使用 opacity；预览不自动播放。系统字体可能使不同机器上的字形略有差异。
+
+## 真实界面首次入群教程
+
+`onboarding.gif` / `onboarding.mp4` 是 Mac 与 Android 正式版 0.6.0 的真实截图序列，24 秒展示创建群组、邀请入口、复制链接、手机加入入口、申请、成员入口、允许及收到消息。正文保留步骤说明；MP4 可暂停，减少动态效果时使用 `onboarding-poster.png` 静态回退。
+
+截图通过 Mac 窗口截图及用户授权的 adb 截图取得；手机实际加入演示群并收到电脑消息，不是重绘 UI。临时二维码、邀请码、地址及邀请链接在导出前遮挡，原图与 UI 层级只保存在忽略目录 `.build/reports/readme-onboarding/real/`，不上传。
+
+`python3 scripts/render-readme-onboarding.py` 用 Pillow 绘制外围说明、FFmpeg 裁切/遮挡/标注并合成截图序列；需要自行准备脚本列出的截图，尺寸变化时必须重新检查遮挡坐标。用 `PICKDROP_CAPTURE_DIR` 指定原图目录，`PICKDROP_DEMO_FONT` 指定中文字体，`FFMPEG` 指定 FFmpeg。分镜检查图保存在 `.build/reports/readme-onboarding/composed/`。

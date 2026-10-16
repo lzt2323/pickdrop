@@ -64,10 +64,14 @@ curl -fsSL https://raw.githubusercontent.com/lzt2323/pickdrop/main/scripts/insta
 
 ### 1. 连接另一台设备
 
+<a href="assets/readme/onboarding.mp4"><picture><source media="(prefers-reduced-motion: reduce)" srcset="assets/readme/onboarding-poster.png"><img src="assets/readme/onboarding.gif" alt="实际界面操作：电脑创建群组并邀请，手机申请加入，电脑在成员页允许，手机收到消息。"></picture></a>
+
+[观看操作视频 · 24 秒](assets/readme/onboarding.mp4)
+
 1. 在第一台设备点击 **创建群组**，填写群名并创建。
-2. 打开 **邀请设备**，显示二维码或点击 **复制邀请链接**。
+2. 点击群内右上角的 **邀请 +**，在“邀请设备”页面查看二维码或点击 **复制邀请链接**。
 3. 在第二台设备点击 **加入群组**，粘贴链接；Android 也可选择 **扫描二维码**。
-4. 点击 **申请加入**，回到第一台设备，在加入申请中点击 **允许**。
+4. 点击 **申请加入**，回到第一台设备，点击群名下方的设备在线数量，在“成员与加入申请”中点击 **允许**。
 
 两台设备进入同一个群后，就可以互发文字和文件。使用邀请码加入时，需要同时填写邀请页面提供的设备地址与端口。
 
