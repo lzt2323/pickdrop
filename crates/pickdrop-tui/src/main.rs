@@ -1,20 +1,23 @@
 mod app;
 mod interaction;
+mod storage;
 mod terminal;
 mod view;
 mod workspace;
 
 use anyhow::{bail, Context, Result};
+use app::App;
 use pickdrop_core::Core;
 use serde_json::{json, Value};
-use std::{fs::File, io::IsTerminal, net::Ipv4Addr, path::PathBuf};
+use std::{fs::File, io::IsTerminal, path::PathBuf};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
-const HELP: &str = "拾传 Rust TUI\n\npickdrop [--data-dir PATH] [--bind IPv4] [--json]\n\n默认只监听 127.0.0.1；可信局域网使用 --bind 0.0.0.0。\n无 Node、桌面环境或后台服务依赖。退出时停止本进程。\n--json 使用标准输入/输出 JSON Lines，供脚本和验收使用。\n进入界面后 /help 查看命令。";
+const HELP: &str = "拾传 Rust TUI\n\npickdrop [--data-dir PATH] [--bind auto|IPv4] [--json]\n\n默认自动选择私有局域网 IPv4，找不到时仅监听 127.0.0.1。
+--bind auto 或 IPv4 可覆盖设置，公网地址需明确指定。\n无 Node、桌面环境或后台服务依赖。退出时停止本进程。\n--json 使用标准输入/输出 JSON Lines，供脚本和验收使用。\n进入界面后 /help 查看命令。";
 
 struct Options {
     data: PathBuf,
-    bind: Ipv4Addr,
+    bind: Option<String>,
     json: bool,
 }
 fn options(args: impl Iterator<Item = String>) -> Result<Option<Options>> {
@@ -23,7 +26,7 @@ fn options(args: impl Iterator<Item = String>) -> Result<Option<Options>> {
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")))
         .map(|base| base.join("pickdrop-tui"));
-    let mut bind = Ipv4Addr::LOCALHOST;
+    let mut bind = None;
     let mut json = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -37,11 +40,9 @@ fn options(args: impl Iterator<Item = String>) -> Result<Option<Options>> {
             }
             "--data-dir" => data = Some(PathBuf::from(args.next().context("--data-dir 缺少路径")?)),
             "--bind" => {
-                bind = args
-                    .next()
-                    .context("--bind 缺少 IPv4 地址")?
-                    .parse()
-                    .context("--bind 必须是 IPv4 地址")?
+                let value = args.next().context("--bind 缺少 auto 或 IPv4 地址")?;
+                app::validate_listen_address(&value)?;
+                bind = Some(value);
             }
             "--json" => json = true,
             _ => bail!("未知参数 {arg}；使用 --help 查看用法"),
@@ -101,8 +102,7 @@ async fn json_lines(core: &Core) -> Result<()> {
     }
     Ok(())
 }
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let Some(options) = options(std::env::args().skip(1))? else {
         return Ok(());
     };
@@ -110,12 +110,29 @@ async fn main() -> Result<()> {
         bail!("交互界面需要终端；SSH 请使用 -t，脚本请使用 --json");
     }
     let _lock = lock_data(&options.data)?;
-    let core = Core::open_with_bind_address(options.data.clone(), "desktop", options.bind).await?;
+    let configured = options
+        .bind
+        .clone()
+        .map(Ok)
+        .unwrap_or_else(|| App::configured_listen_address(&options.data))?;
+    let address = app::resolve_listen_address(&configured)?;
+    let runtime = tokio::runtime::Runtime::new()?;
+    let clear = runtime.block_on(run_session(&options, address))?;
+    // Dropping the runtime joins worker tasks before any chat files can be removed.
+    drop(runtime);
+    if clear {
+        storage::clear_chat_data(&options.data)?;
+        println!("本机群聊数据及缓存已清除，身份和设置已保留；重新加入群需要邀请。");
+    }
+    Ok(())
+}
+async fn run_session(options: &Options, address: std::net::Ipv4Addr) -> Result<bool> {
+    let core = Core::open_with_bind_address(options.data.clone(), "desktop", address).await?;
     let session = async {
         if options.json {
-            json_lines(&core).await
+            json_lines(&core).await.map(|_| false)
         } else {
-            terminal::run(&core, &options.data).await
+            terminal::run(&core, &options.data, options.bind.clone()).await
         }
     };
     #[cfg(unix)]
@@ -124,13 +141,22 @@ async fn main() -> Result<()> {
             tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
         tokio::select! {
             result = session => result,
-            _ = terminate.recv() => Ok(()),
-            _ = tokio::signal::ctrl_c() => Ok(()),
+            _ = terminate.recv() => Ok(false),
+            _ = tokio::signal::ctrl_c() => Ok(false),
         }
     };
     #[cfg(not(unix))]
     let result = session.await;
-    core.shutdown().await;
+    if result.as_ref().is_ok_and(|clear| *clear) {
+        if tokio::time::timeout(std::time::Duration::from_secs(3), core.shutdown())
+            .await
+            .is_err()
+        {
+            eprintln!("正在关闭剩余连接；退出同步运行时后再清理数据。");
+        }
+    } else {
+        core.shutdown().await;
+    }
     result
 }
 
@@ -151,7 +177,7 @@ mod tests {
                 .unwrap()
                 .unwrap()
                 .bind,
-            Ipv4Addr::LOCALHOST
+            None
         );
     }
     #[test]

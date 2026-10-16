@@ -27,10 +27,11 @@ pub struct Draft {
     pub group: String,
     pub path: PathBuf,
 }
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 struct Preferences {
     download_directory: Option<PathBuf>,
+    listen_address: Option<String>,
 }
 pub struct App {
     pub boot: Value,
@@ -40,6 +41,7 @@ pub struct App {
     pub notice: String,
     pub detail: Option<Vec<String>>,
     pub scroll: usize,
+    pub listen_override: Option<String>,
     draft_file: PathBuf,
     preferences: Preferences,
     preferences_file: PathBuf,
@@ -55,12 +57,7 @@ impl App {
             Err(error) => return Err(error.into()),
         };
         let preferences_file = data.join("tui-preferences.json");
-        let preferences = match std::fs::read(&preferences_file) {
-            Ok(bytes) => serde_json::from_slice(&bytes)
-                .context("终端设置损坏，请检查 tui-preferences.json")?,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Preferences::default(),
-            Err(error) => return Err(error.into()),
-        };
+        let preferences = Self::read_preferences(&preferences_file)?;
         Ok(Self {
             boot: Value::Null,
             state: Value::Null,
@@ -72,7 +69,50 @@ impl App {
             notice: "↑↓ 选择菜单，→ / Enter 进入；文件暂存后需确认发送。".into(),
             detail: None,
             scroll: 0,
+            listen_override: None,
         })
+    }
+    pub fn configured_listen_address(data: &Path) -> Result<String> {
+        let preferences = Self::read_preferences(&data.join("tui-preferences.json"))?;
+        Ok(preferences.listen_address.unwrap_or_else(|| "auto".into()))
+    }
+    fn read_preferences(path: &Path) -> Result<Preferences> {
+        match std::fs::read(path) {
+            Ok(bytes) => {
+                serde_json::from_slice(&bytes).context("终端设置损坏，请检查 tui-preferences.json")
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                Ok(Preferences::default())
+            }
+            Err(error) => Err(error.into()),
+        }
+    }
+    pub fn listen_address(&self) -> &str {
+        self.preferences.listen_address.as_deref().unwrap_or("auto")
+    }
+    fn persist_preferences(&self) -> Result<()> {
+        let temporary = self.preferences_file.with_extension("tmp");
+        std::fs::write(&temporary, serde_json::to_vec(&self.preferences)?)?;
+        std::fs::rename(temporary, &self.preferences_file)?;
+        Ok(())
+    }
+    pub fn set_listen_address(&mut self, value: &str) -> Result<()> {
+        resolve_listen_address(value)?;
+        let previous = self
+            .preferences
+            .listen_address
+            .replace(value.trim().to_owned());
+        if let Err(error) = self.persist_preferences() {
+            self.preferences.listen_address = previous;
+            return Err(error.context("监听设置写入失败，原值已保留"));
+        }
+        self.notice = if self.listen_override.is_some() {
+            "监听设置已保存；下次去掉命令行 --bind 后生效"
+        } else {
+            "监听设置已保存；下次重启生效"
+        }
+        .into();
+        Ok(())
     }
     pub fn download_directory(&self) -> Result<PathBuf> {
         match &self.preferences.download_directory {
@@ -86,12 +126,7 @@ impl App {
             .context("默认保存目录不存在或无法访问")?;
         ensure!(directory.is_dir(), "默认保存路径必须是已存在的目录");
         let previous = self.preferences.download_directory.replace(directory);
-        let result = (|| -> Result<()> {
-            let temporary = self.preferences_file.with_extension("tmp");
-            std::fs::write(&temporary, serde_json::to_vec(&self.preferences)?)?;
-            std::fs::rename(temporary, &self.preferences_file)?;
-            Ok(())
-        })();
+        let result = self.persist_preferences();
         if let Err(error) = result {
             self.preferences.download_directory = previous;
             return Err(error.context("默认保存目录写入失败，原设置已保留"));
@@ -205,6 +240,32 @@ impl App {
         );
         Ok(s(matches[0], "id").into())
     }
+}
+pub fn validate_listen_address(value: &str) -> Result<()> {
+    if value.trim() == "auto" {
+        return Ok(());
+    }
+    value
+        .trim()
+        .parse::<std::net::Ipv4Addr>()
+        .context("请输入 auto 或 IPv4 地址")?;
+    Ok(())
+}
+pub fn resolve_listen_address(value: &str) -> Result<std::net::Ipv4Addr> {
+    validate_listen_address(value)?;
+    if value.trim() == "auto" {
+        return Ok(Core::preferred_private_lan_ipv4()?.unwrap_or(std::net::Ipv4Addr::LOCALHOST));
+    }
+    let address = value.trim().parse::<std::net::Ipv4Addr>()?;
+    anyhow::ensure!(
+        address.is_unspecified()
+            || address.is_loopback()
+            || Core::local_ipv4_interfaces()?
+                .iter()
+                .any(|(_, ip)| *ip == address),
+        "该 IPv4 地址不属于本机网卡"
+    );
+    Ok(address)
 }
 pub fn expand_path(value: &str) -> Result<PathBuf> {
     let value = value.trim();
@@ -398,6 +459,33 @@ mod tests {
         assert_eq!(
             app.download_directory().unwrap(),
             restored.download_directory().unwrap()
+        );
+    }
+    #[test]
+    fn network_preferences_are_portable_and_preserve_other_settings() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut app = App::open(directory.path()).unwrap();
+        assert_eq!(app.listen_address(), "auto");
+        app.set_download_directory(directory.path().to_str().unwrap())
+            .unwrap();
+        app.set_listen_address("127.0.0.1").unwrap();
+        let restored = App::open(directory.path()).unwrap();
+        assert_eq!(restored.listen_address(), "127.0.0.1");
+        assert_eq!(
+            App::configured_listen_address(directory.path()).unwrap(),
+            "127.0.0.1"
+        );
+        assert_eq!(
+            restored.download_directory().unwrap(),
+            directory.path().canonicalize().unwrap()
+        );
+        assert!(app.set_listen_address("203.0.113.111").is_err());
+        assert_eq!(app.listen_address(), "127.0.0.1");
+        assert!(validate_listen_address("auto").is_ok());
+        assert!(validate_listen_address("not-an-address").is_err());
+        assert!(
+            resolve_listen_address("auto").unwrap().is_private()
+                || resolve_listen_address("auto").unwrap().is_loopback()
         );
     }
     #[test]

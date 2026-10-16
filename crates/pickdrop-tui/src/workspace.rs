@@ -30,6 +30,8 @@ pub enum FormKind {
     Join,
     Name,
     DownloadDirectory,
+    ListenAddress,
+    ConfirmClearChatData,
     Path(String),
     Connect(String),
     Save {
@@ -61,6 +63,11 @@ pub enum Action {
         before: String,
     },
     Cancel,
+    StorageStats,
+    ClearCache,
+    NetworkInterfaces,
+    SetListenAddress(String),
+    ClearChatData,
     Quit,
 }
 #[derive(Clone)]
@@ -88,6 +95,7 @@ pub struct Workspace {
     pub directory: PathBuf,
     pub files: Vec<Row>,
     pub transfer: String,
+    pub clear_chat_data: bool,
 }
 impl Workspace {
     pub fn new() -> Result<Self> {
@@ -101,6 +109,7 @@ impl Workspace {
             directory: std::env::current_dir()?,
             files: vec![],
             transfer: "本次会话暂无传输".into(),
+            clear_chat_data: false,
         };
         workspace.browse(workspace.directory.clone())?;
         Ok(workspace)
@@ -402,6 +411,31 @@ impl Workspace {
                     "name",
                     "[修改设备名称]",
                     Action::Form(FormKind::Name),
+                ));
+                rows.push(Row::new(
+                    "listen-address",
+                    format!("[网络监听] {}（重启生效）", app.listen_address()),
+                    Action::Form(FormKind::ListenAddress),
+                ));
+                rows.push(Row::new(
+                    "network-interfaces",
+                    "[查看本机 IPv4 网卡]",
+                    Action::NetworkInterfaces,
+                ));
+                rows.push(Row::new(
+                    "storage-stats",
+                    "[查看缓存占用]",
+                    Action::StorageStats,
+                ));
+                rows.push(Row::new(
+                    "clear-cache",
+                    "[清理文件缓存] 保留身份和聊天记录",
+                    Action::ClearCache,
+                ));
+                rows.push(Row::new(
+                    "clear-chat-data",
+                    "[清除本机群聊数据] 保留身份和设置",
+                    Action::ClearChatData,
                 ));
             }
             9 => {

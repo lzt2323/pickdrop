@@ -36,8 +36,9 @@ impl Drop for Screen {
         let _ = terminal::disable_raw_mode();
     }
 }
-pub async fn run(core: &Core, data: &Path) -> Result<()> {
+pub async fn run(core: &Core, data: &Path, listen_override: Option<String>) -> Result<bool> {
     let mut app = App::open(data)?;
+    app.listen_override = listen_override;
     app.refresh(core).await?;
     let _screen = Screen::enter()?;
     let old_hook = std::panic::take_hook();
@@ -86,11 +87,12 @@ pub async fn run(core: &Core, data: &Path) -> Result<()> {
                     Ok(value)=>{
                         app.notice="操作完成".into();
                         if let Some(id)=finished.draft { if let Err(error)=app.remove_draft(&id){app.notice=format!("已发送，但草稿清理失败，请勿重复发送：{error}");} }
-                        if matches!(finished.method.as_str(),"create_invite"|"list_join_requests"|"get_state"|"save_file") && ui.accepts_result(finished.menu) {
+                        if matches!(finished.method.as_str(),"create_invite"|"list_join_requests"|"get_state"|"save_file"|"storage_stats") && ui.accepts_result(finished.menu) {
                             app.detail=Some(result_lines(&finished.method,&value));app.scroll=0;ui.focus=Focus::Content;
                         }
                         if matches!(finished.method.as_str(),"select_group"|"create_group") {app.detail=None;app.scroll=0;ui.selected=None;}
                         if finished.transfer.is_some(){ui.transfer=if finished.method=="send_file" {"本机文件已准备；未确认其他设备接收"} else {"文件已校验并保存到本机"}.into();}
+                        if finished.method=="clear_cache" {app.notice="缓存已清理；身份、群组和聊天记录保留".into();ui.transfer="本机文件缓存已清理；其他设备可能无法下载原副本".into();}
                         if finished.method=="join_group" {app.notice="申请已提交，核心会继续等待批准；无需保持此面板".into();}
                     }
                     Err(error)=>{app.notice=format!("错误：{error:#}；未发附件保留");if finished.transfer.is_some(){ui.transfer=app.notice.clone();}},
@@ -125,5 +127,5 @@ pub async fn run(core: &Core, data: &Path) -> Result<()> {
             job.task.abort();
         }
     }
-    Ok(())
+    Ok(ui.clear_chat_data)
 }

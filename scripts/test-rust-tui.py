@@ -3,6 +3,8 @@
 import argparse
 import fcntl
 import hashlib
+import ipaddress
+from urllib.parse import urlsplit
 import json
 import os
 from pathlib import Path
@@ -21,7 +23,7 @@ import time
 class Node:
     def __init__(self, binary, data, report):
         self.stderr = open(report, 'ab')
-        self.process = subprocess.Popen([str(binary), '--json', '--data-dir', str(data)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.stderr, text=True, bufsize=1)
+        self.process = subprocess.Popen([str(binary), '--json', '--bind', '127.0.0.1', '--data-dir', str(data)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.stderr, text=True, bufsize=1)
         self.responses = queue.Queue()
         self.sequence = 0
         self.reader = threading.Thread(target=self.read, daemon=True)
@@ -83,7 +85,7 @@ def terminal_test(binary, work, report):
         def controlling_terminal():
             os.setsid()
             fcntl.ioctl(0, termios.TIOCSCTTY, 0)
-        process = subprocess.Popen([str(binary), '--data-dir', str(data)], stdin=slave, stdout=slave, stderr=slave, cwd=work, preexec_fn=controlling_terminal)
+        process = subprocess.Popen([str(binary), '--bind', '127.0.0.1', '--data-dir', str(data)], stdin=slave, stdout=slave, stderr=slave, cwd=work, preexec_fn=controlling_terminal)
         observed = bytearray()
         def read_until(expected, timeout=20, reuse=False):
             if reuse and expected in observed.decode('utf-8', errors='replace'):
@@ -171,6 +173,13 @@ def terminal_test(binary, work, report):
         read_until('默认保存目录已更新')
         preferences = json.loads((data / 'tui-preferences.json').read_text())
         assert preferences['downloadDirectory'] == str(default_directory)
+        menu(master, read_until, 8, '[网络监听]')
+        keys(master, read_until, b'\x1b[B' * 2 + b'\r', '输入 auto 或本机 IPv4')
+        os.write(master, b'\x15')
+        paste(master, '127.0.0.1')
+        read_until('保存监听设置')
+        keys(master, read_until, b'\x1b[C\r', '监听设置已保存')
+        assert json.loads((data / 'tui-preferences.json').read_text())['listenAddress'] == '127.0.0.1'
         os.write(master, b'\x03')
     session(first)
 
@@ -206,8 +215,45 @@ def terminal_test(binary, work, report):
         keys(master, read_until, b'\x1b[B\r', '输入设备名称')
         paste(master, '键盘验收设备')
         read_until('操作完成')
+        # Renaming may add a membership event; cache cleanup must preserve the full current history.
+        events_before_cleanup = json.loads((data / ('group_' + group + '.json')).read_text())['events']
+        # Cache confirmation defaults to cancel, then explicit cleanup retains history/drafts/exports.
+        menu(master, read_until, 8, '[清理文件缓存]')
+        keys(master, read_until, b'\x1b[B' * 5 + b'\r', '清理本机全部文件缓存')
+        keys(master, read_until, b'\r', '[清理文件缓存]')
+        assert any((data / 'files').iterdir()), 'Default dialog choice cleared cache'
+        keys(master, read_until, b'\r', '清理本机全部文件缓存')
+        keys(master, read_until, b'\x1b[C\r', '缓存已清理')
+        assert not any((data / 'files').iterdir())
+        assert source.exists() and saved.read_bytes() == source.read_bytes()
+        assert json.loads((data / ('group_' + group + '.json')).read_text())['events'] == events_before_cleanup
+        assert json.loads((data / 'tui-drafts.json').read_text())
         process.send_signal(signal.SIGTERM)
     session(second)
+
+    preserved = {name: (data / name).read_bytes() for name in ['identity.json', 'settings.json', 'network.json', 'tui-preferences.json']}
+    def third(process, master, command, read_until):
+        menu(master, read_until, 8, '[清除本机群聊数据]')
+        keys(master, read_until, b'\x1b[B' * 6 + b'\r', '清除本机关联')
+        keys(master, read_until, b'\x1b[C\r', '输入“清除本机群聊”')
+        paste(master, '错误确认')
+        read_until('确认文字不匹配')
+        assert list(data.glob('group_*.json')), 'Wrong confirmation cleared chat data'
+        os.write(master, b'\x15')
+        paste(master, '清除本机群聊')
+        read_until('本机群聊数据及缓存已清除')
+    session(third)
+    assert not list(data.glob('group_*.json')) and not (data / 'tui-drafts.json').exists()
+    for name, contents in preserved.items():
+        assert (data / name).read_bytes() == contents, name + ' was changed by cleanup'
+    assert source.exists() and (default_directory / source.name).exists()
+    # Start without --bind: the saved per-device setting must restore a loopback listener.
+    restored = subprocess.run([str(binary), '--json', '--data-dir', str(data)], input=json.dumps({'id': 1, 'method': 'bootstrap', 'params': {}}) + '\n', capture_output=True, text=True, timeout=15)
+    assert restored.returncode == 0, restored.stderr
+    boot = json.loads(restored.stdout)['value']
+    assert not boot['groups'] and boot['endpoint']['baseUrl'].startswith('http://127.0.0.1:')
+    assert boot['device']['id'] == json.loads(preserved['identity.json'])['device']['id']
+
     report.write_bytes(transcript)
 
 
@@ -223,7 +269,12 @@ def main():
     checks = []
     # PTY first: preexec_fn is used before any reader threads are created.
     terminal_test(binary, work, output / 'terminal.ansi')
-    checks.append('PTY: arrow/Enter menus and forms, Unicode composition, safe default confirmation, persisted default save directory and prefilled filename, group-bound persisted draft, explicit file send, Tab panel focus, 36/60/80/100/120-column layouts, narrow settings, Ctrl+C/SIGTERM restoration')
+    checks.append('PTY: arrow/Enter menus and forms, Unicode composition, safe default confirmation, persisted network/save settings, prefilled filename, confirmed cache cleanup, typed offline chat cleanup preserving identity/settings/exports, group-bound persisted draft, explicit file send, Tab panel focus, 36/60/80/100/120-column layouts, narrow settings, Ctrl+C/SIGTERM restoration')
+    automatic = subprocess.run([str(binary), '--json', '--data-dir', str(work / 'automatic-network')], input=json.dumps({'id': 1, 'method': 'bootstrap', 'params': {}}) + '\n', capture_output=True, text=True, timeout=15)
+    assert automatic.returncode == 0, automatic.stderr
+    auto_ip = ipaddress.IPv4Address(urlsplit(json.loads(automatic.stdout)['value']['endpoint']['baseUrl']).hostname)
+    assert auto_ip.is_loopback or any(auto_ip in ipaddress.IPv4Network(network) for network in ['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']), str(auto_ip)
+    checks.append('Default startup: binds only a private LAN IPv4 or loopback; public-only hosts require explicit configuration')
     a = b = None
     try:
         a = Node(binary, work / 'a', output / 'nodes.log')
@@ -272,7 +323,7 @@ def main():
         assert restored['endpoint']['port'] == b_boot['endpoint']['port']
         assert len(b.call('get_state', groupId=group)['messages']) >= 4
         checks.append('Restart preserves identity, listener port, group and history')
-        report = {'passed': True, 'version': subprocess.check_output([str(binary), '--version'], text=True).strip(), 'checks': checks, 'fileSha256': expected, 'workDirectory': str(work), 'isolation': 'Generated files and groups; loopback-only listeners; no existing business files'}
+        report = {'passed': True, 'version': subprocess.check_output([str(binary), '--version'], text=True).strip(), 'checks': checks, 'fileSha256': expected, 'workDirectory': str(work), 'isolation': 'Generated files and groups; pairing/transfers use loopback; default-bind probe uses private LAN or loopback; no existing business files'}
         (output / 'acceptance.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
         print(json.dumps(report, ensure_ascii=False, indent=2))
     finally:

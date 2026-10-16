@@ -12,7 +12,7 @@ Node 是前端与开发工具依赖，不是产品服务。工具入口见 [scri
 
 ## 版本与回退
 
-当前开发版本为 `0.6.0-alpha.11`；预览标识和数据目录不变。版本同时更新根 package.json、apps/tauri/package.json、核心、Rust TUI、Tauri 宿主与内部 native 插件 Cargo.toml、Cargo.lock、tauri.conf.json。Android `bundle.android.versionCode` 必须显式递增：alpha.1 为 6000，alpha.2 为 6001，alpha.3 为 6002，alpha.4 为 6003，alpha.5 为 6004，alpha.6 为 6005，alpha.7 为 6006，alpha.8 为 6007，alpha.9 为 6008，alpha.10 为 6009，alpha.11 为 6010，不能仅依靠忽略预发布尾缀的默认换算。
+当前开发版本为 `0.6.0-alpha.12`；预览标识和数据目录不变。版本同时更新根 package.json、apps/tauri/package.json、核心、Rust TUI、Tauri 宿主与内部 native 插件 Cargo.toml、Cargo.lock、tauri.conf.json。Android `bundle.android.versionCode` 必须显式递增：alpha.1 为 6000，alpha.2 为 6001，alpha.3 为 6002，alpha.4 为 6003，alpha.5 为 6004，alpha.6 为 6005，alpha.7 为 6006，alpha.8 为 6007，alpha.9 为 6008，alpha.10 为 6009，alpha.11 为 6010，alpha.12 为 6011，不能仅依靠忽略预发布尾缀的默认换算。
 
 版本变化新增 `docs/releases/v<版本>.md`，不覆盖旧说明。`pnpm version:check` 校验版本及 Android 构建号。依赖变化同步 pnpm-lock.yaml；Rust 包版本/依赖变化同步 Cargo.lock。安装包、target、gen、用户数据、私有证书及工具本地记录不纳入 Git。
 

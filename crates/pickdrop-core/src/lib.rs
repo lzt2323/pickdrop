@@ -243,6 +243,14 @@ impl Core {
         }
         Ok(core)
     }
+    /// IPv4 choices for host UIs; listing does not open listeners or change routes.
+    pub fn local_ipv4_interfaces() -> Result<Vec<(String, std::net::Ipv4Addr)>> {
+        network::local_ipv4_interfaces()
+    }
+    /// Select only an RFC 1918 address on a preferred physical LAN interface.
+    pub fn preferred_private_lan_ipv4() -> Result<Option<std::net::Ipv4Addr>> {
+        network::preferred_private_lan_ipv4()
+    }
     /// Stop listeners and periodic work without changing identity, groups or cached files.
     pub async fn shutdown(&self) {
         self.0.active.store(false, Ordering::Release);

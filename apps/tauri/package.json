@@ -1,6 +1,6 @@
 {
   "name": "@pickdrop/tauri",
-  "version": "0.6.0-alpha.11",
+  "version": "0.6.0-alpha.12",
   "private": true,
   "type": "module",
   "scripts": {

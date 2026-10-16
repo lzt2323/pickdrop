@@ -145,6 +145,9 @@ async fn activate(
     action: Action,
     confirmed: bool,
 ) -> Result<bool> {
+    if matches!(&action, Action::ClearCache | Action::ClearChatData) {
+        anyhow::ensure!(job.is_none(), "请等待当前操作完成或先取消传输，再清理数据");
+    }
     if !confirmed {
         let question = match &action {
             Action::Send(draft) => Some(format!(
@@ -159,6 +162,9 @@ async fn activate(
                 id,
                 group
             )),
+            Action::ClearChatData => Some("清除本机关联的所有群组、历史、草稿和文件缓存？身份和设置保留，其他成员的数据不变；清理将退出服务并中断其他设备从本机下载，之后需重新加入群。确认后还需输入确认文字。".into()),
+            Action::SetListenAddress(value) => Some(format!("保存监听设置 {value}？重启后生效。公网地址或 0.0.0.0 可能对外开放未加密服务；auto 仅选私有局域网地址。")),
+            Action::ClearCache => Some("清理本机全部文件缓存？身份、群组、聊天、原始文件和已导出文件保留；若这是唯一副本，其他设备将无法再下载。".into()),
             Action::Quit => Some("退出并停止本次同步服务？草稿和身份会保留。".into()),
             _ => None,
         };
@@ -181,6 +187,12 @@ async fn activate(
                 FormKind::Join => "粘贴完整邀请链接，或输入 地址 邀请码",
                 FormKind::Name => "输入设备名称",
                 FormKind::DownloadDirectory => "输入默认保存目录（已存在的目录，支持 ~）",
+                FormKind::ListenAddress => {
+                    "输入 auto 或本机 IPv4（重启生效）；auto 仅自动选择私有局域网地址"
+                }
+                FormKind::ConfirmClearChatData => {
+                    "输入“清除本机群聊”后 Enter；将退出并清理群聊数据，身份和设置保留"
+                }
                 FormKind::Path(_) => "输入普通文件完整路径（暂存后需确认发送）",
                 FormKind::Connect(_) => "输入已入群设备的 http://IP:端口",
                 FormKind::Save { .. } => "输入保存文件的完整目标路径（含文件名；拒绝覆盖）",
@@ -197,6 +209,9 @@ async fn activate(
                     path.to_str()
                         .context("保存路径不是 UTF-8，请选择其他目录")?,
                 )?;
+            }
+            if matches!(&kind, FormKind::ListenAddress) {
+                next_editor.insert(app.listen_address())?;
             }
             ui.open_form(title, kind);
             *editor = next_editor;
@@ -269,6 +284,41 @@ async fn activate(
             }
             .into();
         }
+        Action::NetworkInterfaces => {
+            let interfaces = Core::local_ipv4_interfaces()?;
+            let auto = Core::preferred_private_lan_ipv4()?.unwrap_or(std::net::Ipv4Addr::LOCALHOST);
+            let mut lines = vec![
+                format!("自动模式当前会选择：{auto}"),
+                format!("已保存监听设置：{}；修改后需重启", app.listen_address()),
+            ];
+            if let Some(value) = &app.listen_override {
+                lines.push(format!("本次命令行 --bind {value} 优先于已保存设置"));
+            }
+            lines.extend(interfaces.into_iter().map(|(name, address)| {
+                format!(
+                    "{name}  {address}{}",
+                    if address.is_private() {
+                        "（私有）"
+                    } else if address.is_loopback() {
+                        "（仅本机）"
+                    } else {
+                        "（公网或其他地址）"
+                    }
+                )
+            }));
+            app.detail = Some(lines);
+            app.scroll = 0;
+        }
+        Action::SetListenAddress(value) => app.set_listen_address(&value)?,
+        Action::ClearChatData => {
+            ui.open_form(
+                "输入“清除本机群聊”后 Enter；将退出并清理群聊数据，身份和设置保留",
+                FormKind::ConfirmClearChatData,
+            );
+            *editor = Editor::default();
+        }
+        Action::StorageStats => launch(core, ui, job, "storage_stats", json!({}))?,
+        Action::ClearCache => launch(core, ui, job, "clear_cache", json!({}))?,
         Action::Quit => return Ok(true),
     }
     Ok(false)
@@ -297,6 +347,29 @@ async fn submit_form(
         FormKind::Connect(group) => ("connect_peer", json!({"groupId":group,"address":text})),
         FormKind::Save { group, id, .. } => {
             ("save_file", json!({"groupId":group,"id":id,"path":text}))
+        }
+        FormKind::ListenAddress => {
+            app::resolve_listen_address(text)?;
+            let value = text.to_owned();
+            ui.form = None;
+            ui.focus = Focus::Content;
+            *editor = Editor::default();
+            return activate(
+                core,
+                app,
+                ui,
+                editor,
+                job,
+                Action::SetListenAddress(value),
+                false,
+            )
+            .await;
+        }
+        FormKind::ConfirmClearChatData => {
+            anyhow::ensure!(text == "清除本机群聊", "确认文字不匹配，未清除任何数据");
+            anyhow::ensure!(job.is_none(), "请先等待当前操作完成");
+            ui.clear_chat_data = true;
+            return Ok(true);
         }
         FormKind::DownloadDirectory => {
             app.set_download_directory(text)?;
@@ -452,6 +525,14 @@ pub(crate) async fn key_action(
 }
 pub(crate) fn result_lines(method: &str, value: &Value) -> Vec<String> {
     match method {
+        "storage_stats" => vec![
+            format!(
+                "本机文件缓存：{} 个文件，{} 字节",
+                value["files"], value["bytes"]
+            ),
+            "清理缓存保留身份、群组、聊天记录和附件草稿。".into(),
+            "清理本机唯一文件副本后，其他设备可能无法接收。".into(),
+        ],
         "create_invite" => vec![
             format!("邀请码：{}", s(value, "code")),
             format!("邀请链接：{}", s(value, "link")),
@@ -495,6 +576,103 @@ pub(crate) fn result_lines(method: &str, value: &Value) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn cache_cleanup_and_chat_reset_require_explicit_confirmation() {
+        let directory = tempfile::tempdir().unwrap();
+        let core = Core::open_with_bind_address(
+            directory.path().into(),
+            "desktop",
+            std::net::Ipv4Addr::LOCALHOST,
+        )
+        .await
+        .unwrap();
+        let group = core
+            .dispatch("create_group", json!({"name":"清理确认"}))
+            .await
+            .unwrap();
+        let source = directory.path().join("original.txt");
+        std::fs::write(&source, b"retain original").unwrap();
+        core.dispatch("send_file", json!({"groupId":group["id"],"path":source}))
+            .await
+            .unwrap();
+        let mut app = App::open(directory.path()).unwrap();
+        app.refresh(&core).await.unwrap();
+        let identity = app.boot["device"].clone();
+        let mut ui = Workspace::new().unwrap();
+        ui.focus = Focus::Content;
+        ui.menu = 8;
+        let mut editor = Editor::default();
+        let mut job = None;
+        activate(
+            &core,
+            &mut app,
+            &mut ui,
+            &mut editor,
+            &mut job,
+            Action::ClearCache,
+            false,
+        )
+        .await
+        .unwrap();
+        key_action(
+            &core,
+            &mut app,
+            &mut ui,
+            &mut editor,
+            &mut job,
+            KeyCode::Enter,
+        )
+        .await
+        .unwrap();
+        assert!(job.is_none());
+        assert_eq!(
+            core.dispatch("storage_stats", json!({})).await.unwrap()["files"],
+            1
+        );
+        activate(
+            &core,
+            &mut app,
+            &mut ui,
+            &mut editor,
+            &mut job,
+            Action::ClearCache,
+            true,
+        )
+        .await
+        .unwrap();
+        job.take().unwrap().task.await.unwrap().unwrap();
+        app.refresh(&core).await.unwrap();
+        assert_eq!(
+            core.dispatch("storage_stats", json!({})).await.unwrap()["files"],
+            0
+        );
+        assert_eq!(app.boot["device"], identity);
+        assert_eq!(app.state["messages"].as_array().unwrap().len(), 1);
+        assert!(source.exists());
+        activate(
+            &core,
+            &mut app,
+            &mut ui,
+            &mut editor,
+            &mut job,
+            Action::ClearChatData,
+            true,
+        )
+        .await
+        .unwrap();
+        editor.insert("错误确认").unwrap();
+        assert!(submit_form(&core, &mut app, &mut ui, &mut editor, &mut job)
+            .await
+            .is_err());
+        assert!(!ui.clear_chat_data);
+        editor = Editor::default();
+        editor.insert("清除本机群聊").unwrap();
+        assert!(submit_form(&core, &mut app, &mut ui, &mut editor, &mut job)
+            .await
+            .unwrap());
+        assert!(ui.clear_chat_data);
+        core.shutdown().await;
+    }
     #[tokio::test]
     async fn approval_requires_explicit_choice_and_uses_captured_request() {
         let a = tempfile::tempdir().unwrap();

@@ -36,6 +36,42 @@ pub(super) fn validate_discovery_hint(hint: &Value) -> Result<Value> {
     )
 }
 
+pub(super) fn local_ipv4_interfaces() -> Result<Vec<(String, std::net::Ipv4Addr)>> {
+    Ok(local_ip_address::list_afinet_netifas()?
+        .into_iter()
+        .filter_map(|(name, ip)| {
+            if let std::net::IpAddr::V4(address) = ip {
+                Some((name, address))
+            } else {
+                None
+            }
+        })
+        .collect())
+}
+pub(super) fn preferred_private_lan_ipv4() -> Result<Option<std::net::Ipv4Addr>> {
+    let interfaces = local_ipv4_interfaces()?
+        .into_iter()
+        .map(|(name, ip)| (name, std::net::IpAddr::V4(ip)))
+        .collect::<Vec<_>>();
+    Ok(choose_private_lan_ipv4(&interfaces))
+}
+fn choose_private_lan_ipv4(
+    interfaces: &[(String, std::net::IpAddr)],
+) -> Option<std::net::Ipv4Addr> {
+    let private = interfaces
+        .iter()
+        .filter(|(_, ip)| matches!(ip,std::net::IpAddr::V4(ip) if ip.is_private()))
+        .cloned()
+        .collect::<Vec<_>>();
+    choose_lan_ip(&private, false).and_then(|ip| {
+        if let std::net::IpAddr::V4(ip) = ip {
+            Some(ip)
+        } else {
+            None
+        }
+    })
+}
+
 // The dependency's Android/macOS local_ip() returns the first non-loopback
 // interface, which can be a VPN's tun0. Advertise a physical LAN address instead.
 pub(super) fn preferred_lan_ip() -> Option<std::net::IpAddr> {
@@ -67,6 +103,7 @@ fn choose_lan_ip(
                 "vmnet",
                 "vbox",
                 "docker",
+                "br-",
                 "veth",
                 "virbr",
                 "bridge",
@@ -147,6 +184,38 @@ mod network_tests {
     }
     fn iface(name: &str, ip: &str) -> (String, std::net::IpAddr) {
         (name.into(), ip.parse().unwrap())
+    }
+    #[test]
+    fn automatic_private_mode_never_selects_a_public_or_virtual_address() {
+        let interfaces = vec![
+            iface("ens3", "203.0.113.9"),
+            iface("docker0", "172.17.0.1"),
+            iface("br-a1b2", "172.18.0.1"),
+            iface("wg0", "10.0.0.1"),
+        ];
+        assert!(choose_private_lan_ipv4(&interfaces).is_none());
+        let mut private_wifi = interfaces;
+        private_wifi.push(iface("wlan0", "192.168.6.2"));
+        assert_eq!(
+            choose_private_lan_ipv4(&private_wifi).unwrap().to_string(),
+            "192.168.6.2"
+        );
+    }
+    #[test]
+    fn linux_interface_selection_is_independent_of_host_names_and_ignores_virtual_routes() {
+        for physical in ["eth0", "ens42f0", "enp3s0", "wlan0"] {
+            let interfaces = vec![
+                iface("docker0", "172.17.0.1"),
+                iface("wg0", "10.2.0.1"),
+                iface(physical, "192.168.8.4"),
+            ];
+            assert_eq!(
+                choose_lan_ip(&interfaces, false).unwrap().to_string(),
+                "192.168.8.4"
+            );
+        }
+        let interfaces = vec![iface("docker0", "172.17.0.1"), iface("tun0", "10.2.0.1")];
+        assert!(choose_lan_ip(&interfaces, false).is_none());
     }
     #[test]
     fn android_wifi_wins_over_vpn_and_cellular_regardless_of_enumeration_order() {
