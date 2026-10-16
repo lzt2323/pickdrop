@@ -1,0 +1,19 @@
+{
+  "identifier": "mobile-camera",
+  "description": "User initiated QR invitation scanning",
+  "platforms": [
+    "android",
+    "iOS"
+  ],
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "barcode-scanner:allow-scan",
+    "barcode-scanner:allow-cancel",
+    "barcode-scanner:allow-check-permissions",
+    "barcode-scanner:allow-request-permissions",
+    "pickdrop-native:allow-register-listener",
+    "pickdrop-native:allow-remove-listener"
+  ]
+}

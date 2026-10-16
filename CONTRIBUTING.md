@@ -1,51 +1,54 @@
 # 开发与版本管理
 
-`main` 保存可构建版本。每项改动使用独立分支（例如 `codex/mobile-share-fix`），通过 Pull Request 合并；避免直接修改发布标签，不使用强制推送覆盖共享历史。
+当前仅开发 Rust/Tauri 版本。`main` 保存已验证版本；较大改动使用职责明确的 `feat/`、`fix/`、`refactor/` 或 `docs/` 分支，验证后以 Conventional Commits 分主题提交并通过 PR 合并。Agent 自有开发分支上的已验证改动按 AGENTS.md 自动提交；已有的无关修改保留在工作区。不要长期积累未提交源码，不强制推送、改写已发布标签或覆盖发布资产。
 
-## 本地检查
+## 开始与目录
 
-使用 Node.js 24 与 package.json 指定的 pnpm 版本：
+阅读 [工程规则](AGENTS.md)、[项目边界](docs/PROJECT.md)、[当前状态](docs/STATUS.md) 和 [目录导航](docs/README.md)。主线源码为 `apps/tauri/`、`crates/pickdrop-tui/` 与 `crates/pickdrop-core/`；协议夹具在 `tests/fixtures/`。旧运行实现只能从 Git 历史获取，不再增加 Electron/Expo/Node 服务或旧 Node TUI 分支。
+
+`pnpm check` 校验目录、文档链接、前端字面量导入边界及循环和 JS 语法。新增根目录须说明职责并记录到 DECISIONS，再更新检查器。检查器不解析计算导入，不代替编译和行为验证。过期方案和截图从当前分支删除，通过 Git 历史追溯；发布记录放 `docs/releases/`，当前待办更新 STATUS。验收输出统一写入仓库根 `.build/reports/`，发布汇总写入 `.build/release/`，工具链默认输出目录保持不变。
+
+Node 是前端与开发工具依赖，不是产品服务。工具入口见 [scripts/README.md](scripts/README.md)。
+
+## 版本与回退
+
+当前发行版本为 `0.6.0`；正式标识 `app.pickdrop` 与预览目录隔离。版本同时更新根 package.json、apps/tauri/package.json、核心、Rust TUI、Tauri 宿主与内部 native 插件 Cargo.toml、Cargo.lock、tauri.conf.json。Android `bundle.android.versionCode` 必须显式递增：alpha.1 为 6000，alpha.2 为 6001，alpha.3 为 6002，alpha.4 为 6003，alpha.5 为 6004，alpha.6 为 6005，alpha.7 为 6006，alpha.8 为 6007，alpha.9 为 6008，alpha.10 为 6009，alpha.11 为 6010，alpha.12 为 6011，alpha.13 为 6012，alpha.14 为 6013，alpha.15 为 6014，不能仅依靠忽略预发布尾缀的默认换算。
+
+版本变化新增 `docs/releases/v<版本>.md`，不覆盖旧说明。`pnpm version:check` 校验版本及 Android 构建号。依赖变化同步 pnpm-lock.yaml；Rust 包版本/依赖变化同步 Cargo.lock。安装包、target、gen、用户数据、私有证书及工具本地记录不纳入 Git。
+
+旧实现最后完整回退点为 `b30873b`（包含已验证的代码职责重构和目录治理）。需要旧版时使用独立目录：
+
+```sh
+git worktree add --detach ../pickdrop-legacy b30873b
+```
+
+不在有未提交工作或日常数据的目录执行 hard reset；旧版不能读取新版数据目录。旧桌面导入保持显式、非破坏性。
+
+## 必须检查
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm check
+pnpm version:check
 pnpm test
-pnpm mobile:check
-pnpm mobile:export
+cargo test -p pickdrop-core --locked
+cargo test -p pickdrop-tauri --lib --locked
+cargo check -p pickdrop-tauri --locked
+pnpm --dir apps/tauri build
+pnpm --dir apps/tauri test:browser
+pnpm --dir apps/tauri test:join
+pnpm tauri:test:runtime
 ```
 
-修改桌面交互后，在桌面环境运行对应的 `desktop:smoke`、`desktop:motion`、`desktop:visual`。手机浏览器 UI 检查及原生真机检查见 README。CI 的 JS 构建成功不等于原生安装包或真机验收成功。
+协议改动必须通过保留的旧 JS 签名向量和真实双节点测试。不要为减少依赖删除协议夹具或跳过授权检查。原生窗口、扫码、系统文件和前后台须按平台独立验收。
 
-源码、配置、锁文件、测试和设计文档纳入 Git；`node_modules`、构建目录、安装包、用户收件箱、密钥与签名文件不纳入 Git。更新依赖时同时提交 `pnpm-lock.yaml`。每次提交描述具体行为，例如 `feat: add mobile group pairing`、`fix: preserve drafts when switching groups`。
+## 构建与发布
 
-## 发布安装包
+CI 验证主线并构建 macOS、Windows、Android ARM64 和 Linux x64 Rust TUI；不再打包 Node Linux TUI。iOS 需另行签名及验收。手动工作流只产出 artifacts。
 
-1. 在同一个提交中更新根目录 package.json、apps/tui/package.json、apps/mobile/package.json 和 apps/mobile/app.json 版本；添加 `docs/releases/v<版本>.md` 发布说明。
-2. 完成检查并合并至 main，再在该提交创建附注标签：
+Android 预览继续使用同一公开测试证书和独立包名，以保留预览升级能力；测试证书明确标注来源，不能用于正式发布。macOS ad-hoc 签名不等于公证。
 
-```sh
-git tag -a v0.3.0 -m 'Release v0.3.0'
-git push origin v0.3.0
-```
+发布前完成验证并合并 main，再由发布负责人创建附注 `v<版本>` 标签。Release 汇总上述 Tauri 包与 SHA256；已存在发布时拒绝覆盖。日常提交不打发布标签、不推送或发布，除非用户明确要求。
 
-3. Release 工作流校验标签与源码版本一致、执行检查，在 macOS/Windows/Linux 分别构建桌面、终端和 Android 安装包，全部成功后统一发布到同一个 `v<版本>` Release。包含 Mac Apple Silicon ZIP、Windows x64 便携 EXE、Android ARM64 APK、Linux x64/ARM64 TUI tar.gz、ANDROID-BUILD.txt 和 SHA256SUMS.txt。安装包上传 GitHub Release，不写进 Git 历史。
 
-当前全平台工作流统一标记为预发布：桌面包未进行正式开发者签名或 macOS 公证，Windows 与手机真机检查仍需单独完成。不上传应用商店。未来正式发布前须补齐签名和实机验收。
-
-Mac 内测构建必须使用完整的 ad-hoc 签名（`mac.identity: '-'`），不能设为 `null` 后保留 Electron 的链接器签名。归档前执行 `codesign --verify --deep --strict`，Mac 发布任务还须运行打包后应用的 smoke 测试。ad-hoc 签名不等于 Developer ID 签名或 Apple 公证，互联网下载后的首次打开仍可能需要用户在「隐私与安全性」中确认。
-
-如果工作流失败，在 Actions 中查看错误；源码有修复时应递增版本并创建新标签。重跑同一标签只可补齐失败流程，已经存在的 Release 资产不会被覆盖。仓库管理员可在 GitHub Rulesets 中为 main 启用 PR 审查和 `checks` 必须通过；本次没有擅自调整管理员权限设置。
-
-## Android 内测 APK
-
-Android APK 默认通过 GitHub Actions 构建，无需在开发电脑配置 Android SDK。日常测试在仓库 Actions → Android APK → Run workflow 中选择分支；成功后下载 `installer-android` artifact 内的 APK。Pull Request 和 main 更新也会自动构建 Android，main 构建为后续任务更新 Gradle 共享缓存。独立 Android 构建不会创建 Release。
-
-`Android APK` 是可复用工作流，使用 JDK 17、Android SDK 36 和 Expo 生成原生工程，执行 ARM64 `assembleRelease`，校验签名、包名、内置 JS 和不可调试属性，再上传 APK。pnpm 与 Gradle 缓存减少重复下载和编译；Android 任务跳过无关的 Electron 二进制下载。缓存命中不会跳过代码检查或测试。
-
-全平台预检可手动运行 `PickDrop Unified Release`，不再因每次推送 codex 分支重复构建所有平台。发布仍须通过 PR 合并，推送对应版本标签后，由统一工作流构建并发布全部平台；手动预检只上传 artifacts。日常 APK 测试无需创建版本标签。
-
-此流程只构建 ARM64 内测版。`PICKDROP_ANDROID_PREVIEW=1` 启用独立应用名称和包名 `app.pickdrop.mobile.preview`；release 构建内置 Hermes 资源，但使用 Expo 公开测试证书，不能作为正式发布者身份保证。正式版保留 `app.pickdrop.mobile`，必须另行配置私有签名。每次发布需要递增手机版本以及 `apps/mobile/app.config.js` 中的 Android versionCode；不要用同一版本标签发布不同内容。IPA 不在此工作流范围内。
-
-## Linux 终端发行包
-
-`pnpm linux:package --arch=x64` 或 `--arch=arm64` 生成携带 Node.js 运行时的 Linux 包。CI 在对应架构 Ubuntu 24.04 上构建并验证；不依赖 Electron 或图形桌面。具体命令和后台运行方式见 `docs/linux.md`。Linux 安装包与其他平台必须来自同一发布标签，不能混入旧版本资产。
+0.6.0 通过 GitHub Release 直接分发。稳定版 Android CI 只生成 unsigned APK，必须使用仓库外专用私钥经 `scripts/sign-android-release.js` 签名验证，不能直接上传 unsigned 产物。旧自动发布仅处理预发布标签。所有平台安装包完成版本/签名/校验检查后统一上传，并附 SHA256SUMS.txt；具体签名限制见版本说明。

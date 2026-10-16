@@ -1,0 +1,287 @@
+{
+  "description": "Public deterministic test identities only. Never use these keys for a real device.",
+  "creatorIdentity": {
+    "privateKey": "1111111111111111111111111111111111111111111111111111111111111111",
+    "publicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737"
+  },
+  "memberIdentity": {
+    "privateKey": "2222222222222222222222222222222222222222222222222222222222222222",
+    "publicKey": "a09aa5f47a6759802ff955f8dc2d2a14a5c99d23be97f864127ff9383455a4f0"
+  },
+  "device": {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "name": "电脑",
+    "kind": "desktop"
+  },
+  "second": {
+    "id": "22222222-2222-4222-8222-222222222222",
+    "name": "手机",
+    "kind": "android"
+  },
+  "now": 1791792000000,
+  "genesis": {
+    "protocol": "pickdrop-peer-v1",
+    "groupId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "animalId": "cat",
+    "name": "兼容测试",
+    "creatorDeviceId": "11111111-1111-4111-8111-111111111111",
+    "creatorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
+    "creator": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "name": "电脑",
+      "kind": "desktop",
+      "publicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737"
+    },
+    "signature": "511c024314fa75fecc1978317295e85049a4f4d734e2d7aab68a8e5fbea8fdeb12ae82a29dd4243c747129945f9cb7556e285ce5a956af8495fe8723c492500e"
+  },
+  "events": [
+    {
+      "groupId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "authorDeviceId": "11111111-1111-4111-8111-111111111111",
+      "authorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
+      "clock": 1,
+      "parents": [],
+      "nonce": "01010101010101010101010101010101",
+      "type": "member.add",
+      "payload": {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "name": "手机",
+        "kind": "android",
+        "publicKey": "a09aa5f47a6759802ff955f8dc2d2a14a5c99d23be97f864127ff9383455a4f0"
+      },
+      "signature": "3e96ceca554de67305499d7e0843330ecb4c07fc09d28896feebad13ffcb3b13b00d1aee155e029ef8f9f4088c02b93d9ddf36b3805556ecc99206bc3ed51a0c",
+      "eventId": "7f56ad5b213c16ceec6a4f2b6d25d73be75bead0534cb78a9279e5bce8655aea"
+    },
+    {
+      "groupId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "authorDeviceId": "11111111-1111-4111-8111-111111111111",
+      "authorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
+      "clock": 2,
+      "parents": [
+        "7f56ad5b213c16ceec6a4f2b6d25d73be75bead0534cb78a9279e5bce8655aea"
+      ],
+      "nonce": "02020202020202020202020202020202",
+      "type": "message",
+      "payload": {
+        "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "type": "text",
+        "text": "你好，Rust 👋",
+        "senderId": "11111111-1111-4111-8111-111111111111",
+        "senderName": "电脑",
+        "createdAt": "2026-10-12T08:00:00.000Z"
+      },
+      "signature": "60383806f319ec67b3ab72a68d1b8e28ff6e07f7b7194262f881418f8b1cd67b4dfeb4010dd8da47c8072c859be89c141fd729c7cd91e98f29a28cd007da4a07",
+      "eventId": "1ad53ee2651c3837b08580d0c634da20ad4f32a17ae1c87629bf473b3063ac78"
+    },
+    {
+      "groupId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "authorDeviceId": "22222222-2222-4222-8222-222222222222",
+      "authorPublicKey": "a09aa5f47a6759802ff955f8dc2d2a14a5c99d23be97f864127ff9383455a4f0",
+      "clock": 3,
+      "parents": [
+        "1ad53ee2651c3837b08580d0c634da20ad4f32a17ae1c87629bf473b3063ac78"
+      ],
+      "nonce": "03030303030303030303030303030303",
+      "type": "message",
+      "payload": {
+        "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        "type": "file",
+        "fileName": "测试.txt",
+        "mime": "text/plain",
+        "size": 3,
+        "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+        "senderId": "22222222-2222-4222-8222-222222222222",
+        "senderName": "手机",
+        "createdAt": "2026-10-12T08:00:01.000Z"
+      },
+      "signature": "454e15801995d9ee9c2db054be3812c00898e1759e05b448e116b374b846165ce5bdab70af14d6e633065b613517988f9baf4810ba0e0df2f7ef66dafd46d506",
+      "eventId": "795d07998a8bbbb21cbc25fcabf617fd1182d94b9d21b7f3bfce1eee2f5f8001"
+    },
+    {
+      "groupId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "authorDeviceId": "11111111-1111-4111-8111-111111111111",
+      "authorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
+      "clock": 4,
+      "parents": [
+        "795d07998a8bbbb21cbc25fcabf617fd1182d94b9d21b7f3bfce1eee2f5f8001"
+      ],
+      "nonce": "04040404040404040404040404040404",
+      "type": "rename",
+      "payload": {
+        "name": "迁移后的群",
+        "animalId": "dog"
+      },
+      "signature": "f919873231a75e9c9cdc83c9f59b15ffdaf55da4a07b916250cb4fc9fbca0199a5c3ea4caa5f90f6e87c0ff9deb5a9c432e05d08d3647f69ff36ffe403464708",
+      "eventId": "3f7de1d0e3448249d37dc94f925a00aa265593534e30ea11aa6dac00a921cee5"
+    }
+  ],
+  "expectedState": {
+    "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "name": "迁移后的群",
+    "animalId": "dog",
+    "members": [
+      {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "name": "电脑",
+        "kind": "desktop",
+        "publicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737"
+      },
+      {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "name": "手机",
+        "kind": "android",
+        "publicKey": "a09aa5f47a6759802ff955f8dc2d2a14a5c99d23be97f864127ff9383455a4f0"
+      }
+    ],
+    "messages": [
+      {
+        "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "type": "text",
+        "text": "你好，Rust 👋",
+        "senderId": "11111111-1111-4111-8111-111111111111",
+        "senderName": "电脑",
+        "createdAt": "2026-10-12T08:00:00.000Z",
+        "peerEventId": "1ad53ee2651c3837b08580d0c634da20ad4f32a17ae1c87629bf473b3063ac78"
+      },
+      {
+        "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        "type": "file",
+        "fileName": "测试.txt",
+        "mime": "text/plain",
+        "size": 3,
+        "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+        "senderId": "22222222-2222-4222-8222-222222222222",
+        "senderName": "手机",
+        "createdAt": "2026-10-12T08:00:01.000Z",
+        "peerEventId": "795d07998a8bbbb21cbc25fcabf617fd1182d94b9d21b7f3bfce1eee2f5f8001"
+      }
+    ],
+    "dissolved": false
+  },
+  "proof": {
+    "protocol": "pickdrop-peer-v1",
+    "groupId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "senderDeviceId": "11111111-1111-4111-8111-111111111111",
+    "senderPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
+    "operation": "sync",
+    "payload": {
+      "genesis": {
+        "protocol": "pickdrop-peer-v1",
+        "groupId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "animalId": "cat",
+        "name": "兼容测试",
+        "creatorDeviceId": "11111111-1111-4111-8111-111111111111",
+        "creatorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
+        "creator": {
+          "id": "11111111-1111-4111-8111-111111111111",
+          "name": "电脑",
+          "kind": "desktop",
+          "publicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737"
+        },
+        "signature": "511c024314fa75fecc1978317295e85049a4f4d734e2d7aab68a8e5fbea8fdeb12ae82a29dd4243c747129945f9cb7556e285ce5a956af8495fe8723c492500e"
+      },
+      "events": [
+        {
+          "groupId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "authorDeviceId": "11111111-1111-4111-8111-111111111111",
+          "authorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
+          "clock": 1,
+          "parents": [],
+          "nonce": "01010101010101010101010101010101",
+          "type": "member.add",
+          "payload": {
+            "id": "22222222-2222-4222-8222-222222222222",
+            "name": "手机",
+            "kind": "android",
+            "publicKey": "a09aa5f47a6759802ff955f8dc2d2a14a5c99d23be97f864127ff9383455a4f0"
+          },
+          "signature": "3e96ceca554de67305499d7e0843330ecb4c07fc09d28896feebad13ffcb3b13b00d1aee155e029ef8f9f4088c02b93d9ddf36b3805556ecc99206bc3ed51a0c",
+          "eventId": "7f56ad5b213c16ceec6a4f2b6d25d73be75bead0534cb78a9279e5bce8655aea"
+        },
+        {
+          "groupId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "authorDeviceId": "11111111-1111-4111-8111-111111111111",
+          "authorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
+          "clock": 2,
+          "parents": [
+            "7f56ad5b213c16ceec6a4f2b6d25d73be75bead0534cb78a9279e5bce8655aea"
+          ],
+          "nonce": "02020202020202020202020202020202",
+          "type": "message",
+          "payload": {
+            "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+            "type": "text",
+            "text": "你好，Rust 👋",
+            "senderId": "11111111-1111-4111-8111-111111111111",
+            "senderName": "电脑",
+            "createdAt": "2026-10-12T08:00:00.000Z"
+          },
+          "signature": "60383806f319ec67b3ab72a68d1b8e28ff6e07f7b7194262f881418f8b1cd67b4dfeb4010dd8da47c8072c859be89c141fd729c7cd91e98f29a28cd007da4a07",
+          "eventId": "1ad53ee2651c3837b08580d0c634da20ad4f32a17ae1c87629bf473b3063ac78"
+        },
+        {
+          "groupId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "authorDeviceId": "22222222-2222-4222-8222-222222222222",
+          "authorPublicKey": "a09aa5f47a6759802ff955f8dc2d2a14a5c99d23be97f864127ff9383455a4f0",
+          "clock": 3,
+          "parents": [
+            "1ad53ee2651c3837b08580d0c634da20ad4f32a17ae1c87629bf473b3063ac78"
+          ],
+          "nonce": "03030303030303030303030303030303",
+          "type": "message",
+          "payload": {
+            "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+            "type": "file",
+            "fileName": "测试.txt",
+            "mime": "text/plain",
+            "size": 3,
+            "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            "senderId": "22222222-2222-4222-8222-222222222222",
+            "senderName": "手机",
+            "createdAt": "2026-10-12T08:00:01.000Z"
+          },
+          "signature": "454e15801995d9ee9c2db054be3812c00898e1759e05b448e116b374b846165ce5bdab70af14d6e633065b613517988f9baf4810ba0e0df2f7ef66dafd46d506",
+          "eventId": "795d07998a8bbbb21cbc25fcabf617fd1182d94b9d21b7f3bfce1eee2f5f8001"
+        },
+        {
+          "groupId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "authorDeviceId": "11111111-1111-4111-8111-111111111111",
+          "authorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
+          "clock": 4,
+          "parents": [
+            "795d07998a8bbbb21cbc25fcabf617fd1182d94b9d21b7f3bfce1eee2f5f8001"
+          ],
+          "nonce": "04040404040404040404040404040404",
+          "type": "rename",
+          "payload": {
+            "name": "迁移后的群",
+            "animalId": "dog"
+          },
+          "signature": "f919873231a75e9c9cdc83c9f59b15ffdaf55da4a07b916250cb4fc9fbca0199a5c3ea4caa5f90f6e87c0ff9deb5a9c432e05d08d3647f69ff36ffe403464708",
+          "eventId": "3f7de1d0e3448249d37dc94f925a00aa265593534e30ea11aa6dac00a921cee5"
+        }
+      ],
+      "known": [],
+      "endpoint": {
+        "deviceId": "11111111-1111-4111-8111-111111111111",
+        "baseUrl": "http://127.0.0.1:47321"
+      }
+    },
+    "timestamp": 1791792000000,
+    "nonce": "050505050505050505050505050505050505050505050505",
+    "signature": "015993bb0931819f67d56d9b74d01ddcb981b88a3ab6ab5a22e81332c52d9c4044a5997f7da5b94e246b0345a379dcfa555571001531fda91e40d7a25b2c520e"
+  },
+  "joinProof": {
+    "protocol": "pickdrop-peer-v1",
+    "operation": "join",
+    "code": "123456",
+    "device": {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "name": "手机",
+      "kind": "android"
+    },
+    "publicKey": "a09aa5f47a6759802ff955f8dc2d2a14a5c99d23be97f864127ff9383455a4f0",
+    "signature": "e4489b041ef90370407edc8db4b37c36748a5f9b22ec9f06a380a892bc075b5f364643996b93e90cb71b62e3a9d8ca4069770e083e09efca2861f69bea1a4800"
+  },
+  "canonicalProofBody": "{\"groupId\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"nonce\":\"050505050505050505050505050505050505050505050505\",\"operation\":\"sync\",\"payload\":{\"endpoint\":{\"baseUrl\":\"http://127.0.0.1:47321\",\"deviceId\":\"11111111-1111-4111-8111-111111111111\"},\"events\":[{\"authorDeviceId\":\"11111111-1111-4111-8111-111111111111\",\"authorPublicKey\":\"d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737\",\"clock\":1,\"eventId\":\"7f56ad5b213c16ceec6a4f2b6d25d73be75bead0534cb78a9279e5bce8655aea\",\"groupId\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"nonce\":\"01010101010101010101010101010101\",\"parents\":[],\"payload\":{\"id\":\"22222222-2222-4222-8222-222222222222\",\"kind\":\"android\",\"name\":\"手机\",\"publicKey\":\"a09aa5f47a6759802ff955f8dc2d2a14a5c99d23be97f864127ff9383455a4f0\"},\"signature\":\"3e96ceca554de67305499d7e0843330ecb4c07fc09d28896feebad13ffcb3b13b00d1aee155e029ef8f9f4088c02b93d9ddf36b3805556ecc99206bc3ed51a0c\",\"type\":\"member.add\"},{\"authorDeviceId\":\"11111111-1111-4111-8111-111111111111\",\"authorPublicKey\":\"d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737\",\"clock\":2,\"eventId\":\"1ad53ee2651c3837b08580d0c634da20ad4f32a17ae1c87629bf473b3063ac78\",\"groupId\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"nonce\":\"02020202020202020202020202020202\",\"parents\":[\"7f56ad5b213c16ceec6a4f2b6d25d73be75bead0534cb78a9279e5bce8655aea\"],\"payload\":{\"createdAt\":\"2026-10-12T08:00:00.000Z\",\"id\":\"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb\",\"senderId\":\"11111111-1111-4111-8111-111111111111\",\"senderName\":\"电脑\",\"text\":\"你好，Rust 👋\",\"type\":\"text\"},\"signature\":\"60383806f319ec67b3ab72a68d1b8e28ff6e07f7b7194262f881418f8b1cd67b4dfeb4010dd8da47c8072c859be89c141fd729c7cd91e98f29a28cd007da4a07\",\"type\":\"message\"},{\"authorDeviceId\":\"22222222-2222-4222-8222-222222222222\",\"authorPublicKey\":\"a09aa5f47a6759802ff955f8dc2d2a14a5c99d23be97f864127ff9383455a4f0\",\"clock\":3,\"eventId\":\"795d07998a8bbbb21cbc25fcabf617fd1182d94b9d21b7f3bfce1eee2f5f8001\",\"groupId\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"nonce\":\"03030303030303030303030303030303\",\"parents\":[\"1ad53ee2651c3837b08580d0c634da20ad4f32a17ae1c87629bf473b3063ac78\"],\"payload\":{\"createdAt\":\"2026-10-12T08:00:01.000Z\",\"fileName\":\"测试.txt\",\"id\":\"cccccccc-cccc-4ccc-8ccc-cccccccccccc\",\"mime\":\"text/plain\",\"senderId\":\"22222222-2222-4222-8222-222222222222\",\"senderName\":\"手机\",\"sha256\":\"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\",\"size\":3,\"type\":\"file\"},\"signature\":\"454e15801995d9ee9c2db054be3812c00898e1759e05b448e116b374b846165ce5bdab70af14d6e633065b613517988f9baf4810ba0e0df2f7ef66dafd46d506\",\"type\":\"message\"},{\"authorDeviceId\":\"11111111-1111-4111-8111-111111111111\",\"authorPublicKey\":\"d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737\",\"clock\":4,\"eventId\":\"3f7de1d0e3448249d37dc94f925a00aa265593534e30ea11aa6dac00a921cee5\",\"groupId\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"nonce\":\"04040404040404040404040404040404\",\"parents\":[\"795d07998a8bbbb21cbc25fcabf617fd1182d94b9d21b7f3bfce1eee2f5f8001\"],\"payload\":{\"animalId\":\"dog\",\"name\":\"迁移后的群\"},\"signature\":\"f919873231a75e9c9cdc83c9f59b15ffdaf55da4a07b916250cb4fc9fbca0199a5c3ea4caa5f90f6e87c0ff9deb5a9c432e05d08d3647f69ff36ffe403464708\",\"type\":\"rename\"}],\"genesis\":{\"animalId\":\"cat\",\"creator\":{\"id\":\"11111111-1111-4111-8111-111111111111\",\"kind\":\"desktop\",\"name\":\"电脑\",\"publicKey\":\"d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737\"},\"creatorDeviceId\":\"11111111-1111-4111-8111-111111111111\",\"creatorPublicKey\":\"d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737\",\"groupId\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\",\"name\":\"兼容测试\",\"protocol\":\"pickdrop-peer-v1\",\"signature\":\"511c024314fa75fecc1978317295e85049a4f4d734e2d7aab68a8e5fbea8fdeb12ae82a29dd4243c747129945f9cb7556e285ce5a956af8495fe8723c492500e\"},\"known\":[]},\"protocol\":\"pickdrop-peer-v1\",\"senderDeviceId\":\"11111111-1111-4111-8111-111111111111\",\"senderPublicKey\":\"d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737\",\"timestamp\":1791792000000}"
+}

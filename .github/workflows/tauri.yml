@@ -1,0 +1,158 @@
+name: Tauri Preview
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+concurrency:
+  group: tauri-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: rustup toolchain install 1.99.0 --profile minimal
+      - run: pnpm structure:check
+      - run: pnpm check:frontend
+      - run: node scripts/verify-versions.js
+      - run: cargo test -p pickdrop-core --locked
+      - run: pnpm test:frontend
+      - run: pnpm --dir apps/tauri build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm --dir apps/tauri test:browser
+      - run: pnpm --dir apps/tauri test:join
+      - run: pnpm --dir apps/tauri test:regression
+      - run: pnpm --dir apps/tauri test:paste
+      - run: cargo build -p pickdrop-core --example ui_bridge --locked
+      - run: node tests/tauri-runtime-smoke.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: tauri-browser-evidence
+          path: .build/reports/tauri*/
+          include-hidden-files: true
+          if-no-files-found: ignore
+  desktop:
+    needs: core
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: rustup toolchain install 1.99.0 --profile minimal
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tauri:build
+      - name: Verify native file scopes on the packaged platform
+        run: cargo test --release --locked -p pickdrop-tauri --lib --features tauri/custom-protocol
+      - name: Verify macOS application signing
+        if: runner.os == 'macOS'
+        run: codesign --verify --deep --strict target/release/bundle/macos/*.app
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: tauri-desktop-${{ runner.os }}
+          path: |
+            target/release/bundle/dmg/*.dmg
+            target/release/bundle/nsis/*.exe
+            target/release/bundle/msi/*.msi
+          if-no-files-found: error
+          compression-level: 0
+  android:
+    needs: core
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: rustup toolchain install 1.99.0 --profile minimal
+      - run: rustup target add aarch64-linux-android
+      - run: pnpm install --frozen-lockfile
+      - name: Install Android toolchain
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.2.12479018'
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+      - run: pnpm --dir apps/tauri tauri android init --ci
+      - run: pnpm --dir apps/tauri tauri android build --ci --apk --target aarch64
+      - name: Sign previews or retain unsigned stable APK for private signing
+        run: |
+          APK=$(find apps/tauri/src-tauri/gen/android/app/build/outputs/apk -name '*release-unsigned.apk' -print -quit)
+          test -n "$APK"
+          node scripts/verify-android-scanner.js "$APK"
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ "$VERSION" == *-* ]]; then
+            node scripts/sign-tauri-preview-apk.js "$APK" ".build/release/assets/PickDrop-$VERSION-Tauri-Android-arm64-preview.apk"
+          else
+            mkdir -p .build/release/assets
+            cp "$APK" ".build/release/assets/PickDrop-$VERSION-Android-arm64-unsigned.apk"
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: tauri-android-arm64
+          path: .build/release/assets/*.apk
+          include-hidden-files: true
+          if-no-files-found: error
+          compression-level: 0
+
+  linux-tui:
+    needs: core
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: rustup toolchain install 1.99.0 --profile minimal
+      - run: cargo test -p pickdrop-tui --locked
+      - run: cargo build --release -p pickdrop-tui --locked
+      - run: python3 scripts/test-rust-tui.py target/release/pickdrop
+      - name: Package standalone Linux terminal binary
+        run: |
+          VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' crates/pickdrop-tui/Cargo.toml)
+          mkdir -p .build/release/linux .build/release/assets
+          cp target/release/pickdrop crates/pickdrop-tui/README.md LICENSE .build/release/linux/
+          tar -czf ".build/release/assets/PickDrop-$VERSION-Linux-x64-tui.tar.gz" -C .build/release/linux pickdrop README.md LICENSE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rust-linux-x64-tui
+          path: .build/release/assets/*-Linux-x64-tui.tar.gz
+          include-hidden-files: true
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rust-tui-acceptance
+          path: |
+            .build/reports/rust-tui/acceptance.json
+            .build/reports/rust-tui/terminal.ansi
+            .build/reports/rust-tui/nodes.log
+          include-hidden-files: true

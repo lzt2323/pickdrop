@@ -21,8 +21,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm test
-      - run: pnpm mobile:check
-      - run: pnpm mobile:export
-  # Main builds also publish an APK artifact and warm the cache for tag releases.
-  android:
-    uses: ./.github/workflows/android.yml
+  # Tauri Preview validates and packages the new shared client separately.

@@ -1,45 +1,14 @@
-# 拾传 / PickDrop · A「拾点」
+# 拾传应用图标
 
-Original vector artwork redrawn from the approved A concept in
-`docs/ui-concepts/2026-10-05-logo/A-pickup.png`. The asymmetric cupped shape
-receives a rounded square rotated −24°. There are no embedded raster images,
-fonts, filters, gradients, or third-party logo assets in the SVGs.
+白底、蓝色前页、浅蓝后页和白色交接箭头。应用图标不包含动物；动物仅用于群身份。
 
-## Assets
+`app-icon-source.svg` 是可编辑源。运行 `node scripts/generate-brand-assets.js` 生成 desktop、mobile 与此目录的 PNG/SVG。
 
-| File | Usage |
-| --- | --- |
-| `mark.svg`, `mark.png` | Teal hand and mint square; transparent, PNG 1024×1024 |
-| `mark-mono.svg`, `mark-mono.png` | Black one-color mark; transparent, PNG 1024×1024 |
-| `app-icon.svg`, `app-icon.png` | Ivory mark on rounded teal tile; transparent outer corners, PNG 1024×1024 |
-| `app-icon-{512,256,128,64,32,16}.png` | Raster exports at the named sizes |
-| `mac-icon.svg`, `mac-icon.png`, `mac-icon-{512,256,128,64,32,16}.png` | macOS Dock tile occupies 420/512 of the canvas, with transparent margins and a subtle offset shadow |
-| `mobile-icon.svg`, `mobile-icon.png` | Fully opaque square tile, PNG 1024×1024; platform applies its own mask |
-| `adaptive-foreground.svg`, `adaptive-foreground.png` | Transparent Android foreground; 1024×1024 with reduced central symbol |
-| `monochrome-icon.svg`, `monochrome-icon.png` | White Android themed-icon mask; same alignment as adaptive foreground |
-| `trayTemplate.svg`, `trayTemplate.png`, `trayTemplate@2x.png` | Black transparent macOS template; PNG 18×18 and 36×36 |
-| `manifest.json` | Palette and exported PNG dimensions |
+- `app-icon`：圆角白底，1024 至 16 像素导出。
+- `mac-icon`：1024 画布中保留 Dock 透明边距。
+- `mobile-icon`：1024 不透明白底，系统负责裁切。
+- `adaptive-foreground` / `monochrome-icon`：1024 透明中央图形，保留 Android 安全区。
+- `trayTemplate`：18 / 36 像素黑色透明线条，供 macOS 系统着色。
+- `manifest.json`：尺寸与实际 alpha 边界检查结果。
 
-Use `#126A5A` as the Android adaptive background. The foreground's visible
-bounds are 512×467 px on its 1024×1024 canvas, inside the central safe area.
-The foreground and monochrome mask deliberately share exactly the same geometry.
-Do not add a second background or rounded mask to either one.
-
-Palette: teal `#126A5A`, mint `#32C6A2`, ivory `#F3F5EE`.
-Keep the two shapes and their gap intact. Use the mono mark on backgrounds
-where the teal mark has insufficient contrast; macOS template rendering handles
-tray appearance. The application icon uses an ivory symbol for contrast.
-
-## Rebuild
-
-`scripts/generate-brand-assets.js` is the canonical geometry and export script.
-It uses the Sharp SVG rasterizer as a tooling dependency; it does not add Sharp
-to this application's production dependencies or access a browser.
-
-```sh
-PICKDROP_SHARP_MODULE=/absolute/path/to/sharp node scripts/generate-brand-assets.js
-```
-
-The variable is optional when `sharp` is resolvable by Node or is supplied beside
-the bundled tooling Node runtime. SVG files remain independently editable and
-renderable by any conforming SVG renderer.
+桌面打包继续由既有打包工具从 icon.png / mac-icon.png 生成系统格式。未改动启动逻辑或群动物资源。

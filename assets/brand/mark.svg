@@ -1,1 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512" role="img" aria-label="PickDrop 拾传 · 拾点彩色标志"><title>PickDrop 拾传 · 拾点彩色标志</title><g transform="translate(256 256) scale(1) translate(-256 -256)"><g transform="translate(22 36)"><path fill="#126A5A" d="M133 264 C109 247 96 233 72 233 C42 233 28 253 32 278 C45 357 128 407 228 409 C354 412 427 350 436 240 C440 195 427 167 403 165 C374 163 350 184 329 211 C294 257 254 282 211 283 C179 284 158 280 133 264 Z"/><rect x="176" y="53" width="145" height="145" rx="30" fill="#32C6A2" transform="rotate(-24 248.5 125.5)"/></g></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<defs><linearGradient id="paper-blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#299aff"/><stop offset="1" stop-color="#0066e8"/></linearGradient></defs>
+<path fill="#d5e9ff" d="M17 18h17l8 8v23a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V22a4 4 0 0 1 4-4Z"/>
+<path fill="url(#paper-blue)" d="M26 10h14l11 11v23a4 4 0 0 1-4 4H26a4 4 0 0 1-4-4V14a4 4 0 0 1 4-4Z"/>
+<path fill="#a6d4ff" d="M40 10v8a3 3 0 0 0 3 3h8Z"/>
+<path d="M29 34h14m-6-6 6 6-6 6" fill="none" stroke="#ffffff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

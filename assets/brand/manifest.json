@@ -1,121 +1,248 @@
 {
-  "concept": "A · 拾点 / Pick-up",
+  "concept": "White / blue file handoff; animals reserved for groups",
+  "source": "assets/brand/app-icon-source.svg",
   "colors": {
-    "teal": "#126A5A",
-    "mint": "#32C6A2",
-    "ivory": "#F3F5EE"
+    "ink": "#0066e8",
+    "cream": "#ffffff",
+    "orange": "#007aff",
+    "peach": "#ffffff",
+    "cheek": "#c7e2ff",
+    "brown": "#68adff"
   },
-  "viewBox": [
-    0,
-    0,
-    512,
-    512
-  ],
-  "files": [
+  "assets": [
     {
-      "file": "mark.png",
-      "width": 1024,
-      "height": 1024
-    },
-    {
-      "file": "mark-mono.png",
-      "width": 1024,
-      "height": 1024
-    },
-    {
-      "file": "app-icon.png",
-      "width": 1024,
-      "height": 1024
-    },
-    {
-      "file": "app-icon-512.png",
-      "width": 512,
-      "height": 512
-    },
-    {
-      "file": "app-icon-256.png",
-      "width": 256,
-      "height": 256
-    },
-    {
-      "file": "app-icon-128.png",
-      "width": 128,
-      "height": 128
-    },
-    {
-      "file": "app-icon-64.png",
+      "file": "apps/desktop/assets/drag-icon.png",
+      "size": 64,
       "width": 64,
-      "height": 64
+      "height": 64,
+      "nonOpaquePixels": 724,
+      "paintBounds": {
+        "minX": 1,
+        "minY": 1,
+        "maxX": 62,
+        "maxY": 62
+      }
     },
     {
-      "file": "app-icon-32.png",
-      "width": 32,
-      "height": 32
-    },
-    {
-      "file": "app-icon-16.png",
-      "width": 16,
-      "height": 16
-    },
-    {
-      "file": "mac-icon.png",
+      "file": "apps/desktop/assets/icon.png",
+      "size": 1024,
       "width": 1024,
-      "height": 1024
+      "height": 1024,
+      "nonOpaquePixels": 162867,
+      "paintBounds": {
+        "minX": 29,
+        "minY": 29,
+        "maxX": 994,
+        "maxY": 994
+      }
     },
     {
-      "file": "mac-icon-512.png",
+      "file": "apps/desktop/assets/mac-icon.png",
+      "size": 1024,
+      "width": 1024,
+      "height": 1024,
+      "nonOpaquePixels": 451672,
+      "paintBounds": {
+        "minX": 115,
+        "minY": 115,
+        "maxX": 908,
+        "maxY": 908
+      }
+    },
+    {
+      "file": "apps/mobile/assets/icon.png",
+      "size": 1024,
+      "width": 1024,
+      "height": 1024,
+      "nonOpaquePixels": 0,
+      "paintBounds": {
+        "minX": 0,
+        "minY": 0,
+        "maxX": 1023,
+        "maxY": 1023
+      }
+    },
+    {
+      "file": "apps/mobile/assets/adaptive-icon.png",
+      "size": 1024,
+      "width": 1024,
+      "height": 1024,
+      "nonOpaquePixels": 868923,
+      "paintBounds": {
+        "minX": 299,
+        "minY": 265,
+        "maxX": 724,
+        "maxY": 747
+      }
+    },
+    {
+      "file": "apps/mobile/assets/monochrome-icon.png",
+      "size": 1024,
+      "width": 1024,
+      "height": 1024,
+      "nonOpaquePixels": 912551,
+      "paintBounds": {
+        "minX": 310,
+        "minY": 265,
+        "maxX": 724,
+        "maxY": 747
+      }
+    },
+    {
+      "file": "apps/mobile/assets/splash-icon.png",
+      "size": 512,
       "width": 512,
-      "height": 512
+      "height": 512,
+      "nonOpaquePixels": 170234,
+      "paintBounds": {
+        "minX": 104,
+        "minY": 80,
+        "maxX": 407,
+        "maxY": 423
+      }
     },
     {
-      "file": "mac-icon-256.png",
-      "width": 256,
-      "height": 256
+      "file": "apps/mobile/assets/brand-mark.png",
+      "size": 1024,
+      "width": 1024,
+      "height": 1024,
+      "nonOpaquePixels": 680506,
+      "paintBounds": {
+        "minX": 208,
+        "minY": 160,
+        "maxX": 815,
+        "maxY": 847
+      }
     },
     {
-      "file": "mac-icon-128.png",
-      "width": 128,
-      "height": 128
-    },
-    {
-      "file": "mac-icon-64.png",
+      "file": "apps/mobile/assets/favicon.png",
+      "size": 64,
       "width": 64,
-      "height": 64
+      "height": 64,
+      "nonOpaquePixels": 724,
+      "paintBounds": {
+        "minX": 1,
+        "minY": 1,
+        "maxX": 62,
+        "maxY": 62
+      }
     },
     {
-      "file": "mac-icon-32.png",
+      "file": "assets/brand/app-icon.png",
+      "size": 1024,
+      "width": 1024,
+      "height": 1024,
+      "nonOpaquePixels": 162867,
+      "paintBounds": {
+        "minX": 29,
+        "minY": 29,
+        "maxX": 994,
+        "maxY": 994
+      }
+    },
+    {
+      "file": "assets/brand/app-icon-512.png",
+      "size": 512,
+      "width": 512,
+      "height": 512,
+      "nonOpaquePixels": 40926,
+      "paintBounds": {
+        "minX": 14,
+        "minY": 14,
+        "maxX": 497,
+        "maxY": 497
+      }
+    },
+    {
+      "file": "assets/brand/app-icon-256.png",
+      "size": 256,
+      "width": 256,
+      "height": 256,
+      "nonOpaquePixels": 10787,
+      "paintBounds": {
+        "minX": 7,
+        "minY": 7,
+        "maxX": 248,
+        "maxY": 248
+      }
+    },
+    {
+      "file": "assets/brand/app-icon-128.png",
+      "size": 128,
+      "width": 128,
+      "height": 128,
+      "nonOpaquePixels": 2772,
+      "paintBounds": {
+        "minX": 3,
+        "minY": 3,
+        "maxX": 124,
+        "maxY": 124
+      }
+    },
+    {
+      "file": "assets/brand/app-icon-64.png",
+      "size": 64,
+      "width": 64,
+      "height": 64,
+      "nonOpaquePixels": 724,
+      "paintBounds": {
+        "minX": 1,
+        "minY": 1,
+        "maxX": 62,
+        "maxY": 62
+      }
+    },
+    {
+      "file": "assets/brand/app-icon-32.png",
+      "size": 32,
       "width": 32,
-      "height": 32
+      "height": 32,
+      "nonOpaquePixels": 200,
+      "paintBounds": {
+        "minX": 0,
+        "minY": 0,
+        "maxX": 31,
+        "maxY": 31
+      }
     },
     {
-      "file": "mac-icon-16.png",
+      "file": "assets/brand/app-icon-16.png",
+      "size": 16,
       "width": 16,
-      "height": 16
+      "height": 16,
+      "nonOpaquePixels": 72,
+      "paintBounds": {
+        "minX": 0,
+        "minY": 0,
+        "maxX": 15,
+        "maxY": 15
+      }
     },
     {
-      "file": "mobile-icon.png",
-      "width": 1024,
-      "height": 1024
-    },
-    {
-      "file": "adaptive-foreground.png",
-      "width": 1024,
-      "height": 1024
-    },
-    {
-      "file": "monochrome-icon.png",
-      "width": 1024,
-      "height": 1024
-    },
-    {
-      "file": "trayTemplate.png",
+      "file": "apps/desktop/assets/trayTemplate.png",
+      "size": 18,
       "width": 18,
-      "height": 18
+      "height": 18,
+      "nonOpaquePixels": 316,
+      "paintBounds": {
+        "minX": 4,
+        "minY": 3,
+        "maxX": 14,
+        "maxY": 14
+      }
     },
     {
-      "file": "trayTemplate@2x.png",
+      "file": "apps/desktop/assets/trayTemplate@2x.png",
+      "size": 36,
       "width": 36,
-      "height": 36
+      "height": 36,
+      "nonOpaquePixels": 1167,
+      "paintBounds": {
+        "minX": 9,
+        "minY": 7,
+        "maxX": 28,
+        "maxY": 28
+      }
     }
   ]
 }

@@ -1,0 +1,12 @@
+[workspace]
+members = ["crates/pickdrop-core", "crates/pickdrop-tui", "apps/tauri/src-tauri"]
+resolver = "2"
+
+[profile.release]
+opt-level = "s"
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+
+[patch.crates-io]
+tauri-plugin-barcode-scanner = { path = "vendor/tauri-plugin-barcode-scanner" }

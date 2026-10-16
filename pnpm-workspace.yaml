@@ -1,7 +1,4 @@
 packages:
-  - apps/mobile
-  - apps/tui
+  - apps/tauri
 allowBuilds:
-  electron-winstaller: false
-  electron: true
   esbuild: true

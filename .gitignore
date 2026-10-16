@@ -1,12 +1,6 @@
+/.build/
 node_modules/
-dist/
-.build/
-artifacts/
 .pickdrop/
-.expo/
-apps/mobile/android/
-apps/mobile/ios/
-apps/mobile/export-check/
 *.log
 .DS_Store
 .env
@@ -14,6 +8,12 @@ apps/mobile/export-check/
 !.env.example
 coverage/
 *.tsbuildinfo
+target/
+apps/tauri/dist/
+apps/tauri/src-tauri/gen/
+apps/tauri/src-tauri/plugins/*/android/build/
+apps/tauri/src-tauri/plugins/*/android/.gradle/
+apps/tauri/src-tauri/plugins/*/ios/.build/
 *.pem
 *.key
 *.p12
@@ -21,6 +21,9 @@ coverage/
 *.mobileprovision
 *.keystore
 *.jks
-apps/mobile/credentials.json
-apps/mobile/modules/*/android/build/
-apps/mobile/modules/*/android/.gradle/
+
+# Local design-tool session records
+/.hallmark/
+
+# Local pnpm cache
+.pnpm-store/

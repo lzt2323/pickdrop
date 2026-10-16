@@ -1,0 +1,29 @@
+{
+  "name": "@pickdrop/tauri",
+  "version": "0.6.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "node --test tests/*.test.js",
+    "test:browser": "node tests/browser-smoke.mjs",
+    "test:gallery": "node tests/ui-gallery.mjs",
+    "test:motion": "node tests/dialog-motion.mjs",
+    "tauri": "tauri",
+    "test:regression": "node tests/file-window-regression.mjs",
+    "test:header": "node tests/header-controls.mjs",
+    "test:join": "node tests/join-request-browser.mjs",
+    "test:paste": "node tests/clipboard-paste.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.8.0",
+    "@tauri-apps/plugin-clipboard-manager": "^2.3.0",
+    "@tauri-apps/plugin-barcode-scanner": "^2.4.0",
+    "qrcode": "1.5.4"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.8.0",
+    "vite": "^7.1.0"
+  }
+}
